@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Android 11 ve altı için eski BT izinleri -->
+    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
+    <!-- Android 12+ : eşleşmiş cihazlara bağlanmak için -->
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- OBD yokken hız GPS'ten; ileride hava durumu için konum -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Ekran kapalıyken CPU uyumasın, veri akışı kesilmesin -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+
+    <uses-feature android:name="android.hardware.bluetooth" android:required="true" />
+
+    <!-- Android 11+ paket görünürlüğü: Yandex'i açmak, medya uygulamasının adını ve başlatıcısını bulmak -->
+    <queries>
+        <package android:name="ru.yandex.yandexnavi" />
+        <package android:name="ru.yandex.yandexmaps" />
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="yandexnavi" />
+        </intent>
+    </queries>
+
+    <application
+        android:label="OBD Dashboard"
+        android:icon="@android:drawable/stat_sys_data_bluetooth"
+        android:theme="@android:style/Theme.DeviceDefault.Light.DarkActionBar">
+
+        <!-- Bağlantı ve OBD araçları: dashboard ayarlarından açılır -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="false"
+            android:label="Bağlantı"
+            android:launchMode="singleTask" />
+
+        <!-- Araç ekranı (HEADUNIT.md): uygulama doğrudan bununla açılır, yalnız yatay -->
+        <activity
+            android:name=".dash.DashboardActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:screenOrientation="sensorLandscape"
+            tools:ignore="DiscouragedApi,LockedOrientationActivity"
+            android:theme="@android:style/Theme.DeviceDefault.NoActionBar.Fullscreen">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".dash.SettingsActivity"
+            android:exported="false"
+            android:screenOrientation="sensorLandscape"
+            tools:ignore="DiscouragedApi,LockedOrientationActivity"
+            android:theme="@android:style/Theme.DeviceDefault.NoActionBar.Fullscreen" />
+
+        <!-- İlk açılış sihirbazı -->
+        <activity
+            android:name=".dash.SetupActivity"
+            android:exported="false"
+            android:screenOrientation="sensorLandscape"
+            tools:ignore="DiscouragedApi,LockedOrientationActivity"
+            android:theme="@android:style/Theme.DeviceDefault.NoActionBar.Fullscreen" />
+
+        <!-- Kayıtları paylaşmak için (yalnız cache/share, yalnız okuma) -->
+        <provider
+            android:name=".dash.ShareProvider"
+            android:authorities="${applicationId}.share"
+            android:exported="false"
+            android:grantUriPermissions="true" />
+
+        <!-- Navigasyon bildirimlerinden sıradaki dönüşü okur (kullanıcı "bildirim erişimi" verir) -->
+        <service
+            android:name=".NaviListener"
+            android:exported="true"
+            android:label="OBD Köprü navigasyon okları"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+
+        <service
+            android:name=".BridgeService"
+            android:exported="false"
+            android:foregroundServiceType="connectedDevice" />
+    </application>
+</manifest>

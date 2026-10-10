@@ -1,0 +1,1032 @@
+[
+{
+"hdr": "7E0",
+"did": "033E",
+"rax": "7E8",
+"id": "VOLVO_BOOST_P_AFTER",
+"name": "Boost pressure after turbocharger",
+"fmt": {
+"len": 16,
+"max": 500,
+"min": -0.0534,
+"div": 131,
+"add": -0.053435,
+"unit": "kilopascal"
+}
+},
+{
+"hdr": "7E0",
+"did": "0341",
+"rax": "7E8",
+"id": "VOLVO_BOOST_AIR_T_7E0",
+"name": "Boost air temperature",
+"fmt": {
+"len": 8,
+"max": 119,
+"min": -40,
+"mul": 5,
+"div": 8,
+"add": -40,
+"unit": "celsius"
+}
+},
+{
+"hdr": "7E0",
+"did": "0707",
+"rax": "7E8",
+"id": "VOLVO_GRILL_SHUTTER_OPEN",
+"name": "Grill shutter open",
+"fmt": {
+"len": 8,
+"max": 100,
+"mul": 20,
+"div": 51,
+"unit": "percent"
+}
+},
+{
+"hdr": "7E0",
+"did": "D900",
+"rax": "7E8",
+"id": "VOLVO_AC_P_V2",
+"name": "Air conditioning pressure",
+"fmt": {
+"len": 16,
+"max": 13107,
+"div": 5,
+"unit": "kilopascal"
+}
+},
+{
+"hdr": "7E0",
+"did": "D909",
+"rax": "7E8",
+"id": "VOLVO_AC_RELAY",
+"name": "Air conditioning relay",
+"fmt": {
+"len": 8,
+"max": 255,
+"unit": "scalar"
+}
+},
+{
+"hdr": "7E0",
+"did": "D916",
+"rax": "7E8",
+"id": "VOLVO_AIR_FLOW_CYCLE_MG_S",
+"name": "Air flow/cycle, mg/s",
+"fmt": {
+"len": 16,
+"max": 6553,
+"div": 10,
+"unit": "scalar"
+}
+},
+{
+"hdr": "7E0",
+"did": "D91C",
+"rax": "7E8",
+"id": "VOLVO_M3_IAT_MAF",
+"name": "M3 IAT, MAF",
+"fmt": {
+"len": 16,
+"max": 65.53,
+"div": 1000,
+"unit": "celsius"
+}
+},
+{
+"hdr": "7E0",
+"did": "D91F",
+"rax": "7E8",
+"id": "VOLVO_AIR_MASS_DES",
+"name": "Air mass, desired",
+"fmt": {
+"len": 16,
+"max": 6553,
+"div": 10,
+"unit": "unknown"
+}
+},
+{
+"hdr": "7E0",
+"did": "D924",
+"rax": "7E8",
+"id": "VOLVO_ALTERNATOR_AMPS",
+"name": "Alternator, amps",
+"fmt": {
+"len": 16,
+"max": 655,
+"div": 100,
+"unit": "amps"
+}
+},
+{
+"hdr": "7E0",
+"did": "D941",
+"rax": "7E8",
+"id": "VOLVO_BOOST_P",
+"name": "Boost pressure",
+"fmt": {
+"len": 16,
+"max": 6553,
+"div": 10,
+"unit": "kilopascal"
+}
+},
+{
+"hdr": "7E0",
+"did": "D943",
+"rax": "7E8",
+"id": "VOLVO_BRAKE_SWITCH",
+"name": "Brake switch",
+"fmt": {
+"len": 8,
+"max": 100,
+"mul": 20,
+"div": 51,
+"unit": "scalar"
+}
+},
+{
+"hdr": "7E0",
+"did": "D94F",
+"rax": "7E8",
+"id": "VOLVO_SYSTEM_RELAY",
+"name": "System relay",
+"fmt": {
+"len": 8,
+"max": 255,
+"unit": "scalar"
+}
+},
+{
+"hdr": "7E0",
+"did": "D950",
+"rax": "7E8",
+"id": "VOLVO_STARTER_RELAY",
+"name": "Starter relay",
+"fmt": {
+"len": 8,
+"max": 255,
+"unit": "scalar"
+}
+},
+{
+"hdr": "7E0",
+"did": "D953",
+"rax": "7E8",
+"id": "VOLVO_BAT_RELAY",
+"name": "Battery relay",
+"fmt": {
+"len": 8,
+"max": 255,
+"unit": "scalar"
+}
+},
+{
+"hdr": "7E0",
+"did": "D95B",
+"rax": "7E8",
+"id": "VOLVO_CLT_PMP_RELAY",
+"name": "Coolant pump relay",
+"fmt": {
+"len": 8,
+"max": 255,
+"unit": "scalar"
+}
+},
+{
+"hdr": "7E0",
+"did": "D96C",
+"rax": "7E8",
+"id": "VOLVO_M3_EGR_DC",
+"name": "M3 EGR DC",
+"fmt": {
+"len": 16,
+"max": 655,
+"div": 100,
+"unit": "percent"
+}
+},
+{
+"hdr": "7E0",
+"did": "D96D",
+"rax": "7E8",
+"id": "VOLVO_EGR_VLV_CMD_POS_II",
+"name": "Exhaust gas recirculation valve, commanded position II",
+"fmt": {
+"len": 16,
+"max": 655,
+"div": 100,
+"unit": "percent"
+}
+},
+{
+"hdr": "7E0",
+"did": "D99C",
+"rax": "7E8",
+"id": "VOLVO_FUEL_T",
+"name": "Fuel temperature",
+"fmt": {
+"len": 16,
+"max": 3003,
+"min": -3549,
+"div": 10,
+"add": -273,
+"sign": true,
+"unit": "celsius"
+}
+},
+{
+"hdr": "7E0",
+"did": "D9A0",
+"rax": "7E8",
+"id": "VOLVO_GLOW_PLUGS",
+"name": "Glow plugs",
+"fmt": {
+"bix": 16,
+"len": 16,
+"max": 655,
+"div": 100,
+"unit": "percent"
+}
+},
+{
+"hdr": "7E0",
+"did": "D9A1",
+"rax": "7E8",
+"id": "VOLVO_ATF_T_VAR_3",
+"name": "Transmission fluid temperature, variant 3",
+"fmt": {
+"len": 8,
+"max": 195,
+"min": -60,
+"add": -60,
+"unit": "celsius"
+}
+},
+{
+"hdr": "7E0",
+"did": "D9AB",
+"rax": "7E8",
+"id": "VOLVO_TMAP_IAT",
+"name": "Intake air temperature, manifold sensor",
+"fmt": {
+"len": 16,
+"max": 3003,
+"min": -3549,
+"div": 10,
+"add": -273.14,
+"sign": true,
+"unit": "celsius"
+}
+},
+{
+"hdr": "7E0",
+"did": "D9B8",
+"rax": "7E8",
+"id": "VOLVO_CTRL_MODULE_T",
+"name": "Control module temperature",
+"fmt": {
+"len": 8,
+"max": 119,
+"min": -40,
+"mul": 5,
+"div": 8,
+"add": -40,
+"unit": "celsius"
+}
+},
+{
+"hdr": "7E0",
+"did": "D9DC",
+"rax": "7E8",
+"id": "VOLVO_EOT_V2",
+"name": "Engine oil temperature",
+"fmt": {
+"len": 16,
+"max": 6280,
+"min": -273,
+"div": 10,
+"add": -273.14,
+"unit": "celsius"
+}
+},
+{
+"hdr": "7E0",
+"did": "D9E4",
+"rax": "7E8",
+"id": "VOLVO_BOOST_P_DES",
+"name": "Boost pressure, desired value",
+"fmt": {
+"len": 16,
+"max": 6553,
+"div": 10,
+"unit": "kilopascal"
+}
+},
+{
+"hdr": "7E0",
+"did": "D9EE",
+"rax": "7E8",
+"id": "VOLVO_FUEL_P_REGULATOR_VLV",
+"name": "Fuel pressure regulator valve current",
+"fmt": {
+"len": 16,
+"max": 65535,
+"unit": "milliamps"
+}
+},
+{
+"hdr": "7E0",
+"did": "D9F2",
+"rax": "7E8",
+"id": "VOLVO_DPF_SOOT",
+"name": "Diesel particulate filter soot",
+"fmt": {
+"len": 16,
+"max": 655,
+"div": 100,
+"unit": "unknown"
+}
+},
+{
+"hdr": "7E0",
+"did": "D9F2",
+"rax": "7E8",
+"id": "VOLVO_M3_DPF_SOOT",
+"name": "M3 DPF soot",
+"fmt": {
+"bix": 16,
+"len": 16,
+"max": 6.55,
+"div": 10000,
+"unit": "gravity"
+}
+},
+{
+"hdr": "7E0",
+"did": "D9F3",
+"rax": "7E8",
+"id": "VOLVO_M3_DIFF_PRESS",
+"name": "M3 diff.press.",
+"fmt": {
+"len": 16,
+"max": 65535,
+"unit": "unknown"
+}
+},
+{
+"hdr": "7E0",
+"did": "D9F9",
+"rax": "7E8",
+"id": "VOLVO_DPF_T",
+"name": "Diesel particulate filter temperature",
+"fmt": {
+"len": 16,
+"max": 6280,
+"min": -273,
+"div": 10,
+"add": -273.14,
+"unit": "celsius"
+}
+},
+{
+"hdr": "7E0",
+"did": "D9FF",
+"rax": "7E8",
+"id": "VOLVO_FUEL_P_NOMINAL",
+"name": "Fuel pressure nominal value",
+"fmt": {
+"len": 16,
+"max": 6553500,
+"mul": 100,
+"unit": "unknown"
+}
+},
+{
+"hdr": "7E0",
+"did": "DA03",
+"rax": "7E8",
+"id": "VOLVO_MIS_CATALYTIC_DAMAGE",
+"name": "Misfire catalytic damage total - petrol",
+"fmt": {
+"len": 16,
+"max": 65535,
+"unit": "scalar"
+}
+},
+{
+"hdr": "7E0",
+"did": "DA04",
+"rax": "7E8",
+"id": "VOLVO_MIS_EMISSION_RELATED",
+"name": "Misfire emission related total - petrol",
+"fmt": {
+"len": 16,
+"max": 65535,
+"unit": "scalar"
+}
+},
+{
+"hdr": "7E0",
+"did": "DA12",
+"rax": "7E8",
+"id": "VOLVO_STARTER_RELAY_1",
+"name": "Starter relay 1",
+"fmt": {
+"len": 8,
+"max": 255,
+"unit": "scalar"
+}
+},
+{
+"hdr": "7E0",
+"did": "DA40",
+"rax": "7E8",
+"id": "VOLVO_GEAR_POS",
+"name": "Gear, AT position",
+"fmt": {
+"len": 8,
+"max": 127,
+"min": -128,
+"sign": true,
+"unit": "scalar"
+}
+},
+{
+"hdr": "7E0",
+"did": "DA59",
+"rax": "7E8",
+"id": "VOLVO_FRONT_OXYGEN_SENS",
+"name": "Front oxygen sensor heating",
+"fmt": {
+"len": 16,
+"max": 6553,
+"div": 10,
+"unit": "milliseconds"
+}
+},
+{
+"hdr": "7E0",
+"did": "DAAD",
+"rax": "7E8",
+"id": "VOLVO_EGR_VLV_POS_SENS",
+"name": "Exhaust gas recirculation valve position sensor",
+"fmt": {
+"len": 16,
+"max": 65535,
+"unit": "percent"
+}
+},
+{
+"hdr": "7E0",
+"did": "DAB6",
+"rax": "7E8",
+"id": "VOLVO_MIS_AVG_1",
+"name": "Cylinder 1 misfire average",
+"fmt": {
+"len": 16,
+"max": 65535,
+"unit": "scalar"
+}
+},
+{
+"hdr": "7E0",
+"did": "DAB6",
+"rax": "7E8",
+"id": "VOLVO_MIS_AVG_2",
+"name": "Cylinder 2 misfire average",
+"fmt": {
+"bix": 16,
+"len": 16,
+"max": 65535,
+"unit": "scalar"
+}
+},
+{
+"hdr": "7E0",
+"did": "DAB6",
+"rax": "7E8",
+"id": "VOLVO_MIS_AVG_3",
+"name": "Cylinder 3 misfire average",
+"fmt": {
+"bix": 32,
+"len": 16,
+"max": 65535,
+"unit": "scalar"
+}
+},
+{
+"hdr": "7E0",
+"did": "DAB6",
+"rax": "7E8",
+"id": "VOLVO_MIS_AVG_4",
+"name": "Cylinder 4 misfire average",
+"fmt": {
+"bix": 48,
+"len": 16,
+"max": 65535,
+"unit": "scalar"
+}
+},
+{
+"hdr": "7E0",
+"did": "DAB6",
+"rax": "7E8",
+"id": "VOLVO_MIS_AVG_5",
+"name": "Cylinder 5 misfire average",
+"fmt": {
+"bix": 64,
+"len": 16,
+"max": 65535,
+"unit": "scalar"
+}
+},
+{
+"hdr": "7E0",
+"did": "DAB6",
+"rax": "7E8",
+"id": "VOLVO_MIS_AVG_6",
+"name": "Cylinder 6 misfire average",
+"fmt": {
+"bix": 80,
+"len": 16,
+"max": 65535,
+"unit": "scalar"
+}
+},
+{
+"hdr": "7E0",
+"did": "DAB6",
+"rax": "7E8",
+"id": "VOLVO_MIS_AVG_7",
+"name": "Cylinder 7 misfire average",
+"fmt": {
+"bix": 96,
+"len": 16,
+"max": 65535,
+"unit": "scalar"
+}
+},
+{
+"hdr": "7E0",
+"did": "DAB6",
+"rax": "7E8",
+"id": "VOLVO_MIS_AVG_8",
+"name": "Cylinder 8 misfire average",
+"fmt": {
+"bix": 112,
+"len": 16,
+"max": 65535,
+"unit": "scalar"
+}
+},
+{
+"hdr": "7E0",
+"did": "DAC8",
+"rax": "7E8",
+"id": "VOLVO_DPF_P",
+"name": "Diesel particulate filter pressure",
+"fmt": {
+"len": 16,
+"max": 32767,
+"min": -32768,
+"sign": true,
+"unit": "unknown"
+}
+},
+{
+"hdr": "7E0",
+"did": "DAD2",
+"rax": "7E8",
+"id": "VOLVO_EGR_COOLER_BYPASS",
+"name": "Exhaust gas recirculation cooler bypass actuator position",
+"fmt": {
+"len": 16,
+"max": 655,
+"div": 100,
+"unit": "percent"
+}
+},
+{
+"hdr": "7E0",
+"did": "DAD5",
+"rax": "7E8",
+"id": "VOLVO_FUEL_VOLUME_CTRL_VLV",
+"name": "Fuel volume control valve",
+"fmt": {
+"len": 16,
+"max": 655,
+"div": 100,
+"unit": "percent"
+}
+},
+{
+"hdr": "7E0",
+"did": "DB35",
+"rax": "7E8",
+"id": "VOLVO_FUEL_FLT_HEATER_7E0",
+"name": "Fuel filter heater",
+"fmt": {
+"len": 8,
+"max": 255,
+"unit": "scalar"
+}
+},
+{
+"hdr": "7E0",
+"did": "DB77",
+"rax": "7E8",
+"id": "VOLVO_REAR_OXYGEN_SENS",
+"name": "Rear oxygen sensor heating",
+"fmt": {
+"len": 16,
+"max": 6553,
+"div": 10,
+"unit": "milliseconds"
+}
+},
+{
+"hdr": "7E0",
+"did": "DC00",
+"rax": "7E8",
+"id": "VOLVO_TURBO_CTRL_VLV",
+"name": "Turbo control valve, bypass or variable nozzle",
+"fmt": {
+"len": 16,
+"max": 800,
+"mul": 100,
+"div": 8191,
+"unit": "percent"
+}
+},
+{
+"hdr": "7E0",
+"did": "DC01",
+"rax": "7E8",
+"id": "VOLVO_EGR_VLV_CMD_POS",
+"name": "Exhaust gas recirculation valve, commanded position",
+"fmt": {
+"len": 16,
+"max": 65535,
+"unit": "percent"
+}
+},
+{
+"hdr": "7E0",
+"did": "DC02",
+"rax": "7E8",
+"id": "VOLVO_FAN",
+"name": "Fan",
+"fmt": {
+"len": 16,
+"max": 655,
+"div": 100,
+"unit": "percent"
+}
+},
+{
+"hdr": "7E0",
+"did": "DC10",
+"rax": "7E8",
+"id": "VOLVO_TURBO_CTRL_VLV_WASTEGATE",
+"name": "Turbo control valve wastegate",
+"fmt": {
+"len": 16,
+"max": 800,
+"mul": 100,
+"div": 8191,
+"unit": "percent"
+}
+},
+{
+"hdr": "7E0",
+"did": "DC13",
+"rax": "7E8",
+"id": "VOLVO_FUEL_VOLUME_CTRL_VLV_7E0",
+"name": "Fuel volume control valve",
+"fmt": {
+"len": 16,
+"max": 655,
+"div": 100,
+"unit": "percent"
+}
+},
+{
+"hdr": "7E0",
+"did": "DC14",
+"rax": "7E8",
+"id": "VOLVO_FUEL_FLT_HEATER",
+"name": "Fuel filter heater",
+"fmt": {
+"len": 8,
+"max": 255,
+"unit": "scalar"
+}
+},
+{
+"hdr": "7E0",
+"did": "DD01",
+"rax": "7E8",
+"id": "VOLVO_MILEAGE_ODO",
+"name": "Odometer",
+"fmt": {
+"len": 24,
+"max": 16777215,
+"unit": "kilometers"
+}
+},
+{
+"hdr": "7E0",
+"did": "EE7F",
+"rax": "7E8",
+"id": "VOLVO_EGR_BYPASS_VLV",
+"name": "Exhaust gas recirculation bypass valve",
+"fmt": {
+"len": 8,
+"max": 255,
+"unit": "percent"
+}
+},
+{
+"hdr": "7E0",
+"did": "EE84",
+"rax": "7E8",
+"id": "VOLVO_SUPERCHARGER_CLU_REQ",
+"name": "Supercharger clutch, requested position",
+"fmt": {
+"len": 8,
+"max": 255,
+"unit": "scalar"
+}
+},
+{
+"hdr": "7E0",
+"did": "EEEB",
+"rax": "7E8",
+"id": "VOLVO_STARTER_RELAY_2",
+"name": "Starter relay 2",
+"fmt": {
+"len": 8,
+"max": 255,
+"unit": "scalar"
+}
+},
+{
+"hdr": "7E0",
+"did": "EF44",
+"rax": "7E8",
+"id": "VOLVO_START_STOP_BRAKE_P",
+"name": "Start/stop brake booster pressure",
+"fmt": {
+"len": 16,
+"max": 3276,
+"min": -3276,
+"div": 10,
+"sign": true,
+"unit": "kilopascal"
+}
+},
+{
+"hdr": "7E0",
+"did": "EF4E",
+"rax": "7E8",
+"id": "VOLVO_EOP_V2",
+"name": "Engine oil pressure",
+"fmt": {
+"len": 16,
+"max": 6553,
+"div": 10,
+"unit": "kilopascal"
+}
+},
+{
+"hdr": "7E0",
+"did": "EF51",
+"rax": "7E8",
+"id": "VOLVO_START_STOP_BAT_RELAY",
+"name": "Start/stop battery relay",
+"fmt": {
+"len": 8,
+"max": 255,
+"unit": "scalar"
+}
+},
+{
+"hdr": "7E0",
+"did": "EF52",
+"rax": "7E8",
+"id": "VOLVO_START_STOP_SECONDARY",
+"name": "Start/stop secondary battery relay",
+"fmt": {
+"len": 8,
+"max": 255,
+"unit": "scalar"
+}
+},
+{
+"hdr": "7E0",
+"did": "EF59",
+"rax": "7E8",
+"id": "VOLVO_FUEL_PMP_LOW_P_SIDE",
+"name": "Fuel pump low pressure side duty cycle",
+"fmt": {
+"len": 16,
+"max": 655,
+"div": 100,
+"unit": "percent"
+}
+},
+{
+"hdr": "7E0",
+"did": "F404",
+"rax": "7E8",
+"id": "VOLVO_CALC_LOAD",
+"name": "Calculated load",
+"fmt": {
+"len": 8,
+"max": 100,
+"mul": 20,
+"div": 51,
+"unit": "percent"
+}
+},
+{
+"hdr": "7E0",
+"did": "F40E",
+"rax": "7E8",
+"id": "VOLVO_IGN_ANG_BTDC",
+"name": "Ignition angle before top dead center",
+"fmt": {
+"len": 8,
+"max": 63.5,
+"min": -64,
+"div": 2,
+"add": -64,
+"unit": "scalar"
+}
+},
+{
+"hdr": "7E0",
+"did": "F40F",
+"rax": "7E8",
+"id": "VOLVO_M3_IAT_BUTTERFLY",
+"name": "M3 IAT, butterfly",
+"fmt": {
+"len": 8,
+"max": 215,
+"min": -40,
+"add": -40,
+"unit": "celsius"
+}
+},
+{
+"hdr": "7E0",
+"did": "F411",
+"rax": "7E8",
+"id": "VOLVO_THROTTLE_ABS_POS",
+"name": "Throttle absolute position",
+"fmt": {
+"len": 8,
+"max": 100,
+"mul": 20,
+"div": 51,
+"unit": "percent"
+}
+},
+{
+"hdr": "7E0",
+"did": "F41F",
+"rax": "7E8",
+"id": "VOLVO_TIME_SINCE_ENG_START",
+"name": "Time since engine start",
+"fmt": {
+"len": 16,
+"max": 65535,
+"unit": "seconds"
+}
+},
+{
+"hdr": "7E0",
+"did": "F423",
+"rax": "7E8",
+"id": "VOLVO_FUEL_P",
+"name": "Fuel pressure",
+"fmt": {
+"len": 16,
+"max": 6553500,
+"mul": 100,
+"unit": "unknown"
+}
+},
+{
+"hdr": "7E0",
+"did": "F42F",
+"rax": "7E8",
+"id": "VOLVO_FLI_INPUT",
+"name": "Fuel level input",
+"fmt": {
+"len": 8,
+"max": 100,
+"mul": 20,
+"div": 51,
+"unit": "percent"
+}
+},
+{
+"hdr": "7E0",
+"did": "F443",
+"rax": "7E8",
+"id": "VOLVO_LOAD",
+"name": "Load",
+"fmt": {
+"len": 16,
+"max": 25700,
+"mul": 20,
+"div": 51,
+"unit": "percent"
+}
+},
+{
+"hdr": "7E0",
+"did": "F449",
+"rax": "7E8",
+"id": "VOLVO_M3_APP_ECM",
+"name": "Accelerator pedal position",
+"fmt": {
+"len": 8,
+"max": 100,
+"mul": 20,
+"div": 51,
+"unit": "percent"
+}
+},
+{
+"hdr": "7E0",
+"did": "F44A",
+"rax": "7E8",
+"id": "VOLVO_M3_APP_CAN",
+"name": "M3 APP, CAN",
+"fmt": {
+"len": 8,
+"max": 100,
+"mul": 20,
+"div": 51,
+"unit": "percent"
+}
+},
+{
+"hdr": "7E0",
+"did": "F6A2",
+"rax": "7E8",
+"id": "VOLVO_MIS_1",
+"name": "Cylinder 1 misfire",
+"fmt": {
+"bix": 96,
+"len": 8,
+"max": 255,
+"unit": "scalar"
+}
+},
+{
+"hdr": "7E0",
+"did": "F6A3",
+"rax": "7E8",
+"id": "VOLVO_MIS_2_V2",
+"name": "Cylinder 2 misfire",
+"fmt": {
+"bix": 96,
+"len": 8,
+"max": 255,
+"unit": "scalar"
+}
+},
+{
+"hdr": "7E0",
+"did": "F6A4",
+"rax": "7E8",
+"id": "VOLVO_MIS_3_V2",
+"name": "Cylinder 3 misfire",
+"fmt": {
+"bix": 96,
+"len": 8,
+"max": 255,
+"unit": "scalar"
+}
+},
+{
+"hdr": "7E0",
+"did": "F6A5",
+"rax": "7E8",
+"id": "VOLVO_MIS_4",
+"name": "Cylinder 4 misfire",
+"fmt": {
+"bix": 96,
+"len": 8,
+"max": 255,
+"unit": "scalar"
+}
+}
+]
