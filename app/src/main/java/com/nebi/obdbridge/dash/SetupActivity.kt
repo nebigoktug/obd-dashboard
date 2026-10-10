@@ -93,43 +93,22 @@ class SetupActivity : Activity() {
     }
 
     private fun adapter() {
-        title("Adaptörü seç", "Adaptör aracın OBD soketine takılı ve telefonla eşleştirilmiş olmalı.")
-        if (!Conn.hasBt(this)) {
-            body.addView(ui.text("Eşleşmiş cihazları görmek için Bluetooth izni gerekiyor.", 15f, Pal.DIM))
-            body.addView(ui.button("Bluetooth iznini ver", primary = true) {
-                val p = mutableListOf(Manifest.permission.BLUETOOTH_CONNECT)
-                if (Build.VERSION.SDK_INT >= 33) p += Manifest.permission.POST_NOTIFICATIONS
-                requestPermissions(p.toTypedArray(), 1)
-            }, wrap().apply { topMargin = ui.dp(12) })
-            nav(skip = null) { toastNeed("Önce Bluetooth izni") }
-            return
+        title("Adaptörü seç", "Adaptörü aracın OBD soketine tak ve kontağı aç. Bluetooth ya da Wi-Fi olabilir.")
+        val cur = Conn.label(this)
+        val card = ui.column().apply {
+            background = ui.bg(if (cur != null) Pal.CARD_ON else Pal.CARD, 14, if (cur != null) Pal.ICE else Pal.EDGE)
+            setPadding(ui.dp(18), ui.dp(14), ui.dp(18), ui.dp(14))
+            addView(ui.text(cur ?: "Henüz seçilmedi", 18f))
+            addView(ui.text(if (cur == null) "Aşağıdaki düğmeyle adaptörünü bul" else if (Conn.isWifi(this@SetupActivity)) "Wi-Fi" else "Bluetooth",
+                13f, Pal.DIM))
         }
-        val devs = Conn.devices(this)
-        if (!Conn.btOn(this)) body.addView(ui.text("Bluetooth kapalı. Açıp geri dön.", 15f, Pal.AMBER))
-        if (devs.isEmpty()) {
-            body.addView(ui.text("Eşleşmiş cihaz yok. Telefonun Bluetooth ayarlarında adaptörü bul (OBDII, ELM327, V-LINK…) ve " +
-                "eşleştir; PIN sorarsa 1234 ya da 0000 dene.", 15f, Pal.DIM))
-        }
-        var sel = Conn.address(this) ?: devs.firstOrNull()?.address
-        val list = ui.column()
-        fun paint() {
-            list.removeAllViews()
-            for (d in devs) {
-                val on = d.address == sel
-                val row = ui.text("${if (on) "●" else "○"}   ${Conn.label(d)}    ${d.address}", 16f, if (on) Pal.TEXT else Pal.DIM).apply {
-                    minHeight = ui.dp(56); gravity = Gravity.CENTER_VERTICAL; setPadding(ui.dp(18), 0, ui.dp(18), 0)
-                    background = ui.bg(if (on) Pal.CARD_ON else Pal.CARD, 14, if (on) Pal.ICE else Pal.EDGE)
-                    setOnClickListener { sel = d.address; paint() }
-                }
-                list.addView(row, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = ui.dp(6) })
-            }
-        }
-        paint()
-        body.addView(list)
-        body.addView(ui.button("Bluetooth ayarlarını aç") { Conn.openBtSettings(this) }, wrap().apply { topMargin = ui.dp(10) })
+        body.addView(card, LinearLayout.LayoutParams(-1, -2))
+        body.addView(ui.button(if (cur == null) "Adaptör bul" else "Değiştir", primary = cur == null) {
+            AdapterPicker(this, { requestPermissions(it, 1) }) { show(step) }.show()
+        }, wrap().apply { topMargin = ui.dp(12) })
         nav(skip = "Adaptörsüz dene (demo)", onSkip = { dash.edit().putBoolean("demo", true).apply(); show(step + 1) }) {
-            val a = sel ?: return@nav toastNeed("Bir adaptör seç")
-            Conn.setAddress(this, a); dash.edit().putBoolean("demo", false).apply(); show(step + 1)
+            if (!Conn.configured(this)) return@nav toastNeed("Önce adaptör seç")
+            dash.edit().putBoolean("demo", false).apply(); show(step + 1)
         }
     }
 

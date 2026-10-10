@@ -102,7 +102,7 @@ class DashboardActivity : Activity(), SensorEventListener {
         }
         // İlk açılış: yeni kullanıcı sihirbaza; eski kurulum (adaptör seçilmiş) sihirbazı atlar, profil S40 1.6D
         if (!prefs.getBoolean("setup_done", false)) {
-            if (Conn.address(this) == null) { startActivity(android.content.Intent(this, SetupActivity::class.java)); finish(); return }
+            if (!Conn.configured(this) || Conn.address(this) == null && !Conn.isWifi(this)) { startActivity(android.content.Intent(this, SetupActivity::class.java)); finish(); return }
             prefs.edit().putBoolean("setup_done", true).apply()
         }
         applyVehicle()

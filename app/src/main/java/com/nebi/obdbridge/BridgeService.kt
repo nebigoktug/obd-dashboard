@@ -30,6 +30,12 @@ import com.nebi.obdbridge.obd.EngineStatus
 import com.nebi.obdbridge.obd.LinkLostException
 import com.nebi.obdbridge.obd.ObdEngine
 import com.nebi.obdbridge.obd.Sample
+import com.nebi.obdbridge.link.AdapterSpec
+import com.nebi.obdbridge.link.BleLink
+import com.nebi.obdbridge.link.Link
+import com.nebi.obdbridge.link.LinkType
+import com.nebi.obdbridge.link.SppLink
+import com.nebi.obdbridge.link.TcpLink
 
 /**
  * Bluetooth SPP (ELM327) <-> 127.0.0.1:35000 TCP ham bayt köprüsü.
@@ -65,6 +71,16 @@ class BridgeService : Service() {
         @Volatile var scanRunning = false
         @Volatile var sniffRunning = false
         const val PREF_RAW_TCP = "raw_tcp"
+        /** Adaptör türü (LinkType adı) ve Wi-Fi adresi */
+        const val PREF_LINK_TYPE = "link_type"
+        const val PREF_WIFI_HOST = "wifi_host"
+
+        fun spec(ctx: android.content.Context): AdapterSpec? {
+            val p = ctx.getSharedPreferences(PREFS, MODE_PRIVATE)
+            val t = try { LinkType.valueOf(p.getString(PREF_LINK_TYPE, null) ?: "SPP") } catch (_: Exception) { LinkType.SPP }
+            return if (t == LinkType.WIFI) AdapterSpec(t, p.getString(PREF_WIFI_HOST, null) ?: TcpLink.DEFAULT)
+            else p.getString(EXTRA_ADDR, null)?.let { AdapterSpec(t, it) }
+        }
         /** Otomatik sürüş kaydı (Ayarlar > Kayıtlar), varsayılan açık */
         const val PREF_DRIVE_LOG = "drive_log"
         const val PREFS = "bridge"
@@ -85,8 +101,8 @@ class BridgeService : Service() {
 
     // Bu servis örneğine ait bayrak: eski örneğin geç uyanan thread'leri yeni örneğe karışmasın
     @Volatile private var active = false
-    @Volatile private var bt: BluetoothSocket? = null       // bağlı BT soketi
-    @Volatile private var pending: BluetoothSocket? = null  // connect() sürerken; Durdur bunu kapatıp iptal eder
+    @Volatile private var bt: Link? = null                 // bağlı adaptör (klasik BT, BLE ya da Wi-Fi)
+    @Volatile private var pending: Closeable? = null        // bağlantı kurulurken; Durdur bunu kapatıp iptal eder
     @Volatile private var engine: ObdEngine? = null
     /** Her sürüşün otomatik kaydı (files/logs/), geçmiş ekranı bunları özetler */
     private var driveLog: com.nebi.obdbridge.dash.DriveLog? = null
@@ -136,10 +152,10 @@ class BridgeService : Service() {
         if (active) return START_STICKY
 
         // intent null ise sistem servisi yeniden başlatmıştır: son cihazı kayıttan al
-        val addr = intent?.getStringExtra(EXTRA_ADDR)
-            ?: getSharedPreferences(PREFS, MODE_PRIVATE).getString(EXTRA_ADDR, null)
-        val device = addr?.let { btDevice(it) }
-        if (device == null || !startInForeground()) {
+        intent?.getStringExtra(EXTRA_ADDR)?.let { getSharedPreferences(PREFS, MODE_PRIVATE).edit().putString(EXTRA_ADDR, it).apply() }
+        val spec = spec(this)
+        val device = if (spec?.type == LinkType.WIFI) null else spec?.let { btDevice(it.address) }
+        if (spec == null || (spec.type != LinkType.WIFI && device == null) || !startInForeground()) {
             stopSelf()
             return START_NOT_STICKY
         }
@@ -162,7 +178,7 @@ class BridgeService : Service() {
             .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "ObdBridge::bridge")
             .apply { setReferenceCounted(false); acquire() }
 
-        btThread = Thread({ btLoop(device) }, "bt").apply { start() }
+        btThread = Thread({ linkLoop(spec, device) }, "link").apply { start() }
         startDriveLog()
         if (server != null) acceptThread = Thread(::acceptLoop, "accept").apply { start() }
         return START_STICKY
@@ -231,20 +247,37 @@ class BridgeService : Service() {
         return sock
     }
 
-    @Suppress("MissingPermission")
-    private fun btLoop(device: BluetoothDevice) {
+    /**
+     * Kullanıcı yalnız "Bluetooth" ya da "Wi-Fi" seçer; klasik/BLE ayrımını cihaz türünden biz yaparız.
+     * Hem klasik hem BLE olan (DUAL) ya da türü bilinmeyen adaptörde önce klasik, olmazsa BLE denenir.
+     */
+    @SuppressLint("MissingPermission")
+    private fun connect(spec: AdapterSpec, device: BluetoothDevice?): Link = when (spec.type) {
+        LinkType.WIFI -> TcpLink.connect(this, spec.address) { pending = it }
+        LinkType.BLE -> BleLink.connect(this, device!!) { pending = it }
+        LinkType.SPP -> try {
+            SppLink(connectBt(device!!))
+        } catch (e: IOException) {
+            val t = try { device!!.type } catch (_: SecurityException) { BluetoothDevice.DEVICE_TYPE_UNKNOWN }
+            if (!active || t == BluetoothDevice.DEVICE_TYPE_CLASSIC) throw e
+            Log.w(TAG, "Klasik bağlantı olmadı (${e.message}), BLE deneniyor")
+            BleLink.connect(this, device!!) { pending = it }
+        }
+    }
+
+    private fun linkLoop(spec: AdapterSpec, device: BluetoothDevice?) {
         val buf = ByteArray(1024)
+        val what = if (spec.type == LinkType.WIFI) "Wi-Fi" else "Bluetooth"
         while (active) {
-            setStatus("BT bağlanıyor")
+            setStatus("$what adaptörüne bağlanıyor")
             try {
-                val sock = connectBt(device)
-                bt = sock
+                val link = connect(spec, device)
+                bt = link
                 if (!active) break
-                setStatus("BT bağlı")
-                val eng = startEngine(sock, device.address)
-                val input = sock.inputStream
+                setStatus("$what bağlı")
+                val eng = startEngine(link, spec.key)
                 while (active) {
-                    val n = input.read(buf)
+                    val n = link.read(buf)
                     if (n < 0) break
                     // Ham istemci bağlıysa veri ona, değilse OBD motoruna
                     val c = client
@@ -256,24 +289,24 @@ class BridgeService : Service() {
                     }
                 }
             } catch (e: Exception) {
-                Log.w(TAG, "BT hatası: ${e.message}")
+                Log.w(TAG, "$what hatası: ${e.message}")
+                if (active) setStatus("$what: ${e.message ?: "bağlanılamadı"}")
             }
-            // BT koptu: motoru durdur, istemciyi de kapat ki karşı taraf durumu anlasın
+            // Bağlantı koptu: motoru durdur, istemciyi de kapat ki karşı taraf durumu anlasın
             engine?.stop(); engine = null
             closeQuietly(bt); bt = null
             client?.let { dropClient(it) }
             if (!active) break
-            setStatus("BT koptu, yeniden deneniyor")
             try { Thread.sleep(RETRY_MS) } catch (_: InterruptedException) { break }
+            setStatus("$what bağlantısı yeniden deneniyor")
         }
     }
 
     // ---------- OBD motoru ----------
 
-    private fun startEngine(sock: BluetoothSocket, mac: String): ObdEngine {
-        val out = sock.outputStream
+    private fun startEngine(link: Link, key: String): ObdEngine {
         val prefs = getSharedPreferences(PREFS, MODE_PRIVATE)
-        val eng = ObdEngine({ synchronized(out) { out.write(it); out.flush() } }, object : EngineListener {
+        val eng = ObdEngine({ link.write(it) }, object : EngineListener {
             override fun onSamples(samples: List<Sample>) {
                 for (x in samples) latest[x.key] = x
             }
@@ -286,14 +319,15 @@ class BridgeService : Service() {
         if (blockOut != null) attachBlockLog(eng)
         Thread({
             try {
-                eng.run(prefs.getString("proto_$mac", null))
+                // Eski kayıt (2026-10-11 öncesi) MAC'le tutuluyordu
+                eng.run(prefs.getString("proto_$key", null) ?: prefs.getString("proto_${key.substringAfter('_')}", null))
             } catch (e: LinkLostException) {
                 Log.w(TAG, "OBD: ${e.message}")
-                closeQuietly(sock)  // BT okuyucusu düşer, yeniden bağlanma döngüsü devreye girer
+                closeQuietly(link)  // okuyucu düşer, yeniden bağlanma döngüsü devreye girer
             } catch (e: Exception) {
                 Log.e(TAG, "OBD motoru çöktü", e)
             }
-            eng.protocol?.let { prefs.edit().putString("proto_$mac", it).apply() }
+            eng.protocol?.let { prefs.edit().putString("proto_$key", it).apply() }
         }, "obd").start()
         return eng
     }
@@ -455,15 +489,14 @@ class BridgeService : Service() {
         }
     }
 
-    private fun tcpToBt(s: Socket, sock: BluetoothSocket) {
+    private fun tcpToBt(s: Socket, link: Link) {
         val buf = ByteArray(1024)
         try {
             val input = s.getInputStream()
-            val out = sock.outputStream
             while (active) {
                 val n = input.read(buf)
                 if (n < 0) break
-                synchronized(out) { out.write(buf, 0, n); out.flush() }
+                link.write(buf, 0, n)
             }
         } catch (_: IOException) {
         }
@@ -476,7 +509,7 @@ class BridgeService : Service() {
         if (client === s) {
             client = null
             if (active && bt != null) {
-                setStatus("BT bağlı")
+                setStatus("Adaptör bağlı")
                 engine?.resume()
             }
         }

@@ -7,6 +7,11 @@
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
     <!-- Android 12+ : eşleşmiş cihazlara bağlanmak için -->
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <!-- BLE adaptör taraması; konum için kullanılmaz -->
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation"
+        tools:targetApi="s" />
+    <!-- Wi-Fi adaptörü: soketi internetsiz Wi-Fi ağına bağlamak için ağları listelemek -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- OBD yokken hız GPS'ten; ileride hava durumu için konum -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
@@ -18,7 +23,9 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
-    <uses-feature android:name="android.hardware.bluetooth" android:required="true" />
+    <!-- Wi-Fi adaptörüyle Bluetooth'suz da çalışır -->
+    <uses-feature android:name="android.hardware.bluetooth" android:required="false" />
+    <uses-feature android:name="android.hardware.bluetooth_le" android:required="false" />
 
     <!-- Android 11+ paket görünürlüğü: Yandex'i açmak, medya uygulamasının adını ve başlatıcısını bulmak -->
     <queries>

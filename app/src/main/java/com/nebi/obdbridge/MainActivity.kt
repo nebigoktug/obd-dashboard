@@ -187,8 +187,10 @@ class MainActivity : Activity() {
             return
         }
         val dev = devices.getOrNull(spinner.selectedItemPosition) ?: return
+        // Teşhis ekranı klasik Bluetooth listesinden seçer (BLE/Wi-Fi seçimi Ayarlar'da)
         getSharedPreferences(BridgeService.PREFS, MODE_PRIVATE).edit()
-            .putString(BridgeService.EXTRA_ADDR, dev.address).apply()
+            .putString(BridgeService.EXTRA_ADDR, dev.address)
+            .putString(BridgeService.PREF_LINK_TYPE, com.nebi.obdbridge.link.LinkType.SPP.name).apply()
         startForegroundService(
             Intent(this, BridgeService::class.java).putExtra(BridgeService.EXTRA_ADDR, dev.address)
         )

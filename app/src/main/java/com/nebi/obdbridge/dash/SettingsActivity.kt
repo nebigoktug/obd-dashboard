@@ -148,22 +148,22 @@ class SettingsActivity : Activity() {
             pane.postDelayed({ show(section) }, 400)
         })
         header("Adaptör")
-        add(ui.item("OBD adaptörü", "Telefonla eşleştirilmiş ELM327 Bluetooth adaptörü", { Conn.name(this, Conn.address(this)) ?: "Seçilmedi" }) {
-            val devs = Conn.devices(this)
-            if (!Conn.hasBt(this)) { requestPermissions(arrayOf(android.Manifest.permission.BLUETOOTH_CONNECT), 1); return@item }
-            if (devs.isEmpty()) { toast("Eşleşmiş cihaz yok. Önce Bluetooth ayarlarından adaptörü eşleştir."); Conn.openBtSettings(this); return@item }
-            choose("Adaptör seç", devs.map { "${Conn.label(it)}  (${it.address})" }, devs.indexOfFirst { it.address == Conn.address(this) }) {
-                if (BridgeService.running) Conn.stop(this)
-                Conn.setAddress(this, devs[it].address)
-            }
+        add(ui.item("OBD adaptörü", "Bluetooth ya da Wi-Fi ELM327 adaptörü",
+            { Conn.label(this)?.let { (if (Conn.isWifi(this)) "Wi-Fi · " else "Bluetooth · ") + it } ?: "Seçilmedi" }) {
+            val before = BridgeService.spec(this)
+            AdapterPicker(this, { requestPermissions(it, 1) }) {
+                if (BridgeService.running && BridgeService.spec(this) != before) Conn.stop(this)
+                show(section)
+            }.show()
         })
-        add(ui.item("Adaptör nasıl eşleştirilir?", "Listede adaptör yoksa", null) {
+        add(ui.item("Adaptör nasıl bağlanır?", "Listede adaptör yoksa", null) {
             AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                .setTitle("Adaptörü eşleştirme")
-                .setMessage("1. Adaptörü aracın OBD soketine tak (genelde direksiyonun sol altında).\n" +
-                    "2. Kontağı aç.\n3. Telefonun Bluetooth ayarlarında adaptörü bul (OBDII, OBD, ELM327, V-LINK gibi).\n" +
-                    "4. PIN sorarsa 1234 ya da 0000 dene.\n5. Bu ekrana dönüp adaptörü seç.\n\n" +
-                    "Yalnız Bluetooth Classic (SPP) ELM327 adaptörler desteklenir. Wi-Fi ve yalnız BLE modelleri çalışmaz.")
+                .setTitle("Adaptörü bağlama")
+                .setMessage("1. Adaptörü aracın OBD soketine tak (genelde direksiyonun sol altında) ve kontağı aç.\n\n" +
+                    "Bluetooth: Adaptör seçiminde yakındaki adaptörler listelenir. Bazı adaptörler önce telefonun Bluetooth " +
+                    "ayarlarından eşleştirilmek ister (OBDII, ELM327, V-LINK gibi; PIN genelde 1234 ya da 0000).\n\n" +
+                    "Wi-Fi: Telefonu adaptörün Wi-Fi ağına bağla, \"internet yok\" uyarısında bağlı kal; adres genelde 192.168.0.10:35000.\n\n" +
+                    "ELM327 uyumlu Bluetooth (klasik ve BLE) ve Wi-Fi adaptörler desteklenir.")
                 .setPositiveButton("Bluetooth ayarlarını aç") { _, _ -> Conn.openBtSettings(this) }
                 .setNegativeButton("Tamam", null).show()
         })

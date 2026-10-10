@@ -19,6 +19,8 @@ import android.view.View
 import android.widget.LinearLayout
 import android.widget.TextView
 import com.nebi.obdbridge.BridgeService
+import com.nebi.obdbridge.link.LinkType
+import com.nebi.obdbridge.link.TcpLink
 
 // Ayarlar ve ilk açılış sihirbazı için ortak küçük arayüz takımı (2026-10-10, forum sürümü):
 // referans temanın renkleri, büyük dokunma alanları, her seçeneğin altında tek cümlelik açıklama.
@@ -164,20 +166,78 @@ object Conn {
     fun address(ctx: Context): String? = prefs(ctx).getString(BridgeService.EXTRA_ADDR, null)
     fun setAddress(ctx: Context, a: String) = prefs(ctx).edit().putString(BridgeService.EXTRA_ADDR, a).apply()
 
+    fun type(ctx: Context): LinkType = try { LinkType.valueOf(prefs(ctx).getString(BridgeService.PREF_LINK_TYPE, null) ?: "SPP") }
+        catch (_: Exception) { LinkType.SPP }
+    fun setType(ctx: Context, t: LinkType) = prefs(ctx).edit().putString(BridgeService.PREF_LINK_TYPE, t.name).apply()
+    fun wifiHost(ctx: Context): String = prefs(ctx).getString(BridgeService.PREF_WIFI_HOST, null) ?: TcpLink.DEFAULT
+    fun setWifiHost(ctx: Context, h: String) = prefs(ctx).edit().putString(BridgeService.PREF_WIFI_HOST, h).apply()
+    /** Kullanıcıya iki tür gösterilir: Bluetooth (klasik ya da BLE, otomatik) ve Wi-Fi */
+    fun isWifi(ctx: Context) = type(ctx) == LinkType.WIFI
+
+    /** Bluetooth adaptörü seç: türü cihazdan anlaşılır (yalnız BLE ise BLE, değilse klasik; klasik olmazsa servis BLE dener) */
+    @SuppressLint("MissingPermission")
+    fun chooseBt(ctx: Context, address: String, name: String?, leOnly: Boolean) {
+        setAddress(ctx, address)
+        val dev = try { (ctx.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager).adapter?.getRemoteDevice(address) } catch (_: Exception) { null }
+        val le = leOnly || (try { dev?.type } catch (_: SecurityException) { null }) == BluetoothDevice.DEVICE_TYPE_LE
+        setType(ctx, if (le) LinkType.BLE else LinkType.SPP)
+        prefs(ctx).edit().putString("bt_name", name).apply()
+    }
+
+    /** Bağlanmaya hazır mı (adaptör seçilmiş, gerekli izin var) */
+    fun configured(ctx: Context) = when (type(ctx)) {
+        LinkType.WIFI -> true
+        else -> address(ctx) != null && hasBt(ctx)
+    }
+
     fun start(ctx: Context): Boolean {
-        val a = address(ctx) ?: return false
-        if (!hasBt(ctx)) return false
-        ctx.startForegroundService(Intent(ctx, BridgeService::class.java).putExtra(BridgeService.EXTRA_ADDR, a))
+        if (!configured(ctx)) return false
+        ctx.startForegroundService(Intent(ctx, BridgeService::class.java))
         return true
+    }
+
+    /** Ayarlarda gösterilen adaptör adı */
+    fun label(ctx: Context): String? = when (type(ctx)) {
+        LinkType.WIFI -> wifiHost(ctx)
+        else -> address(ctx)?.let { a -> prefs(ctx).getString("bt_name", null) ?: name(ctx, a) ?: a }
+    }
+
+    fun hasScan(ctx: Context) = if (Build.VERSION.SDK_INT >= 31)
+        ctx.checkSelfPermission(Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED
+    else ctx.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+
+    fun scanPerms(): Array<String> = if (Build.VERSION.SDK_INT >= 31)
+        arrayOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT)
+    else arrayOf(Manifest.permission.ACCESS_FINE_LOCATION)
+
+    /**
+     * Yakındaki BLE cihazlarını [ms] boyunca tarar; her yeni cihazda [found] (adres, ad) çağrılır (ana thread).
+     * Döndürülen fonksiyon taramayı durdurur. OBD adaptörlerinin çoğu adını yayınlar; adsızlar listelenmez.
+     */
+    @SuppressLint("MissingPermission")
+    fun scanBle(ctx: Context, ms: Long = 10_000, found: (String, String) -> Unit): () -> Unit {
+        val sc = (ctx.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager).adapter?.bluetoothLeScanner ?: return {}
+        val seen = HashSet<String>()
+        val h = android.os.Handler(android.os.Looper.getMainLooper())
+        val cb = object : android.bluetooth.le.ScanCallback() {
+            override fun onScanResult(type: Int, r: android.bluetooth.le.ScanResult) {
+                val name = r.scanRecord?.deviceName ?: (try { r.device.name } catch (_: SecurityException) { null }) ?: return
+                if (seen.add(r.device.address)) h.post { found(r.device.address, name) }
+            }
+        }
+        val stop = { try { sc.stopScan(cb) } catch (_: Exception) {} }
+        try { sc.startScan(cb) } catch (_: Exception) { return {} }
+        h.postDelayed({ stop() }, ms)
+        return stop
     }
 
     fun stop(ctx: Context) = ctx.stopService(Intent(ctx, BridgeService::class.java))
 
     /** Kullanıcıya gösterilecek kısa bağlantı durumu */
     fun status(ctx: Context): String = when {
-        !hasBt(ctx) -> "Bluetooth izni yok"
-        !btOn(ctx) && !BridgeService.running -> "Bluetooth kapalı"
-        address(ctx) == null -> "Adaptör seçilmedi"
+        type(ctx) != LinkType.WIFI && !hasBt(ctx) -> "Bluetooth izni yok"
+        type(ctx) != LinkType.WIFI && !btOn(ctx) && !BridgeService.running -> "Bluetooth kapalı"
+        type(ctx) != LinkType.WIFI && address(ctx) == null -> "Adaptör seçilmedi"
         !BridgeService.running -> "Bağlı değil"
         else -> BridgeService.status
     }
