@@ -233,12 +233,20 @@ class SettingsActivity : Activity() {
             { if (NaviListener.hasAccess(this)) "Verildi ✓" else "Verilmedi" }) {
             startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
         })
+        header("Navigasyon")
+        val apps = NaviApp.installed(this)
+        add(ui.item("Navigasyon uygulaması", "Ana ekrandaki Harita düğmesi ve Ev/İş rotaları bununla açılır",
+            { NaviApp.current(this)?.label ?: "Yüklü değil" }) {
+            if (apps.isEmpty()) { toast("Yandex Navigator, Google Haritalar ya da Waze yükle"); return@item }
+            choose("Navigasyon uygulaması", apps.map { it.label + if (it.arrows) "" else "  (dönüş oku gösterilmez)" },
+                apps.indexOf(NaviApp.current(this))) { dash.edit().putString("navi_app", apps[it].name).apply() }
+        })
         header("Hızlı hedefler")
         for ((k, label) in listOf("home" to "Ev", "work" to "İş")) {
-            add(ui.item("$label konumu", "Ana ekrandaki $label düğmesi bu adrese Yandex Navigator'da rota açar",
+            add(ui.item("$label konumu", "Ana ekrandaki $label düğmesi bu adrese seçili navigasyon uygulamasında rota açar",
                 { dash.getString("place_$k", null) ?: "Girilmedi" }) { askPlace(k, label) })
         }
-        note("Desteklenen navigasyon: Yandex Navigator (dönüş oku ve rota). Google Haritalar'ın dönüş oku da okunur.")
+        note("Dönüş oku Yandex Navigator, Yandex Haritalar ve Google Haritalar'ın bildiriminden okunur; Waze'de yalnız açma ve rota.")
     }
 
     private fun askPlace(k: String, label: String) {

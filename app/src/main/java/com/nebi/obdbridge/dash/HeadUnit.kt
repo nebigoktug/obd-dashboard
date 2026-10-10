@@ -107,7 +107,7 @@ abstract class TouchCard(ctx: Context) : View(ctx) {
 
 /**
  * Rota varken: Yandex'in oku, mesafe, sokak (NaviListener). Dokununca Yandex açılır.
- * Rota yokken: Ev / İş hızlı hedefleri ve "Yandex".
+ * Rota yokken: Ev / İş hızlı hedefleri ve "Harita" (seçili navigasyon uygulaması, [NaviApp]).
  */
 @SuppressLint("ViewConstructor")
 class NaviCard(ctx: Context, private val prefs: android.content.SharedPreferences, private val onNeedPlace: (String) -> Unit) : TouchCard(ctx) {
@@ -155,7 +155,7 @@ class NaviCard(ctx: Context, private val prefs: android.content.SharedPreference
         c.drawText("NEREYE?", pad * 1.2f, pad + h * 0.11f, title)
         val top = pad + h * 0.2f
         val bw = (w - pad * 4) / 3
-        val labels = arrayOf("Ev", "İş", "Yandex")
+        val labels = arrayOf("Ev", "İş", "Harita")
         val rad = h * 0.07f
         for (i in 0 until 3) {
             val r = btns[i]
@@ -171,7 +171,7 @@ class NaviCard(ctx: Context, private val prefs: android.content.SharedPreference
             c.drawText(labels[i], r.centerX(), r.bottom - r.height() * 0.16f, lp)
             hits += r to {
                 if (i == 2) openNavi()
-                else prefs.getString("place_$key", null)?.let { routeTo(it) } ?: onNeedPlace(key)
+                else prefs.getString("place_$key", null)?.let { NaviApp.routeTo(context, it) } ?: onNeedPlace(key)
             }
         }
     }
@@ -207,22 +207,10 @@ class NaviCard(ctx: Context, private val prefs: android.content.SharedPreference
     }
 
     private fun openNavi() {
-        val pm = context.packageManager
-        val pkg = listOf(YANDEX_NAVI, "ru.yandex.yandexmaps").firstOrNull { pm.getLaunchIntentForPackage(it) != null } ?: return
-        context.startActivity(pm.getLaunchIntentForPackage(pkg)!!.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-    }
-
-    /** "enlem,boylam" → Yandex Navigator'da rota. */
-    private fun routeTo(latLon: String) {
-        val (lat, lon) = latLon.split(',').map { it.trim() }.takeIf { it.size == 2 } ?: return
-        val i = Intent(Intent.ACTION_VIEW, Uri.parse("yandexnavi://build_route_on_map?lat_to=$lat&lon_to=$lon"))
-            .setPackage(YANDEX_NAVI).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        try { context.startActivity(i) } catch (_: Exception) { openNavi() }
+        if (!NaviApp.open(context)) android.widget.Toast.makeText(context, "Navigasyon uygulaması bulunamadı", android.widget.Toast.LENGTH_SHORT).show()
     }
 
     companion object {
-        const val YANDEX_NAVI = "ru.yandex.yandexnavi"
-
         /** "41.0123, 28.9876" ya da Google/Yandex harita bağlantısından enlem,boylam çıkarır. */
         fun parsePlace(s: String): String? {
             val m = Regex("(-?\\d{1,2}\\.\\d+)\\s*[, ]\\s*(-?\\d{1,3}\\.\\d+)").find(s) ?: return null

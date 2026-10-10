@@ -140,7 +140,7 @@ class SetupActivity : Activity() {
         title("İsteğe bağlı izinler", "İkisi de zorunlu değil; vermezsen ilgili özellik çalışmaz, gerisi çalışır.")
         val notif = NaviListener.hasAccess(this)
         val loc = checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
-        permRow("Bildirim erişimi", "Navigasyonun (Yandex) dönüş okunu ve çalan müziği göstermek, müziği kontrol etmek için. " +
+        permRow("Bildirim erişimi", "Navigasyonun (Yandex, Google Haritalar) dönüş okunu ve çalan müziği göstermek, müziği kontrol etmek için. " +
             "Bildirimler telefondan dışarı gönderilmez.", notif) {
             startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
         }
