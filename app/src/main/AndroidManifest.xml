@@ -45,7 +45,8 @@
 
     <application
         android:label="OBD Dashboard"
-        android:icon="@android:drawable/stat_sys_data_bluetooth"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:theme="@android:style/Theme.DeviceDefault.Light.DarkActionBar">
 
         <!-- Bağlantı ve OBD araçları: dashboard ayarlarından açılır -->
