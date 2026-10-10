@@ -368,6 +368,8 @@ class SettingsActivity : Activity() {
             if (++devTaps >= 7) { dash.edit().putBoolean("dev", true).apply(); toast("Gelişmiş ayarlar açıldı"); buildNav() }
             else if (devTaps >= 4) toast("${7 - devTaps} kez daha")
         })
+        header("Teşekkürler")
+        note("Hava durumu: Open-Meteo (open-meteo.com, CC BY 4.0) · Hava simgeleri: Meteocons, Bas Milius (MIT lisansı)")
         header("Önemli")
         note("• Sürüş sırasında uygulamayla uğraşmayın; ayarları araç dururken yapın.\n" +
             "• Gösterilen değerler araç beyninden okunur, yakıt ve uyarılar tahmindir. Aracın kendi göstergeleri ve uyarı ışıkları esastır.\n" +

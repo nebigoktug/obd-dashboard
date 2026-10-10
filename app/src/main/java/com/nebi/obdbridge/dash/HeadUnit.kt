@@ -26,6 +26,7 @@ import android.view.MotionEvent
 import android.view.View
 import com.nebi.obdbridge.NaviListener
 import com.nebi.obdbridge.NaviState
+import com.nebi.obdbridge.R
 
 // Araç ekranının orta sütunu (dashboard/HEADUNIT.md): nav kartı, medya kartı, alt değer şeridi.
 // Görsel temada referans resmin üstüne, resim koordinatlarında yerleşir (DashImageGeom).
@@ -623,32 +624,63 @@ class ClockView(ctx: Context) : View(ctx) {
     }
 }
 
-/** Sol üst: durum simgesi, büyük sıcaklık, kısa açıklama. */
+/**
+ * Sol üst: durum simgesi, büyük sıcaklık, kısa açıklama.
+ * Simgeler: Meteocons (Bas Milius, MIT lisansı), res/drawable-nodpi/wx_*.png.
+ */
 @SuppressLint("ViewConstructor")
 class WeatherView(ctx: Context, private val weather: Weather) : View(ctx) {
     private val pc = HashMap<String, Paint>()
-    private val ic = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND }
-    private val path = Path()
-    private val oval = RectF()
+    private val bmpP = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
+    private val dst = RectF()
+    /** Simgeler kod değişince (çizim dışında) yüklenir */
+    private var iconId: Int? = null
+    private var iconBmp: android.graphics.Bitmap? = null
+
+    private fun bitmapFor(id: Int?): android.graphics.Bitmap? {
+        if (id != iconId) { iconId = id; iconBmp = id?.let { android.graphics.BitmapFactory.decodeResource(resources, it) } }
+        return iconBmp
+    }
+
+    // Hava ilk açılışta birkaç saniye sonra gelir: o zamana kadar sık bak
+    init { post(object : Runnable { override fun run() { bitmapFor(icon(weather.code)); invalidate(); postDelayed(this, if (iconId == null) 2_000 else 30_000) } }) }
 
     override fun onDraw(c: Canvas) {
         val h = height.toFloat()
         val t = weather.tempC
         val code = weather.code
-        val s = h * 0.62f
-        val cx = s * 0.55f; val cy = h * 0.42f
-        icon(c, kind(code), cx, cy, s * 0.5f)
-        val x = s * 1.25f
+        var x = 0f
+        iconBmp?.takeIf { iconId == icon(code) }?.let { b ->
+            val side = h * 1.05f
+            dst.set(-h * 0.08f, -h * 0.1f, side - h * 0.08f, side - h * 0.1f)
+            c.drawBitmap(b, null, dst, bmpP)
+            x = side * 0.95f
+        }
         val tp = Glass.text(pc, "t", h * 0.62f)
         c.drawText(t?.let { "${Math.round(it)}°" } ?: "—°", x, h * 0.62f, tp)
         val dp = Glass.text(pc, "d", h * 0.22f, Glass.DIM); dp.letterSpacing = 0.06f
         c.drawText(Glass.ellipsize(text(code), dp, width - x), x, h * 0.95f, dp)
-        postInvalidateDelayed(30_000)
     }
 
-    private fun kind(c: Int?) = when (c) {
-        null -> "?"; 0, 1 -> if (weather.isDay) "sun" else "moon"; 2 -> "partly"; 3 -> "cloud"
-        45, 48 -> "fog"; in 51..67, in 80..82 -> "rain"; in 71..77, 85, 86 -> "snow"; in 95..99 -> "storm"; else -> "cloud"
+    /** WMO kodu → simge (gece/gündüz ayrı) */
+    private fun icon(c: Int?): Int? {
+        val d = weather.isDay
+        return when (c) {
+            null -> null
+            0 -> if (d) R.drawable.wx_clear_day else R.drawable.wx_clear_night
+            1, 2 -> if (d) R.drawable.wx_partly_cloudy_day else R.drawable.wx_partly_cloudy_night
+            3 -> if (d) R.drawable.wx_overcast_day else R.drawable.wx_overcast_night
+            45, 48 -> if (d) R.drawable.wx_fog_day else R.drawable.wx_fog_night
+            in 51..55 -> R.drawable.wx_drizzle
+            56, 57, 66, 67 -> R.drawable.wx_sleet
+            in 61..65 -> R.drawable.wx_rain
+            in 71..77 -> R.drawable.wx_snow
+            in 80..82 -> if (d) R.drawable.wx_partly_cloudy_day_rain else R.drawable.wx_partly_cloudy_night_rain
+            85, 86 -> if (d) R.drawable.wx_partly_cloudy_day_snow else R.drawable.wx_partly_cloudy_night_snow
+            95 -> if (d) R.drawable.wx_thunderstorms_day else R.drawable.wx_thunderstorms_night
+            96, 99 -> R.drawable.wx_thunderstorms_rain
+            else -> R.drawable.wx_overcast
+        }
     }
 
     /** WMO kodu → kısa Türkçe açıklama */
@@ -656,51 +688,5 @@ class WeatherView(ctx: Context, private val weather: Weather) : View(ctx) {
         null -> "Hava bilgisi yok"; 0 -> if (weather.isDay) "Güneşli" else "Açık"; 1 -> "Az bulutlu"; 2 -> "Parçalı bulutlu"; 3 -> "Kapalı"
         45, 48 -> "Sisli"; in 51..57 -> "Çisenti"; in 61..65 -> "Yağmurlu"; 66, 67 -> "Dondurucu yağmur"
         in 71..77 -> "Karlı"; in 80..82 -> "Sağanak"; 85, 86 -> "Kar sağanağı"; in 95..99 -> "Gök gürültülü"; else -> ""
-    }
-
-    /** İnce çizgi simgeler (referanstaki termometre/akü simgeleriyle aynı dil) */
-    private fun icon(c: Canvas, k: String, cx: Float, cy: Float, r: Float) {
-        ic.color = Glass.TEXT; ic.strokeWidth = r * 0.12f
-        fun sun(x: Float, y: Float, rr: Float) {
-            c.drawCircle(x, y, rr * 0.45f, ic)
-            for (i in 0 until 8) {
-                val a = Math.PI / 4 * i
-                c.drawLine(x + (rr * 0.65f * Math.cos(a)).toFloat(), y + (rr * 0.65f * Math.sin(a)).toFloat(),
-                    x + (rr * 0.9f * Math.cos(a)).toFloat(), y + (rr * 0.9f * Math.sin(a)).toFloat(), ic)
-            }
-        }
-        fun cloud(x: Float, y: Float, rr: Float) {
-            path.reset()
-            path.moveTo(x - rr * 0.8f, y + rr * 0.35f)
-            path.lineTo(x + rr * 0.75f, y + rr * 0.35f)
-            oval.set(x + rr * 0.35f, y - rr * 0.15f, x + rr * 1.05f, y + rr * 0.35f + rr * 0.15f)
-            path.arcTo(oval, 90f, -180f)
-            oval.set(x - rr * 0.45f, y - rr * 0.55f, x + rr * 0.45f, y + rr * 0.35f)
-            path.arcTo(oval, 0f, -180f)
-            oval.set(x - rr * 1.0f, y - rr * 0.1f, x - rr * 0.4f, y + rr * 0.45f)
-            path.arcTo(oval, 0f, -270f)
-            c.drawPath(path, ic)
-        }
-        when (k) {
-            "sun" -> sun(cx, cy, r)
-            "moon" -> { oval.set(cx - r * 0.6f, cy - r * 0.6f, cx + r * 0.6f, cy + r * 0.6f); c.drawArc(oval, 60f, 240f, false, ic)
-                oval.set(cx - r * 0.2f, cy - r * 0.75f, cx + r * 0.75f, cy + r * 0.2f); c.drawArc(oval, 100f, 170f, false, ic) }
-            "partly" -> { sun(cx + r * 0.35f, cy - r * 0.35f, r * 0.6f); cloud(cx - r * 0.05f, cy + r * 0.15f, r * 0.7f) }
-            "cloud" -> cloud(cx, cy, r * 0.85f)
-            "fog" -> for (i in 0 until 3) c.drawLine(cx - r * 0.8f + i * r * 0.15f, cy - r * 0.4f + i * r * 0.4f, cx + r * 0.8f - i * r * 0.1f, cy - r * 0.4f + i * r * 0.4f, ic)
-            "rain", "storm", "snow" -> {
-                cloud(cx, cy - r * 0.25f, r * 0.75f)
-                for (i in -1..1) {
-                    val x = cx + i * r * 0.4f; val y = cy + r * 0.45f
-                    when (k) {
-                        "rain" -> c.drawLine(x, y, x - r * 0.12f, y + r * 0.35f, ic)
-                        "snow" -> { c.drawPoint(x, y + r * 0.15f, ic); c.drawCircle(x, y + r * 0.15f, r * 0.06f, ic) }
-                        else -> if (i == 0) { path.reset(); path.moveTo(x + r * 0.1f, y - r * 0.05f); path.lineTo(x - r * 0.12f, y + r * 0.22f)
-                            path.lineTo(x + r * 0.08f, y + r * 0.22f); path.lineTo(x - r * 0.12f, y + r * 0.5f); c.drawPath(path, ic) }
-                    }
-                }
-            }
-            else -> c.drawCircle(cx, cy, r * 0.4f, ic)
-        }
     }
 }
