@@ -94,6 +94,8 @@ class BridgeService : Service() {
         @Volatile var status = "Bağlı değil"
         // OBD motorunun son değerleri ve durumu (ekranlar buradan okur)
         val latest = ConcurrentHashMap<String, Sample>()
+        /** Ekranın hesapladıkları (gösterilen vites, GPS hızı, yakıt tahmini, notlar, uyarılar): sürüş kaydına girer */
+        val derived = ConcurrentHashMap<String, Sample>()
         @Volatile var engineStatus: EngineStatus? = null
         @Volatile var lastProbeFile: String? = null
         @Volatile var lastSniffFile: String? = null
@@ -379,7 +381,7 @@ class BridgeService : Service() {
             try {
                 while (active) {
                     val on = getSharedPreferences(PREFS, MODE_PRIVATE).getBoolean(PREF_DRIVE_LOG, true)
-                    try { log.tick(latest, on && engineStatus?.state == EngineState.LIVE) }
+                    try { log.tick(latest + derived, on && engineStatus?.state == EngineState.LIVE) }
                     catch (e: IOException) { Log.w(TAG, "Sürüş kaydı yazılamadı: ${e.message}") }
                     Thread.sleep(com.nebi.obdbridge.dash.DriveLog.PERIOD_MS / 2)
                 }

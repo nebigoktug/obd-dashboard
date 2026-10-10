@@ -418,6 +418,16 @@ class DashboardActivity : Activity(), SensorEventListener {
             v("battery"), v("rail"), model.raw("gear")?.value?.toInt(),
             gpsSpeed?.takeIf { System.currentTimeMillis() - it.ts < 3000 }?.value, obd, v("maf"), v("fuel_rate")))
         val shown = insights.alerts.filter { prefs.getBoolean("alert_${it.kind.name}", true) }
+        // Sürüş kaydı için ekranın gösterdikleri (servis 2 Hz'de kaydeder)
+        val now = System.currentTimeMillis()
+        val d = BridgeService.derived
+        fun put(k: String, v: Double?) { if (v == null) d.remove(k) else d[k] = com.nebi.obdbridge.obd.Sample(k, v, now) }
+        put("gear", model.raw("gear")?.value)
+        put("gps_speed", gpsSpeed?.takeIf { now - it.ts < 3000 }?.value)
+        put("fuel_lph", insights.fuelLph)
+        put("fuel_cut", if (insights.fuelCut) 1.0 else 0.0)
+        put("coast", if (insights.coasting) 1.0 else 0.0)
+        put("alerts", insights.alerts.fold(0) { m, a -> m or (1 shl a.kind.ordinal) }.toDouble())
         for (p in pills) p.alerts = shown
         val note = if (!prefs.getBoolean("note_fuelcut", true)) null
             else when { insights.fuelCut -> "yakıt kesik"; insights.coasting && Vehicle.current.manual -> "boşta"; else -> null }

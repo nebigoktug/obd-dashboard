@@ -65,7 +65,10 @@ class DriveLog(private val dir: File, private val clock: () -> Long = System::cu
         const val PERIOD_MS = 500L
         const val GAP_MS = 10 * 60_000L
         const val KEEP_DAYS = 30
-        val KEYS = listOf("rpm", "speed", "load", "map", "rail", "coolant", "iat", "battery", "maf", "fuel_rate")
+        val KEYS = listOf("rpm", "speed", "load", "map", "rail", "coolant", "iat", "battery", "maf", "fuel_rate",
+            // Ekranın gösterdikleri (2026-10-11): vites, GPS hızı, tahmini yakıt (L/sa), yakıt kesik / boşta (0/1),
+            // uyarılar (AlertKind sıra numaralarının bit maskesi)
+            "gear", "gps_speed", "fuel_lph", "fuel_cut", "coast", "alerts")
     }
 }
 

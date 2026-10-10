@@ -38,7 +38,7 @@ class HistoryTest {
         val files = dir.listFiles()!!.filter { it.name.startsWith("drive_") }
         assertEquals(2, files.size)
         val rows = first.readLines()
-        assertEquals("ts,rpm,speed,load,map,rail,coolant,iat,battery,maf,fuel_rate", rows[0])
+        assertEquals("ts," + DriveLog.KEYS.joinToString(","), rows[0])
         assertTrue("2 Hz: ${rows.size}", kotlin.math.abs(10 * 60 * 2 - (rows.size - 1)) <= 5)
         assertTrue(rows[1].contains(",2000,60,60,,,85,,14.1,,"))
     }
