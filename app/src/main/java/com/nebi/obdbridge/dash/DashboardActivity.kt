@@ -72,8 +72,11 @@ class DashboardActivity : Activity(), SensorEventListener {
     private lateinit var panel: PanelLayout
     private lateinit var root: FrameLayout
     private var tab = 0
-    private var theme = DashTheme.NIGHT
+    private var theme = DashTheme.IMAGE
+    private var imgTheme = ImageTheme.ALL[0]
     private var lastThemeSwitch = 0L
+    /** Işık sensörü gündüz temasına geçirdiyse true (seçili tema değişmez) */
+    private var sunMode = false
     private var keys: List<String> = emptyList()
 
     // Yerleşim: sol halka, sağ halka, orta kutucuklar
@@ -131,9 +134,18 @@ class DashboardActivity : Activity(), SensorEventListener {
         return true
     }
 
+    override fun onNewIntent(i: android.content.Intent) {
+        super.onNewIntent(i)
+        setIntent(i)
+    }
+
     override fun onResume() {
         super.onResume()
         hideSystemBars()
+        // Geliştirme: "am start ... --es theme <id>" ile tema önizlemesi (yalnız debug derlemede)
+        if (com.nebi.obdbridge.BuildConfig.DEBUG) intent.getStringExtra("theme")?.let {
+            prefs.edit().putString("theme", it).apply(); intent.removeExtra("theme")
+        }
         if (applyVehicle()) { model.gears = liveGears; build() }
         if (prefs.getBoolean("gears_reset", false)) { liveGears.reset(); prefs.edit().putBoolean("gears_reset", false).apply() }
         model.insights = insights.apply { load(prefs.getString("insights", null)) }
@@ -147,10 +159,7 @@ class DashboardActivity : Activity(), SensorEventListener {
         (getSystemService(SENSOR_SERVICE) as SensorManager).let { sm ->
             sm.getDefaultSensor(Sensor.TYPE_LIGHT)?.let { sm.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL) }
         }
-        applyTheme(when (prefs.getString("theme", DEFAULT_THEME)) {
-            "day" -> DashTheme.DAY; "night" -> DashTheme.NIGHT; "premium" -> DashTheme.PREMIUM; "image" -> DashTheme.IMAGE
-            else -> if (theme.premium) DashTheme.NIGHT else theme
-        })
+        applyImageTheme(effectiveTheme())
         Choreographer.getInstance().postFrameCallback(frameCb)
     }
 
@@ -237,7 +246,7 @@ class DashboardActivity : Activity(), SensorEventListener {
      * altta dört değerlik şerit. Üst çubuk resimdeki yerinde.
      */
     private fun imageLayout(): View {
-        val dials = DashImageDials(this, right)
+        val dials = DashImageDials(this, right, imgTheme)
         widgets += dials
         dialsList += dials
         val lay = DashImageLayout(this, dials)
@@ -420,6 +429,20 @@ class DashboardActivity : Activity(), SensorEventListener {
 
     // ---------- Tema ----------
 
+    /** Seçili tema; ışık sensörü gündüzü gördüyse (ve ayar açıksa) Gündüz teması */
+    private fun effectiveTheme(): ImageTheme {
+        val chosen = ImageTheme.byId(prefs.getString("theme", DEFAULT_THEME))
+        return if (sunMode && prefs.getBoolean("auto_day", true)) ImageTheme.DAY else chosen
+    }
+
+    private fun applyImageTheme(t: ImageTheme) {
+        val changed = t != imgTheme
+        imgTheme = t
+        Glass.use(t)
+        applyTheme(t.dash())
+        if (changed) build()   // kadran resimleri temaya bağlı
+    }
+
     private fun applyTheme(t: DashTheme) {
         // premium'da marka yazısı ve yol süsü, görsel temada resim var: yerleşim değişir
         val relayout = t.premium != theme.premium || t.image != theme.image
@@ -427,7 +450,7 @@ class DashboardActivity : Activity(), SensorEventListener {
         if (relayout && ::panel.isInitialized) { build(); return }
         // Premium zemin: derin antrasit dairesel degrade (tam siyah değil)
         // Ekranın ortasından köşelere doğru hafifçe koyulaşan geniş dairesel degrade
-        root.background = if (t.image) android.graphics.drawable.ColorDrawable(0xFF0E1013.toInt())
+        root.background = if (t.image) android.graphics.drawable.ColorDrawable(if (imgTheme.light) 0xFFE6E8EB.toInt() else 0xFF0E1013.toInt())
         else if (t.premium) android.graphics.drawable.GradientDrawable().apply {
             gradientType = android.graphics.drawable.GradientDrawable.RADIAL_GRADIENT
             colors = intArrayOf(0xFF262B31.toInt(), t.bg, 0xFF0D0F12.toInt())
@@ -441,18 +464,18 @@ class DashboardActivity : Activity(), SensorEventListener {
         topBars.forEach { it.theme = t }
     }
 
-    /** Oto tema: karanlıkta gece, aydınlıkta gündüz; titremesin diye eşik aralığı ve 20 sn kilit. */
+    /** Gündüz otomatiği: aydınlıkta Gündüz temasına, karanlıkta seçili temaya; titremesin diye eşik aralığı ve 20 sn kilit. */
     override fun onSensorChanged(e: SensorEvent) {
-        if (prefs.getString("theme", DEFAULT_THEME) != "auto") return  // premium ve elle seçilenler sabit
+        if (!prefs.getBoolean("auto_day", true)) return
         val lux = e.values[0]
         val now = System.currentTimeMillis()
         if (now - lastThemeSwitch < 20_000) return
-        val want = when {
-            lux < 30 -> DashTheme.NIGHT
-            lux > 150 -> DashTheme.DAY
+        val sun = when {
+            lux > 1500 -> true      // doğrudan gün ışığı (araç içinde, öğlen)
+            lux < 200 -> false
             else -> return
         }
-        if (want != theme) { lastThemeSwitch = now; applyTheme(want) }
+        if (sun != sunMode) { sunMode = sun; lastThemeSwitch = now; applyImageTheme(effectiveTheme()) }
     }
 
     override fun onAccuracyChanged(s: Sensor?, a: Int) {}

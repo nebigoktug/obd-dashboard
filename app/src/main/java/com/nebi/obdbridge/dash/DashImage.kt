@@ -93,11 +93,15 @@ class DashImageLayout(ctx: Context, private val dials: DashImageDials) : FrameLa
 
 /** Kadranlar: taban resmi, değere kadar ışıklı dilim, ortadaki rakamlar ve devir çubuğu. */
 @SuppressLint("ViewConstructor")  // yalnız koddan oluşturuluyor
-class DashImageDials(ctx: Context, spec: WidgetSpec) : DashWidget(ctx, spec) {
+class DashImageDials(ctx: Context, spec: WidgetSpec, private val th: ImageTheme = ImageTheme.ALL[0]) : DashWidget(ctx, spec) {
     /** Devir halkasında rpm altında kısa not (yakıt kesik / boşta); null = yok */
     var note: String? = null
-    private val base: Bitmap = load(ctx, R.drawable.dash_base)
-    private val lit: Bitmap = load(ctx, R.drawable.dash_lit)
+    private val base: Bitmap = load(ctx, th.base)
+    private val lit: Bitmap = load(ctx, th.lit)
+    /** Resmin kenar rengi: ekran oranı farklıysa kalan şerit bununla boyanır */
+    private val edgeColor = base.getPixel(4, base.height / 2)
+    private val ink = if (th.light) 0xFF15181C.toInt() else Color.WHITE
+    private val logoTint = if (th.light) android.graphics.PorterDuffColorFilter(0xFF2A2F36.toInt(), android.graphics.PorterDuff.Mode.SRC_IN) else null
     private val logo: Bitmap = load(ctx, R.drawable.dash_logo)
     private val logoDst = RectF()
     private val labelP = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -138,14 +142,16 @@ class DashImageDials(ctx: Context, spec: WidgetSpec) : DashWidget(ctx, spec) {
             shaderM.setScale(s, s); shaderM.postTranslate(ox, oy)
             litP.shader = BitmapShader(lit, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP).apply { setLocalMatrix(shaderM) }
         }
-        c.drawColor(0xFF0E1013.toInt())   // resmin kenarındaki koyu çerçeveyle aynı ton
+        c.drawColor(edgeColor)   // resmin kenarındaki çerçeveyle aynı ton
         c.drawBitmap(base, null, dst, bmpP)
 
         val v = Vehicle.current
         if (v.logo) {
             logoDst.set(ox + DashImageGeom.LOGO.left * s, oy + DashImageGeom.LOGO.top * s,
                 ox + DashImageGeom.LOGO.right * s, oy + DashImageGeom.LOGO.bottom * s)
+            bmpP.colorFilter = logoTint
             c.drawBitmap(logo, null, logoDst, bmpP)
+            bmpP.colorFilter = null
         }
         dial(c, DashImageGeom.SPEED_C, frame["speed"], centerKey = null)
         // Otomatik vites: vites tahmini yok, ortada devir yazar
@@ -153,17 +159,17 @@ class DashImageDials(ctx: Context, spec: WidgetSpec) : DashWidget(ctx, spec) {
         // Rakamlar ışıklı dilimin üstüne: hız 20'şer (240 ve üstünde 40'ar), devir binlik
         val sMax = v.speedMax
         val sStep = if (sMax > 220) 40 else 20
-        labels(c, DashImageGeom.SPEED_C, (0..sMax step sStep).map { it.toString() }, frame["speed"], darkOnLit = false)
-        labels(c, DashImageGeom.RPM_C, (0..v.rpmMax / 1000).map { it.toString() }, frame["rpm"], darkOnLit = true)
+        labels(c, DashImageGeom.SPEED_C, (0..sMax step sStep).map { n -> n.toString() }, frame["speed"], th.speedLitLabel ?: th.litLabel)
+        labels(c, DashImageGeom.RPM_C, (0..v.rpmMax / 1000).map { n -> n.toString() }, frame["rpm"], th.litLabel)
 
         // Devir kadranının altındaki ince çubuk (varsayılan: motor sıcaklığı)
         frame[spec.bar ?: "coolant"]?.let { bd ->
             val (x0, y, x1) = DashImageGeom.RPM_BAR
             val ax0 = ox + x0 * s; val ax1 = ox + x1 * s; val ay = oy + y * s
-            barP.strokeWidth = 11 * s; barP.color = Color.WHITE; barP.alpha = 45
+            barP.strokeWidth = 11 * s; barP.color = ink; barP.alpha = 45
             c.drawLine(ax0, ay, ax1, ay, barP)
             if (!bd.missing) {
-                barP.color = if (bd.level == Level.NORMAL) 0xFFF2F5F8.toInt() else theme.levelColor(bd.level)
+                barP.color = if (bd.level == Level.NORMAL) (if (th.light) 0xFF15181C.toInt() else 0xFFF2F5F8.toInt()) else theme.levelColor(bd.level)
                 barP.alpha = alphaFor(bd)
                 val f = ((bd.value - bd.def.min) / (bd.def.max - bd.def.min)).coerceIn(0.0, 1.0).toFloat()
                 c.drawLine(ax0, ay, ax0 + (ax1 - ax0) * f, ay, barP)
@@ -171,8 +177,8 @@ class DashImageDials(ctx: Context, spec: WidgetSpec) : DashWidget(ctx, spec) {
         }
     }
 
-    /** Kadran rakamları; ışıklı dilimin üstündekiler (devirde) koyu, referanstaki gibi. */
-    private fun labels(c: Canvas, center: FloatArray, texts: List<String>, d: Display?, darkOnLit: Boolean) {
+    /** Kadran rakamları; ışıklı dilimin üstündekiler temanın [ImageTheme.litLabel] renginde. */
+    private fun labels(c: Canvas, center: FloatArray, texts: List<String>, d: Display?, litColor: Int) {
         val cx = ox + center[0] * s; val cy = oy + center[1] * s
         val f = if (d == null || d.missing) 0f else ((d.value - d.def.min) / (d.def.max - d.def.min)).coerceIn(0.0, 1.0).toFloat()
         labelP.textSize = DashImageGeom.LABEL_SIZE * s
@@ -183,7 +189,7 @@ class DashImageDials(ctx: Context, spec: WidgetSpec) : DashWidget(ctx, spec) {
             // Alt uçlardaki rakamlar referansta biraz içeride
             val r = DashImageGeom.LABEL_R * s * (if (frac < 0.08f || frac > 0.92f) 0.955f else 1f)
             val x = cx + r * cos(a).toFloat(); val y = cy + r * sin(a).toFloat() + labelP.textSize * 0.36f
-            labelP.color = if (darkOnLit && frac <= f) 0xFF2A2F36.toInt() else 0xFFB4BCC4.toInt()
+            labelP.color = if (frac <= f) litColor else th.dimLabel
             c.drawText(t, x, y, labelP)
         }
     }
@@ -196,7 +202,7 @@ class DashImageDials(ctx: Context, spec: WidgetSpec) : DashWidget(ctx, spec) {
             val sw = DashImageGeom.SWEEP * f
             if (sw > 0.3f) {
                 // Işıklı dilim: halka kesiti, ışıklı resimden boyanır (kenarlar yumuşak)
-                val ro = DashImageGeom.BAND_OUT * s; val ri = DashImageGeom.BAND_IN * s
+                val ro = th.bandOut * s; val ri = th.bandIn * s
                 path.reset()
                 oval.set(cx - ro, cy - ro, cx + ro, cy + ro)
                 path.arcTo(oval, DashImageGeom.START, sw, true)
@@ -207,7 +213,7 @@ class DashImageDials(ctx: Context, spec: WidgetSpec) : DashWidget(ctx, spec) {
                 c.drawPath(path, litP)
                 // Dilim ucunda ince parlak kenar (ibre hissi)
                 val a = Math.toRadians((DashImageGeom.START + sw).toDouble())
-                edgeP.color = Color.WHITE; edgeP.alpha = (alphaFor(d) * 0.8f).toInt(); edgeP.strokeWidth = 4 * s
+                edgeP.color = ink; edgeP.alpha = (alphaFor(d) * 0.8f).toInt(); edgeP.strokeWidth = 4 * s
                 c.drawLine(cx + ri * cos(a).toFloat(), cy + ri * sin(a).toFloat(),
                     cx + ro * cos(a).toFloat(), cy + ro * sin(a).toFloat(), edgeP)
             }
@@ -228,7 +234,7 @@ class DashImageDials(ctx: Context, spec: WidgetSpec) : DashWidget(ctx, spec) {
         capP.textSize = DashImageGeom.CAP_SIZE * s; capP.color = 0xFFC9D0D6.toInt()
         c.drawText(cap, cx, oy + DashImageGeom.CAP_BASE * s, capP)
         if (centerKey == "gear") note?.let {
-            capP.textSize = DashImageGeom.CAP_SIZE * s * 0.62f; capP.color = 0xFF7FB5DD.toInt()
+            capP.textSize = DashImageGeom.CAP_SIZE * s * 0.62f; capP.color = th.accent
             c.drawText(it, cx, oy + DashImageGeom.NOTE_BASE * s, capP)
         }
         if (centerKey == "gear" && shift != 0) {

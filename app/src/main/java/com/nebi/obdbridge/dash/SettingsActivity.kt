@@ -212,12 +212,13 @@ class SettingsActivity : Activity() {
 
     private fun display() {
         header("Görünüm")
-        val themes = listOf("image" to "Görsel (önerilen)", "auto" to "Otomatik gece/gündüz", "night" to "Gece", "day" to "Gündüz")
-        add(ui.item("Tema", "Görsel tema yalnız yatay ekranda", { themes.firstOrNull { it.first == dash.getString("theme", DashboardActivity.DEFAULT_THEME) }?.second }) {
-            choose("Tema", themes.map { it.second }, themes.indexOfFirst { it.first == dash.getString("theme", DashboardActivity.DEFAULT_THEME) }) {
-                dash.edit().putString("theme", themes[it].first).apply()
-            }
+        val themes = ImageTheme.ALL
+        val cur = ImageTheme.byId(dash.getString("theme", DashboardActivity.DEFAULT_THEME))
+        add(ui.item("Tema", "Göstergelerin görünümü", { cur.name }) {
+            choose("Tema", themes.map { it.name }, themes.indexOf(cur)) { dash.edit().putString("theme", themes[it].id).apply() }
         })
+        add(ui.toggle("Güneşte Gündüz temasına geç", "Ortam ışığı çok artınca okunurluk için açık temaya, kararınca seçili temaya döner",
+            { dash.getBoolean("auto_day", true) }) { dash.edit().putBoolean("auto_day", it).apply() })
         add(ui.item("Alt şeritteki değerler", "Ana ekranda yol çiziminin iki yanındaki 4 değer. Ana ekranda şeride uzun basarak da değişir", null) {
             dash.edit().putBoolean("open_strip", true).apply(); finish()
         })

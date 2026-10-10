@@ -31,14 +31,28 @@ import com.nebi.obdbridge.NaviState
 // Görsel temada referans resmin üstüne, resim koordinatlarında yerleşir (DashImageGeom).
 
 /** Referans resmin dilinde ortak çizim: koyu cam kart, ince açık kenar, ince yazı. */
-private object Glass {
+internal object Glass {
     val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFF10141A.toInt(); alpha = 205 }
     val edge = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; color = Color.WHITE; alpha = 38 }
     val pressed = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE; alpha = 28 }
-    const val TEXT = 0xFFF2F5F8.toInt()
-    const val DIM = 0xFF9AA2A9.toInt()
-    const val ICE = 0xFF7FB5DD.toInt()     // referansın buz mavisi
+    var TEXT = 0xFFF2F5F8.toInt()
+    var DIM = 0xFF9AA2A9.toInt()
+    var ICE = 0xFF7FB5DD.toInt()     // temanın vurgu rengi (referansta buz mavisi)
     const val AMBER = 0xFFE08B36.toInt()   // devir halkasının kehribar ucu
+    /** Kenar çizgisinin rengi (koyu temada beyaz, açık temada siyah); [edge] her kullanımdan sonra buna döner */
+    var EDGE = Color.WHITE
+
+    /** Temaya göre kart rengi: koyu cam ya da (gündüz) açık cam */
+    fun use(t: ImageTheme) {
+        val l = t.light
+        fill.color = if (l) 0xFFFFFFFF.toInt() else 0xFF10141A.toInt(); fill.alpha = if (l) 215 else 205
+        EDGE = if (l) Color.BLACK else Color.WHITE
+        edge.color = EDGE; edge.alpha = if (l) 30 else 38
+        pressed.color = EDGE; pressed.alpha = if (l) 22 else 28
+        TEXT = if (l) 0xFF15181C.toInt() else 0xFFF2F5F8.toInt()
+        DIM = if (l) 0xFF5F6670.toInt() else 0xFF9AA2A9.toInt()
+        ICE = t.accent
+    }
 
     fun card(c: Canvas, r: RectF, h: Float) {
         val rad = h * 0.09f
@@ -100,9 +114,8 @@ class NaviCard(ctx: Context, private val prefs: android.content.SharedPreference
         set(v) { if (field !== v) { field = v; invalidate() } }
 
     private val rect = RectF()
-    private val bmpP = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG).apply {
-        colorFilter = PorterDuffColorFilter(Color.WHITE, PorterDuff.Mode.SRC_IN)
-    }
+    private val bmpP = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
+    private var tint = 0
     private val dst = RectF()
     private val btns = Array(3) { RectF() }
 
@@ -119,6 +132,7 @@ class NaviCard(ctx: Context, private val prefs: android.content.SharedPreference
         val pad = h * 0.12f
         var x = pad
         st.arrow?.let { b ->
+            if (tint != Glass.TEXT) { tint = Glass.TEXT; bmpP.colorFilter = PorterDuffColorFilter(tint, PorterDuff.Mode.SRC_IN) }
             val side = h - 2 * pad
             val sc = side / maxOf(b.width, b.height)
             val bw = b.width * sc; val bh = b.height * sc
@@ -307,6 +321,7 @@ class MediaCard(ctx: Context, private val hub: MediaHub) : TouchCard(ctx) {
         Glass.card(c, rect, h)
         hits.clear()
         val pad = h * 0.1f
+        iconP.color = Glass.TEXT
         val ctl = hub.controller
         val md = ctl?.metadata
         val ps = ctl?.playbackState
@@ -351,7 +366,7 @@ class MediaCard(ctx: Context, private val hub: MediaHub) : TouchCard(ctx) {
         val dur = md?.getLong(MediaMetadata.METADATA_KEY_DURATION) ?: 0L
         val by = art.bottom + pad * 0.9f
         bar.strokeWidth = h * 0.018f
-        bar.color = Color.WHITE; bar.alpha = 40
+        bar.color = Glass.TEXT; bar.alpha = 40
         c.drawLine(pad, by, w - pad, by, bar)
         if (ps != null && dur > 0) {
             var pos = ps.position
@@ -487,17 +502,17 @@ class StatusPill(ctx: Context) : View(ctx) {
         val a = alerts.firstOrNull() ?: return
         val w = width.toFloat(); val h = height.toFloat()
         val color = when (a.level) { Level.CRIT -> 0xFFE0603A.toInt(); Level.WARN -> Glass.AMBER; Level.COLD -> Glass.ICE; Level.NORMAL -> Glass.TEXT }
-        val tp = Glass.text(pc, "t", h * 0.4f)
+        val tp = Glass.text(pc, "t", h * 0.4f, 0xFFF2F5F8.toInt())   // hap her temada koyu
         val more = if (alerts.size > 1) "  +${alerts.size - 1}" else ""
-        val mp = Glass.text(pc, "m", h * 0.34f, Glass.DIM)
+        val mp = Glass.text(pc, "m", h * 0.34f, 0xFF9AA2A9.toInt())
         val text = Glass.ellipsize(a.text, tp, w - h * 1.6f - mp.measureText(more))
         val tw = h * 0.9f + tp.measureText(text) + mp.measureText(more) + h * 0.7f
         rect.set((w - tw) / 2, 1f, (w + tw) / 2, h - 1)
         c.drawRoundRect(rect, h / 2, h / 2, bg)
         Glass.edge.strokeWidth = maxOf(1f, h * 0.025f)
-        Glass.edge.color = color; Glass.edge.alpha = 140
+        Glass.edge.color = color; Glass.edge.alpha = 160
         c.drawRoundRect(rect, h / 2, h / 2, Glass.edge)
-        Glass.edge.color = Color.WHITE; Glass.edge.alpha = 38
+        Glass.edge.color = Glass.EDGE; Glass.edge.alpha = if (Glass.EDGE == Color.BLACK) 30 else 38
         dot.color = color
         c.drawCircle(rect.left + h * 0.5f, h / 2, h * 0.13f, dot)
         val x = rect.left + h * 0.85f

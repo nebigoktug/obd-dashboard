@@ -20,6 +20,7 @@ android {
     }
     kotlinOptions { jvmTarget = "17" }
     lint { disable += "SetTextI18n" }  // arayüz metinleri bilerek kodda
+    buildFeatures { buildConfig = true }
 }
 
 dependencies {
