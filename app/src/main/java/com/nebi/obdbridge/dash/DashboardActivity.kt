@@ -250,7 +250,9 @@ class DashboardActivity : Activity(), SensorEventListener {
         widgets += dials
         dialsList += dials
         val lay = DashImageLayout(this, dials)
-        lay.place(topBar(), DashImageGeom.TOPBAR)
+        lay.place(topBar().also { it.showTempClock = false }, DashImageGeom.TOPBAR)
+        lay.place(WeatherView(this, weather), DashImageGeom.WEATHER)
+        lay.place(ClockView(this), DashImageGeom.CLOCK)
         lay.place(NaviCard(this, prefs) { askPlace(it) }.also { naviCards += it }, DashImageGeom.NAV_CARD)
         lay.place(MediaCard(this, media).also { mediaCards += it }, DashImageGeom.MEDIA_CARD)
         val strip = ValueStrip(this, tiles.take(4))

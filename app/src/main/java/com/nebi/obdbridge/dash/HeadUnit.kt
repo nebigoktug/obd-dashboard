@@ -453,6 +453,9 @@ class ValueStrip(ctx: Context, private val specs: List<WidgetSpec>) : DashWidget
 /** Open-Meteo (anahtarsız): son bilinen konumla 30 dk'da bir anlık sıcaklık. */
 class Weather(private val ctx: Context) {
     @Volatile var tempC: Double? = null; private set
+    /** WMO hava durumu kodu (Open-Meteo) ve gündüz mü */
+    @Volatile var code: Int? = null; private set
+    @Volatile var isDay = true; private set
     @Volatile private var fetchedAt = 0L
     @Volatile private var busy = false
 
@@ -464,11 +467,14 @@ class Weather(private val ctx: Context) {
         fetchedAt = now
         Thread({
             try {
-                val url = java.net.URL("https://api.open-meteo.com/v1/forecast?latitude=%.3f&longitude=%.3f&current=temperature_2m"
+                val url = java.net.URL("https://api.open-meteo.com/v1/forecast?latitude=%.3f&longitude=%.3f&current=temperature_2m,weather_code,is_day"
                     .format(java.util.Locale.US, loc.latitude, loc.longitude))
                 val con = (url.openConnection() as java.net.HttpURLConnection).apply { connectTimeout = 8000; readTimeout = 8000 }
                 val body = con.inputStream.bufferedReader().use { it.readText() }
-                tempC = org.json.JSONObject(body).getJSONObject("current").getDouble("temperature_2m")
+                val cur = org.json.JSONObject(body).getJSONObject("current")
+                code = cur.optInt("weather_code", -1).takeIf { it >= 0 }
+                isDay = cur.optInt("is_day", 1) == 1
+                tempC = cur.getDouble("temperature_2m")
             } catch (e: Exception) {
                 android.util.Log.w("ObdWeather", "hava alınamadı: ${e.message}")
                 fetchedAt = System.currentTimeMillis() - 29 * 60_000   // 1 dk sonra tekrar dene
@@ -594,4 +600,107 @@ class TripRow(ctx: Context, private val t: TripSummary) : View(ctx) {
     override fun drawableStateChanged() { super.drawableStateChanged(); invalidate() }
 
     private fun scoreColor(s: Int) = when { s >= 85 -> Glass.ICE; s >= 65 -> Glass.TEXT; else -> Glass.AMBER }
+}
+
+
+// ---------------- Büyük saat ve hava (araç ekranının üst köşeleri) ----------------
+
+/** Sağ üst: büyük saat, altında tarih. */
+class ClockView(ctx: Context) : View(ctx) {
+    private val pc = HashMap<String, Paint>()
+    private val hm = java.text.SimpleDateFormat("HH:mm", java.util.Locale("tr"))
+    private val day = java.text.SimpleDateFormat("EEE d MMM", java.util.Locale("tr"))
+    private val now = java.util.Date()
+
+    override fun onDraw(c: Canvas) {
+        val w = width.toFloat(); val h = height.toFloat()
+        now.time = System.currentTimeMillis()
+        val tp = Glass.text(pc, "t", h * 0.62f); tp.textAlign = Paint.Align.RIGHT
+        c.drawText(hm.format(now), w, h * 0.62f, tp)
+        val dp = Glass.text(pc, "d", h * 0.22f, Glass.DIM); dp.textAlign = Paint.Align.RIGHT; dp.letterSpacing = 0.06f
+        c.drawText(day.format(now), w, h * 0.95f, dp)
+        postInvalidateDelayed(1000 - now.time % 1000)
+    }
+}
+
+/** Sol üst: durum simgesi, büyük sıcaklık, kısa açıklama. */
+@SuppressLint("ViewConstructor")
+class WeatherView(ctx: Context, private val weather: Weather) : View(ctx) {
+    private val pc = HashMap<String, Paint>()
+    private val ic = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND }
+    private val path = Path()
+    private val oval = RectF()
+
+    override fun onDraw(c: Canvas) {
+        val h = height.toFloat()
+        val t = weather.tempC
+        val code = weather.code
+        val s = h * 0.62f
+        val cx = s * 0.55f; val cy = h * 0.42f
+        icon(c, kind(code), cx, cy, s * 0.5f)
+        val x = s * 1.25f
+        val tp = Glass.text(pc, "t", h * 0.62f)
+        c.drawText(t?.let { "${Math.round(it)}°" } ?: "—°", x, h * 0.62f, tp)
+        val dp = Glass.text(pc, "d", h * 0.22f, Glass.DIM); dp.letterSpacing = 0.06f
+        c.drawText(Glass.ellipsize(text(code), dp, width - x), x, h * 0.95f, dp)
+        postInvalidateDelayed(30_000)
+    }
+
+    private fun kind(c: Int?) = when (c) {
+        null -> "?"; 0, 1 -> if (weather.isDay) "sun" else "moon"; 2 -> "partly"; 3 -> "cloud"
+        45, 48 -> "fog"; in 51..67, in 80..82 -> "rain"; in 71..77, 85, 86 -> "snow"; in 95..99 -> "storm"; else -> "cloud"
+    }
+
+    /** WMO kodu → kısa Türkçe açıklama */
+    private fun text(c: Int?) = when (c) {
+        null -> "Hava bilgisi yok"; 0 -> if (weather.isDay) "Güneşli" else "Açık"; 1 -> "Az bulutlu"; 2 -> "Parçalı bulutlu"; 3 -> "Kapalı"
+        45, 48 -> "Sisli"; in 51..57 -> "Çisenti"; in 61..65 -> "Yağmurlu"; 66, 67 -> "Dondurucu yağmur"
+        in 71..77 -> "Karlı"; in 80..82 -> "Sağanak"; 85, 86 -> "Kar sağanağı"; in 95..99 -> "Gök gürültülü"; else -> ""
+    }
+
+    /** İnce çizgi simgeler (referanstaki termometre/akü simgeleriyle aynı dil) */
+    private fun icon(c: Canvas, k: String, cx: Float, cy: Float, r: Float) {
+        ic.color = Glass.TEXT; ic.strokeWidth = r * 0.12f
+        fun sun(x: Float, y: Float, rr: Float) {
+            c.drawCircle(x, y, rr * 0.45f, ic)
+            for (i in 0 until 8) {
+                val a = Math.PI / 4 * i
+                c.drawLine(x + (rr * 0.65f * Math.cos(a)).toFloat(), y + (rr * 0.65f * Math.sin(a)).toFloat(),
+                    x + (rr * 0.9f * Math.cos(a)).toFloat(), y + (rr * 0.9f * Math.sin(a)).toFloat(), ic)
+            }
+        }
+        fun cloud(x: Float, y: Float, rr: Float) {
+            path.reset()
+            path.moveTo(x - rr * 0.8f, y + rr * 0.35f)
+            path.lineTo(x + rr * 0.75f, y + rr * 0.35f)
+            oval.set(x + rr * 0.35f, y - rr * 0.15f, x + rr * 1.05f, y + rr * 0.35f + rr * 0.15f)
+            path.arcTo(oval, 90f, -180f)
+            oval.set(x - rr * 0.45f, y - rr * 0.55f, x + rr * 0.45f, y + rr * 0.35f)
+            path.arcTo(oval, 0f, -180f)
+            oval.set(x - rr * 1.0f, y - rr * 0.1f, x - rr * 0.4f, y + rr * 0.45f)
+            path.arcTo(oval, 0f, -270f)
+            c.drawPath(path, ic)
+        }
+        when (k) {
+            "sun" -> sun(cx, cy, r)
+            "moon" -> { oval.set(cx - r * 0.6f, cy - r * 0.6f, cx + r * 0.6f, cy + r * 0.6f); c.drawArc(oval, 60f, 240f, false, ic)
+                oval.set(cx - r * 0.2f, cy - r * 0.75f, cx + r * 0.75f, cy + r * 0.2f); c.drawArc(oval, 100f, 170f, false, ic) }
+            "partly" -> { sun(cx + r * 0.35f, cy - r * 0.35f, r * 0.6f); cloud(cx - r * 0.05f, cy + r * 0.15f, r * 0.7f) }
+            "cloud" -> cloud(cx, cy, r * 0.85f)
+            "fog" -> for (i in 0 until 3) c.drawLine(cx - r * 0.8f + i * r * 0.15f, cy - r * 0.4f + i * r * 0.4f, cx + r * 0.8f - i * r * 0.1f, cy - r * 0.4f + i * r * 0.4f, ic)
+            "rain", "storm", "snow" -> {
+                cloud(cx, cy - r * 0.25f, r * 0.75f)
+                for (i in -1..1) {
+                    val x = cx + i * r * 0.4f; val y = cy + r * 0.45f
+                    when (k) {
+                        "rain" -> c.drawLine(x, y, x - r * 0.12f, y + r * 0.35f, ic)
+                        "snow" -> { c.drawPoint(x, y + r * 0.15f, ic); c.drawCircle(x, y + r * 0.15f, r * 0.06f, ic) }
+                        else -> if (i == 0) { path.reset(); path.moveTo(x + r * 0.1f, y - r * 0.05f); path.lineTo(x - r * 0.12f, y + r * 0.22f)
+                            path.lineTo(x + r * 0.08f, y + r * 0.22f); path.lineTo(x - r * 0.12f, y + r * 0.5f); c.drawPath(path, ic) }
+                    }
+                }
+            }
+            else -> c.drawCircle(cx, cy, r * 0.4f, ic)
+        }
+    }
 }

@@ -407,6 +407,8 @@ class TopBar(ctx: Context, private val tabs: List<String>, private val onTab: (I
     var theme = DashTheme.NIGHT
     var selected = 0
     var tempText = ""
+    /** Araç ekranında saat ve hava ayrı, büyük çiziliyor (ClockView/WeatherView): üst çubukta gösterme */
+    var showTempClock = true
     var sourceName = ""
     /** Bağlantı çubuklarına dokunma (bağlan / kes) */
     var onStatusTap: (() -> Unit)? = null
@@ -423,10 +425,11 @@ class TopBar(ctx: Context, private val tabs: List<String>, private val onTab: (I
     override fun onDraw(c: Canvas) {
         val h = height.toFloat()
         items.clear()
-        items += tempText to theme.text
+        val off = if (showTempClock) 1 else 0   // ilk sekmenin öğe sırası
+        if (showTempClock) items += tempText to theme.text
         tabs.forEachIndexed { i, t -> items += t to (if (i == selected) theme.text else theme.dim) }
         now.time = System.currentTimeMillis()
-        items += clock.format(now) to theme.text
+        if (showTempClock) items += clock.format(now) to theme.text
         // Çubukların yanında kaynak etiketi: demo uyarı renginde, OBD yokken GPS hızı
         val tag = when (sourceName) { "Demo" -> " DEMO"; "GPS" -> " GPS"; else -> null }
 
@@ -450,8 +453,8 @@ class TopBar(ctx: Context, private val tabs: List<String>, private val onTab: (I
             p.color = it.second
             c.drawText(it.first, x, y, p)
             val tw = p.measureText(it.first)
-            if (i in 1..tabs.size) hit += x - gap / 2 to x + tw + gap / 2
-            if (theme.refined && i == selected + 1) {   // aktif sekmenin altında ince parlayan çizgi
+            if (i in off until off + tabs.size) hit += x - gap / 2 to x + tw + gap / 2
+            if (theme.refined && i == selected + off) {   // aktif sekmenin altında ince parlayan çizgi
                 val uy = y + sz * 0.55f
                 for ((wk, a) in listOf(6f to 25, 3f to 60, 1f to 255)) {
                     under.color = theme.accent; under.alpha = a; under.strokeWidth = sz * 0.06f * wk

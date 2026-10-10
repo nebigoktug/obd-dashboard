@@ -38,6 +38,9 @@ object DashImageGeom {
     const val CAP_BASE = 681f
     val RPM_BAR = floatArrayOf(1791f, 786f, 2053f)   // x0, y, x1
     val TOPBAR = RectF(715f, 32f, 1655f, 123f)
+    /** Büyük hava (sol üst) ve saat (sağ üst): halkaların üstündeki çerçeve alanı */
+    val WEATHER = RectF(150f, 26f, 690f, 150f)
+    val CLOCK = RectF(1710f, 26f, 2250f, 150f)
     /** Orta kutucuklar: sol üst, sağ üst, sol alt, sağ alt */
     val TILES = listOf(
         RectF(916f, 233f, 1222f, 414f), RectF(1236f, 233f, 1547f, 414f),
