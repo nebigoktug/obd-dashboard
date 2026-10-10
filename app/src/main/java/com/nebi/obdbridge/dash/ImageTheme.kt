@@ -22,6 +22,9 @@ data class ImageTheme(
     /** Açık zemin (gündüz): kartlar açık cam, yazılar koyu */
     val light: Boolean = false,
     val accent: Int,
+    /** Kadran çentikleri (resimlerden silindi, canlı çiziliyor); null = rakam renkleri */
+    val tickLit: Int? = null,
+    val tickDim: Int? = null,
 ) {
     /** Üst çubuk ve göstergelerin kullandığı renk takımı */
     fun dash() = DashTheme.IMAGE.copy(
@@ -48,7 +51,8 @@ data class ImageTheme(
             ImageTheme("glacier", "Buzul", R.drawable.theme_glacier_base, R.drawable.theme_glacier_lit, 199f, 380f,
                 0xFF0F1E30.toInt(), 0xFFB8CCE0.toInt(), accent = 0xFF8CCBF0.toInt()),
             ImageTheme("day", "Gündüz", R.drawable.theme_day_base, R.drawable.theme_day_lit, 311f, 369f,
-                DARK_TXT.toInt(), 0xFF7A828A.toInt(), light = true, accent = 0xFF1F6FD1.toInt()),
+                DARK_TXT.toInt(), 0xFF7A828A.toInt(), light = true, accent = 0xFF1F6FD1.toInt(),
+                tickLit = 0xFFE8EAED.toInt(), tickDim = 0xFF9AA2A9.toInt()),   // çentikler koyu bandın üstünde
         )
 
         /** Eski kayıtlar (auto/night/day/premium vektör temaları) referans temaya düşer */

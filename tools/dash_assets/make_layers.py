@@ -21,7 +21,7 @@ OUT = os.path.join(HERE, "..", "..", "app", "src", "main", "res", "drawable-nodp
 
 img = cv2.imread(os.path.join(HERE, "reference.jpg"))
 H, W = img.shape[:2]
-# Gemini ile yazısız hale getirilmiş referans (2026-10-10, hizası ölçüldü: < 0,1 px). Varsa silme maskesine gerek yok;
+# Gemini ile yazısız ve çentiksiz hale getirilmiş referans (2026-10-10, hizası ölçüldü: < 0,2 px). Varsa silme maskesine gerek yok;
 # OpenCV inpaint kadran bandında iz bırakıyordu.
 CLEAN = os.path.join(HERE, "reference_clean.png")
 mask = np.zeros((H, W), np.uint8)

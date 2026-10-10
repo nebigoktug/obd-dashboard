@@ -58,6 +58,10 @@ object DashImageGeom {
     /** Kadran rakamları (resimden Gemini ile silindi, araç profiline göre canlı çiziliyor) */
     const val LABEL_R = 278f
     const val LABEL_SIZE = 36f
+    /** Çentikler: rakamların dışında, bandın dış kenarına yakın (2400 ölçeği) */
+    const val TICK_R0 = 312f
+    const val TICK_MAJOR = 26f
+    const val TICK_MINOR = 13f
     /** İsteğe bağlı VOLVO logosu (dash_logo.png, make_layers.py çıktısı) */
     val LOGO = RectF(1068f, 132f, 1068f + 271f, 132f + 48f)
 }
@@ -104,6 +108,7 @@ class DashImageDials(ctx: Context, spec: WidgetSpec, private val th: ImageTheme 
     private val logoTint = if (th.light) android.graphics.PorterDuffColorFilter(0xFF2A2F36.toInt(), android.graphics.PorterDuff.Mode.SRC_IN) else null
     private val logo: Bitmap = load(ctx, R.drawable.dash_logo)
     private val logoDst = RectF()
+    private val tickP = Paint(Paint.ANTI_ALIAS_FLAG).apply { strokeCap = Paint.Cap.ROUND }
     private val labelP = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         textAlign = Paint.Align.CENTER; typeface = Typeface.create("sans-serif-light", Typeface.NORMAL)
     }
@@ -159,6 +164,8 @@ class DashImageDials(ctx: Context, spec: WidgetSpec, private val th: ImageTheme 
         // Rakamlar ışıklı dilimin üstüne: hız 20'şer (240 ve üstünde 40'ar), devir binlik
         val sMax = v.speedMax
         val sStep = if (sMax > 220) 40 else 20
+        ticks(c, DashImageGeom.SPEED_C, sMax / 10, 2, frame["speed"])                  // 10 km/h'de bir, 20'de büyük
+        ticks(c, DashImageGeom.RPM_C, v.rpmMax / 500, 2, frame["rpm"])                // 500 rpm'de bir, binde büyük
         labels(c, DashImageGeom.SPEED_C, (0..sMax step sStep).map { n -> n.toString() }, frame["speed"], th.speedLitLabel ?: th.litLabel)
         labels(c, DashImageGeom.RPM_C, (0..v.rpmMax / 1000).map { n -> n.toString() }, frame["rpm"], th.litLabel)
 
@@ -174,6 +181,27 @@ class DashImageDials(ctx: Context, spec: WidgetSpec, private val th: ImageTheme 
                 val f = ((bd.value - bd.def.min) / (bd.def.max - bd.def.min)).coerceIn(0.0, 1.0).toFloat()
                 c.drawLine(ax0, ay, ax0 + (ax1 - ax0) * f, ay, barP)
             }
+        }
+    }
+
+    /** [n] aralıklı çentik; her [majorEvery]'de bir büyük. Işıklı dilimin üstündekiler temanın çentik rengiyle. */
+    private fun ticks(c: Canvas, center: FloatArray, n: Int, majorEvery: Int, d: Display?) {
+        val cx = ox + center[0] * s; val cy = oy + center[1] * s
+        val f = if (d == null || d.missing) 0f else ((d.value - d.def.min) / (d.def.max - d.def.min)).coerceIn(0.0, 1.0).toFloat()
+        val r0 = DashImageGeom.TICK_R0 * s
+        for (i in 0..n) {
+            val frac = i.toFloat() / n
+            val major = i % majorEvery == 0
+            val a = Math.toRadians((DashImageGeom.START + DashImageGeom.SWEEP * frac).toDouble())
+            val len = (if (major) DashImageGeom.TICK_MAJOR else DashImageGeom.TICK_MINOR) * s
+            val ca = cos(a).toFloat(); val sa = sin(a).toFloat()
+            val lit = frac <= f
+            tickP.color = if (lit) th.tickLit ?: (th.speedLitLabel ?: th.litLabel) else th.tickDim ?: th.dimLabel
+            tickP.alpha = if (major) 230 else 150
+            tickP.strokeWidth = (if (major) 4.5f else 2.5f) * s
+            // Büyükler dışa doğru uzar, küçükler dış kenarda kısa
+            val ra = if (major) r0 else r0 + len
+            c.drawLine(cx + ra * ca, cy + ra * sa, cx + (r0 + DashImageGeom.TICK_MAJOR * s) * ca, cy + (r0 + DashImageGeom.TICK_MAJOR * s) * sa, tickP)
         }
     }
 
