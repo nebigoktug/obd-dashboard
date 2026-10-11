@@ -67,6 +67,31 @@ class DashboardActivity : Activity(), SensorEventListener {
     private val gpsListener = android.location.LocationListener { loc ->
         // Dururken GPS 1-2 km/h gürültü verir: 3 km/h altı sıfır
         if (loc.hasSpeed()) gpsSpeed = com.nebi.obdbridge.obd.Sample("speed", (loc.speed * 3.6).let { if (it < 3) 0.0 else it }, System.currentTimeMillis())
+        onMotionLocation(loc)
+    }
+    /** Deniz seviyesi rakımı (Android 14+ dönüştürücüsü dosya okur: ana thread dışında) */
+    private val altExec = java.util.concurrent.Executors.newSingleThreadExecutor()
+    private val elevation = ElevationClient({ dist, m -> runOnUiThread { motion.alt.onDem(dist, m) } })
+
+    private fun onMotionLocation(loc: android.location.Location) {
+        val now = System.currentTimeMillis()
+        val kmh = if (loc.hasSpeed()) loc.speed * 3.6 else null
+        motion.heading.onLocation(now, kmh, if (loc.hasBearing()) loc.bearing.toDouble() else null,
+            if (Build.VERSION.SDK_INT >= 26 && loc.hasBearingAccuracy()) loc.bearingAccuracyDegrees.toDouble() else null)
+        val acc = if (loc.hasAccuracy()) loc.accuracy else null
+        val vAcc = if (Build.VERSION.SDK_INT >= 26 && loc.hasVerticalAccuracy()) loc.verticalAccuracyMeters else null
+        fun feed(msl: Double?) = runOnUiThread {
+            motion.alt.onLocation(now, loc.latitude, loc.longitude, acc, msl, vAcc)
+            if (prefs.getBoolean("dem_online", true) && (acc ?: 99f) <= 30f) elevation.onPosition(motion.alt.distance, loc.latitude, loc.longitude)
+        }
+        if (!loc.hasAltitude()) { feed(null); return }
+        if (Build.VERSION.SDK_INT >= 34) altExec.execute {
+            val msl = try {
+                if (!loc.hasMslAltitude()) android.location.altitude.AltitudeConverter().addMslAltitudeToLocation(this, loc)
+                if (loc.hasMslAltitude()) loc.mslAltitudeMeters else null
+            } catch (_: Exception) { null }
+            feed(msl)
+        } else feed(loc.altitude)   // elipsoit yüksekliği: Türkiye'de ~30–40 m fazla; eğimi etkilemez
     }
     private val media by lazy { MediaHub(this).apply { onChange = { mediaCards.forEach { it.postInvalidate() } } } }
     private lateinit var panel: PanelLayout
@@ -108,6 +133,7 @@ class DashboardActivity : Activity(), SensorEventListener {
         applyVehicle()
         model = DashModel(pickSource(), liveGears)
         model.insights = insights.apply { load(prefs.getString("insights", null)) }
+        model.motion = motion
         model.trip = trip
         applySpeedFactor()
         loadLayout()
@@ -159,6 +185,12 @@ class DashboardActivity : Activity(), SensorEventListener {
         startGps()
         (getSystemService(SENSOR_SERVICE) as SensorManager).let { sm ->
             sm.getDefaultSensor(Sensor.TYPE_LIGHT)?.let { sm.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL) }
+            // G-ölçer ve barometre (Ayarlar > Sensörler ile kapatılabilir)
+            if (prefs.getBoolean("motion_sensors", true)) {
+                sm.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)?.let { sm.registerListener(this, it, SensorManager.SENSOR_DELAY_GAME) }
+                sm.getDefaultSensor(Sensor.TYPE_GRAVITY)?.let { sm.registerListener(this, it, SensorManager.SENSOR_DELAY_GAME) }
+                sm.getDefaultSensor(Sensor.TYPE_PRESSURE)?.let { sm.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL) }
+            }
         }
         applyImageTheme(effectiveTheme())
         Choreographer.getInstance().postFrameCallback(frameCb)
@@ -319,6 +351,11 @@ class DashboardActivity : Activity(), SensorEventListener {
             cards.addView(InfoCard(this, t, rows), LinearLayout.LayoutParams(0, dp(250), 1f).apply { setMargins(dp(6), dp(6), dp(6), dp(6)) })
         }
         list.addView(cards)
+        // Telefon sensörleri: yön, rakım, eğim, basınç + G-ölçer
+        val cards2 = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        cards2.addView(InfoCard(this, "HAREKET", ::motionRows), LinearLayout.LayoutParams(0, dp(250), 1f).apply { setMargins(dp(6), dp(6), dp(6), dp(6)) })
+        cards2.addView(GMeterView(this, motion), LinearLayout.LayoutParams(0, dp(250), 1f).apply { setMargins(dp(6), dp(6), dp(6), dp(6)) })
+        list.addView(cards2)
         list.addView(DtcBar(this, ::dtcSummary).apply { setOnClickListener { startActivity(android.content.Intent(this@DashboardActivity, DtcActivity::class.java)) } },
             LinearLayout.LayoutParams(-1, dp(56)).apply { setMargins(dp(6), dp(6), dp(6), dp(6)) })
         val perRow = if (land) 4 else 2
@@ -431,6 +468,15 @@ class DashboardActivity : Activity(), SensorEventListener {
         put("fuel_cut", if (insights.fuelCut) 1.0 else 0.0)
         put("coast", if (insights.coasting) 1.0 else 0.0)
         put("alerts", insights.alerts.fold(0) { m, a -> m or (1 shl a.kind.ordinal) }.toDouble())
+        // Telefon sensörleri
+        val spd = v("speed") ?: gpsSpeed?.takeIf { now - it.ts < 3000 }?.value
+        if (src is DemoSource) motion.demo((now - demoT0) / 1000.0, spd ?: 0.0, now)
+        else {
+            spd?.let { motion.g.onSpeed(now, it) }
+            motion.baro.onCar(v("map"), v("rpm"), v("speed"), v("coolant"), insights.fuelCut, Vehicle.current.fuel == Fuel.DIESEL)
+        }
+        weather.pressureHpa?.let { motion.baro.onWeather(it) }
+        for (k in listOf("heading", "altitude", "grade", "baro", "g_long", "g_lat")) put(k, model.raw(k)?.value)
         for (p in pills) p.alerts = shown
         val note = if (!prefs.getBoolean("note_fuelcut", true)) null
             else when { insights.fuelCut -> "yakıt kesik"; insights.coasting && Vehicle.current.manual -> "boşta"; else -> null }
@@ -480,7 +526,19 @@ class DashboardActivity : Activity(), SensorEventListener {
     }
 
     /** Gündüz otomatiği: aydınlıkta Gündüz temasına, karanlıkta seçili temaya; titremesin diye eşik aralığı ve 20 sn kilit. */
+    private var gravity: FloatArray? = null
+    private var gravityTs = 0L
+
     override fun onSensorChanged(e: SensorEvent) {
+        when (e.sensor.type) {
+            Sensor.TYPE_GRAVITY -> { gravity = e.values.copyOf(); gravityTs = System.currentTimeMillis(); return }
+            Sensor.TYPE_ACCELEROMETER -> {
+                val now = System.currentTimeMillis()
+                motion.g.onAccel(now, e.values, gravity?.takeIf { now - gravityTs < 500 })
+                return
+            }
+            Sensor.TYPE_PRESSURE -> { motion.baro.onPhone(e.values[0].toDouble()); return }
+        }
         if (!prefs.getBoolean("auto_day", true)) return
         val lux = e.values[0]
         val now = System.currentTimeMillis()
@@ -602,6 +660,33 @@ class DashboardActivity : Activity(), SensorEventListener {
         )
     }
 
+    private fun motionRows(): List<Pair<String, String>> {
+        val m = motion
+        val demo = m.demoAlt != null
+        val h = model.raw("heading")?.value
+        val alt = m.altitudeM
+        val gr = m.gradePct
+        val b = m.baro
+        val rows = mutableListOf(
+            "Yön" to (h?.let { "${Heading.name(it)} · ${Math.round(it) % 360}°" } ?: "GPS + hareket gerekli"),
+            "Rakım" to (alt?.let { "%.0f m".format(it) + when (m.alt.source) { AltitudeTrack.Src.DEM -> " (harita)"; AltitudeTrack.Src.GPS -> " (GPS)"; null -> "" } }
+                ?: "GPS gerekli"),
+            "Eğim" to (gr?.let { val r = Math.round(it); when { r >= 2 -> "%%%d yokuş".format(r); r <= -2 -> "%%%d iniş".format(-r); else -> "düz" } }
+                ?: if (alt != null) "ölçülüyor" else "—"),
+            "Hava basıncı" to (b.hpa?.let { "%.0f hPa".format(it) + (b.source?.let { s -> " (${s.label})" } ?: "") } ?: "—"),
+        )
+        b.mapOffset?.let { rows += "MAP sensörü" to (if (kotlin.math.abs(it) <= 15) "uyumlu (%+.0f hPa)" else "sapma %+.0f hPa").format(it) }
+        rows += "G-ölçer" to when {
+            demo -> "demo"
+            !prefs.getBoolean("motion_sensors", true) -> "kapalı (Ayarlar)"
+            else -> when (m.g.state) {
+                GMeter.State.READY -> "hazır"; GMeter.State.LEARNING -> "öğreniyor %%%d".format((m.g.progress * 100).toInt())
+                GMeter.State.UNRELIABLE -> "sensör güvenilmez"; GMeter.State.NO_SENSOR -> "sensör yok"
+            }
+        }
+        return rows
+    }
+
     /** Detay'daki arıza şeridi: canlı 0101 (lamba, sayı) ve son okuma; dokununca DtcActivity. (metin, uyarı mı) */
     private fun dtcSummary(): Pair<String, Boolean> {
         val mil = model.raw("mil")?.value
@@ -712,6 +797,9 @@ class DashboardActivity : Activity(), SensorEventListener {
         /** Süreç boyunca tek yolculuk (sekme/yön değişince sıfırlanmasın) */
         val trip = Trip()
         val insights = Insights()
+        /** Telefon sensörlerinden yön, rakım/eğim, hava basıncı, G-kuvveti */
+        val motion = Motion()
+        private val demoT0 = System.currentTimeMillis()
         /** Araç ekranı referans görselle açılır (HEADUNIT.md) */
         const val DEFAULT_THEME = "image"
     }

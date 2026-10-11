@@ -142,7 +142,8 @@ class SetupActivity : Activity() {
             "Bildirimler telefondan dışarı gönderilmez.", notif) {
             startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
         }
-        permRow("Konum", "Adaptör bağlı değilken hızı GPS'ten göstermek ve dış hava sıcaklığı için.", loc) {
+        permRow("Konum", "Adaptör bağlı değilken hızı GPS'ten göstermek, gidiş yönü, rakım ve yol eğimi, dış hava sıcaklığı için. " +
+            "Hassas rakım için sürüşte yaklaşık her 500 m'de konum (~10 m) Open-Meteo'ya sorulur; Ayarlar > Sensörler'den kapatılabilir.", loc) {
             requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION), 2)
         }
         nav()

@@ -42,6 +42,7 @@ class SettingsActivity : Activity() {
             Section("Navigasyon ve medya", ::naviMedia),
             Section("Yakıt", ::fuel),
             Section("Uyarılar", ::alerts),
+            Section("Sensörler", ::sensors),
             Section("Kayıtlar", ::logs),
             Section("Hakkında", ::about),
             Section("Gelişmiş", ::advanced) { dash.getBoolean("dev", false) },
@@ -106,6 +107,31 @@ class SettingsActivity : Activity() {
     }
 
     // ---------- yardımcılar ----------
+
+    /** Telefon sensörleri (v1.1): G-ölçer, barometre, yön/rakım/eğim */
+    private fun sensors() {
+        val m = DashboardActivity.motion
+        val sm = getSystemService(SENSOR_SERVICE) as android.hardware.SensorManager
+        fun has(t: Int) = sm.getDefaultSensor(t) != null
+        header("G-ölçer ve barometre")
+        add(ui.toggle("Telefon sensörlerini kullan", "İvmeölçer (G-kuvveti) ve varsa barometre. Telefon tutucuda sabit durmalı",
+            { dash.getBoolean("motion_sensors", true) }) { dash.edit().putBoolean("motion_sensors", it).apply() })
+        add(ui.item("G-ölçeri yeniden öğret", "Telefonu tutucuda farklı açıyla taktıysanız. Düz yolda birkaç kez hızlanıp yavaşlamak yeter",
+            { when (m.g.state) { GMeter.State.READY -> "hazır"; GMeter.State.LEARNING -> "öğreniyor"; GMeter.State.UNRELIABLE -> "güvenilmez"; else -> "" } }) {
+            m.g.relearn(); m.g.resetPeaks(); toast("G-ölçer yeniden öğrenecek")
+        })
+        add(ui.item("Sensörler", null, {
+            listOf("ivme" to has(android.hardware.Sensor.TYPE_ACCELEROMETER), "yerçekimi" to has(android.hardware.Sensor.TYPE_GRAVITY),
+                "barometre" to has(android.hardware.Sensor.TYPE_PRESSURE))
+                .joinToString(" · ") { (n, ok) -> if (ok) n else "$n yok" }
+        }, onClick = null))
+        add(ui.item("Hava basıncı kaynağı", "Telefonda barometre yoksa dizel araçta rölantideki emme basıncı (MAP), o da yoksa hava durumu servisi",
+            { m.baro.source?.label ?: "henüz yok" }, onClick = null))
+        header("Rakım ve eğim")
+        add(ui.toggle("Hassas rakım (çevrimiçi)", "Arazi yükseklik haritasından (Open-Meteo). Sürüşte yaklaşık her 500 m'de konum (~10 m) sorulur. " +
+            "Kapalıyken GPS rakımı kullanılır (daha oynak)", { dash.getBoolean("dem_online", true) }) { dash.edit().putBoolean("dem_online", it).apply() })
+        note("Yön GPS'in hareket yönünden alınır (telefon pusulası araçta metal yüzünden sapar); araç dururken son yön kalır.")
+    }
 
     private fun header(s: String) = pane.addView(ui.caps(s).apply { setPadding(ui.dp(6), ui.dp(18), 0, ui.dp(8)) })
     private fun note(s: String) = pane.addView(ui.text(s, 13f, Pal.DIM).apply { setPadding(ui.dp(6), ui.dp(4), ui.dp(6), ui.dp(8)) })
@@ -440,7 +466,7 @@ class SettingsActivity : Activity() {
         add(ui.item("Kaynak kod ve sürümler", "github.com/${Updates.REPO} · GPL-3.0", null) { Updates.open(this, "https://github.com/${Updates.REPO}") })
         add(ui.item("Sorun bildir", "Bağlantı özeti, uygulama logu ve son 3 sürüş kaydını tek .zip olarak gönder. Şasi no ve adaptör adresi gizlenir", null) { reportProblem() })
         header("Teşekkürler")
-        note("Hava durumu: Open-Meteo (open-meteo.com, CC BY 4.0) · Hava simgeleri: Meteocons, Bas Milius (MIT lisansı)")
+        note("Hava durumu ve arazi yüksekliği: Open-Meteo (open-meteo.com, CC BY 4.0; Copernicus DEM GLO-90) · Hava simgeleri: Meteocons, Bas Milius (MIT lisansı)")
         header("Önemli")
         note("• Sürüş sırasında uygulamayla uğraşmayın; ayarları araç dururken yapın.\n" +
             "• Gösterilen değerler araç beyninden okunur, yakıt ve uyarılar tahmindir. Aracın kendi göstergeleri ve uyarı ışıkları esastır.\n" +
@@ -450,7 +476,8 @@ class SettingsActivity : Activity() {
         note("Sürüş kayıtları, konumlar ve bildirimler telefondan çıkmaz. Yalnız hava durumu için yaklaşık konum " +
             "(yaklaşık 100 m) Open-Meteo'ya gönderilir. Reklam ve takip yok. " +
             "Sorun bildirimi yalnız sizin seçtiğiniz uygulamayla, sizin seçtiğiniz kişiye gider. " +
-            "Güncelleme denetimi günde bir kez GitHub'a sorar (kapatılabilir).")
+            "Güncelleme denetimi günde bir kez GitHub'a sorar (kapatılabilir). " +
+            "Hassas rakım açıkken sürüşte yaklaşık her 500 m'de konum (~10 m) Open-Meteo'ya sorulur (Ayarlar > Sensörler).")
         add(ui.item("Kurulum sihirbazını yeniden başlat", null, null) {
             startActivity(Intent(this, SetupActivity::class.java)); finish()
         })

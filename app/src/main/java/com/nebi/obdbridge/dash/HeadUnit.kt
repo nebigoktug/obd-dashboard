@@ -445,6 +445,8 @@ class Weather(private val ctx: Context) {
     /** WMO hava durumu kodu (Open-Meteo) ve gündüz mü */
     @Volatile var code: Int? = null; private set
     @Volatile var isDay = true; private set
+    /** Yerel hava basıncı (hPa, bulunulan rakımda) */
+    @Volatile var pressureHpa: Double? = null; private set
     @Volatile private var fetchedAt = 0L
     @Volatile private var busy = false
 
@@ -456,7 +458,7 @@ class Weather(private val ctx: Context) {
         fetchedAt = now
         Thread({
             try {
-                val url = java.net.URL("https://api.open-meteo.com/v1/forecast?latitude=%.3f&longitude=%.3f&current=temperature_2m,weather_code,is_day"
+                val url = java.net.URL("https://api.open-meteo.com/v1/forecast?latitude=%.3f&longitude=%.3f&current=temperature_2m,weather_code,is_day,surface_pressure"
                     .format(java.util.Locale.US, loc.latitude, loc.longitude))
                 val con = (url.openConnection() as java.net.HttpURLConnection).apply { connectTimeout = 8000; readTimeout = 8000 }
                 val body = con.inputStream.bufferedReader().use { it.readText() }
@@ -464,6 +466,7 @@ class Weather(private val ctx: Context) {
                 code = cur.optInt("weather_code", -1).takeIf { it >= 0 }
                 isDay = cur.optInt("is_day", 1) == 1
                 tempC = cur.getDouble("temperature_2m")
+                pressureHpa = cur.optDouble("surface_pressure").takeIf { !it.isNaN() }
             } catch (e: Exception) {
                 android.util.Log.w("ObdWeather", "hava alınamadı: ${e.message}")
                 fetchedAt = System.currentTimeMillis() - 29 * 60_000   // 1 dk sonra tekrar dene
@@ -542,6 +545,65 @@ class InfoCard(ctx: Context, private val title: String, private val rows: () -> 
             y += 26 * dp
         }
         postInvalidateDelayed(1000)
+    }
+}
+
+/**
+ * G-ölçer: yukarı hızlanma, aşağı fren, sağ sağa viraj. Halkalar 0,2 / 0,4 / 0,6 g; son 2 sn iz bırakır.
+ * Öğrenirken ya da sensör güvenilmezken ortada durum yazısı.
+ */
+@SuppressLint("ViewConstructor")  // yalnız koddan oluşturuluyor
+class GMeterView(ctx: Context, private val motion: Motion) : View(ctx) {
+    private val pc = HashMap<String, Paint>()
+    private val rect = RectF()
+    private val dp = ctx.resources.displayMetrics.density
+    private val trail = ArrayDeque<Pair<Float, Float>>()
+    private val line = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
+    private val dot = Paint(Paint.ANTI_ALIAS_FLAG)
+
+    override fun onDraw(c: Canvas) {
+        val w = width.toFloat(); val h = height.toFloat()
+        rect.set(1f, 1f, w - 1, h - 1)
+        Glass.card(c, rect, 300 * dp)
+        val pad = 14 * dp
+        val tp = Glass.text(pc, "t", 12 * dp, Glass.ICE); tp.letterSpacing = 0.15f
+        c.drawText("G-KUVVETİ", pad, pad + 12 * dp, tp)
+        val g = motion.g
+        val peaks = Glass.text(pc, "p", 13 * dp, Glass.DIM)
+        c.drawText("Fren %.2f · Hızlanma %.2f · Viraj %.2f g".format(g.maxBrake, g.maxAccel, g.maxLat), pad, h - pad, peaks)
+
+        val cx = w / 2; val cy = (h + 12 * dp) / 2 - 4 * dp
+        val r = minOf(w / 2 - pad, h / 2 - 34 * dp)
+        line.strokeWidth = 1 * dp; line.color = Glass.DIM; line.alpha = 70
+        for (k in 1..3) c.drawCircle(cx, cy, r * k / 3, line)
+        c.drawLine(cx - r, cy, cx + r, cy, line); c.drawLine(cx, cy - r, cx, cy + r, line)
+        val lp = Glass.text(pc, "l", 10 * dp, Glass.DIM); lp.textAlign = Paint.Align.CENTER
+        c.drawText("HIZLANMA", cx, cy - r - 4 * dp, lp)
+        c.drawText("FREN", cx, cy + r + 12 * dp, lp)
+
+        val lo = motion.gLong; val la = motion.gLat
+        if (lo == null || la == null) {
+            trail.clear()
+            val sp = Glass.text(pc, "s", 14 * dp, Glass.TEXT); sp.textAlign = Paint.Align.CENTER
+            val msg = when (g.state) {
+                GMeter.State.NO_SENSOR -> "Sensör kapalı"
+                GMeter.State.UNRELIABLE -> "Sensör güvenilmez"
+                else -> "Öğreniyor %%%d".format((g.progress * 100).toInt())
+            }
+            c.drawText(msg, cx, cy - 2 * dp, sp)
+            if (g.state == GMeter.State.LEARNING) c.drawText("düz yolda hızlanıp yavaşlayın", cx, cy + 16 * dp, lp)
+        } else {
+            val x = cx + (la / 0.6).coerceIn(-1.0, 1.0).toFloat() * r
+            val y = cy - (lo / 0.6).coerceIn(-1.0, 1.0).toFloat() * r
+            trail.addLast(x to y); while (trail.size > 40) trail.removeFirst()
+            trail.forEachIndexed { i, (tx, ty) ->
+                dot.color = Glass.ICE; dot.alpha = 20 + 120 * i / trail.size
+                c.drawCircle(tx, ty, 3 * dp, dot)
+            }
+            dot.color = Glass.ICE; dot.alpha = 255
+            c.drawCircle(x, y, 7 * dp, dot)
+        }
+        postInvalidateDelayed(50)
     }
 }
 

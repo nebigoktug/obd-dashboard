@@ -68,7 +68,9 @@ class DriveLog(private val dir: File, private val clock: () -> Long = System::cu
         val KEYS = listOf("rpm", "speed", "load", "map", "rail", "coolant", "iat", "battery", "maf", "fuel_rate",
             // Ekranın gösterdikleri (2026-10-11): vites, GPS hızı, tahmini yakıt (L/sa), yakıt kesik / boşta (0/1),
             // uyarılar (AlertKind sıra numaralarının bit maskesi)
-            "gear", "gps_speed", "fuel_lph", "fuel_cut", "coast", "alerts")
+            "gear", "gps_speed", "fuel_lph", "fuel_cut", "coast", "alerts",
+            // Telefon sensörleri (v1.1): yön (°), rakım (m), eğim (%), hava basıncı (hPa), ileri/yanal ivme (g)
+            "heading", "altitude", "grade", "baro", "g_long", "g_lat")
     }
 }
 
