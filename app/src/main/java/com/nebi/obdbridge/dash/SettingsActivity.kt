@@ -361,7 +361,9 @@ class SettingsActivity : Activity() {
         val box = android.widget.FrameLayout(this).apply { setPadding(ui.dp(20), 0, ui.dp(20), 0); addView(input) }
         AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
             .setTitle("Sorun bildir")
-            .setMessage("Kısaca ne olduğunu yazın. Sonra gönderme yolunu (e-posta, WhatsApp, Telegram…) siz seçersiniz.")
+            .setMessage(if (ProblemReport.SUPPORT_EMAIL.isNotEmpty())
+                "Kısaca ne olduğunu yazın. Sonra e-posta uygulamanızı seçin; alıcı (${ProblemReport.SUPPORT_EMAIL}) hazır gelir."
+                else "Kısaca ne olduğunu yazın. Sonra gönderme yolunu (e-posta, WhatsApp, Telegram…) siz seçersiniz.")
             .setView(box)
             .setPositiveButton("Hazırla") { _, _ ->
                 val note = input.text.toString()
@@ -373,6 +375,7 @@ class SettingsActivity : Activity() {
                         startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("application/zip")
                             .putExtra(Intent.EXTRA_STREAM, ShareProvider.uriFor(this, zip))
                             .putExtra(Intent.EXTRA_SUBJECT, "OBD Dashboard sorun bildirimi")
+                            .apply { if (ProblemReport.SUPPORT_EMAIL.isNotEmpty()) putExtra(Intent.EXTRA_EMAIL, arrayOf(ProblemReport.SUPPORT_EMAIL)) }
                             .putExtra(Intent.EXTRA_TEXT, note.ifBlank { "OBD Dashboard sorun bildirimi" })
                             .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION), "Sorun bildirimini gönder"))
                     }

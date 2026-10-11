@@ -14,6 +14,12 @@ import java.util.zip.ZipOutputStream
  * sürüş kayıtlarında konum yok (yalnız GPS hızı).
  */
 object ProblemReport {
+    /**
+     * Bildirimlerin gideceği destek adresi (yalnız bu uygulama için açılan ayrı bir e-posta; kişisel adres değil).
+     * Boşsa kullanıcı alıcıyı kendisi seçer.
+     */
+    const val SUPPORT_EMAIL = ""
+
     fun build(ctx: Context, note: String): File {
         val out = File(ctx.cacheDir, "share/obd_dashboard_sorun.zip").apply { parentFile?.mkdirs() }
         val files = ctx.getExternalFilesDir(null)
