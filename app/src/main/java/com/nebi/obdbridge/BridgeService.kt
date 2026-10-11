@@ -102,6 +102,9 @@ class BridgeService : Service() {
         /** Bağlı adaptörün motoru (arıza kodu ekranı gibi tek seferlik istekler için); bağlı değilse null */
         @Volatile private var current: ObdEngine? = null
 
+        /** Bağlı motorun özeti (sorun bildirimi için); bağlı değilse null */
+        fun diagnostics(): String? = current?.diag()
+
         /** Arıza kodlarını okur (ve [clear] ise siler). Bağlantı yoksa false, [onDone] çağrılmaz. */
         fun requestDtc(clear: Boolean, onDone: (com.nebi.obdbridge.obd.DtcReport) -> Unit): Boolean {
             val e = current ?: return false

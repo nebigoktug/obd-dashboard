@@ -67,6 +67,23 @@ class ObdEngine(
     private var lastMil = 0L
     private var aInRow = 0  // tek PID modunda art arda yapılan A isteği
 
+    // Sorun bildirimi için: adaptör kimliği, desteklenen PID'ler, son durum değişimleri
+    private var adapterId = "?"
+    private var supportedPids: Set<Int> = emptySet()
+    private val journal = ArrayDeque<String>()
+
+    /** Sorun bildirimi paketine giren bağlantı özeti (VIN, MAC içermez). */
+    fun diag(): String = buildString {
+        append("Adaptör: ").append(adapterId).append('\n')
+        append("Protokol: ").append(protocol ?: "-").append(" · başlık ").append(header ?: "-").append('\n')
+        append("Sorgu modu: ").append(mode).append(" · çoklu ").append(maxMulti).append('\n')
+        append("Durum: ").append(status.state).append(" · ").append("%.1f".format(java.util.Locale.US, status.reqPerSec)).append(" istek/sn\n")
+        append("Desteklenen PID'ler: ").append(supportedPids.joinToString(" ") { "%02X".format(it) }).append('\n')
+        append("Sorgulanan: ").append(pids.joinToString(" ") { it.key }).append('\n')
+        append("\nDurum geçmişi:\n")
+        synchronized(journal) { journal.forEach { append("  ").append(it).append('\n') } }
+    }
+
     // Hız ölçümü (1 sn pencere)
     private var winStart = 0L
     private var winReq = 0
@@ -299,7 +316,7 @@ class ObdEngine(
     /** Adaptörü hazırlar, protokolü bulur, yetenekleri test eder. ECU yoksa false. */
     private fun init(cachedProtocol: String?): Boolean {
         setStatus(EngineStatus(EngineState.INIT, msg = "Adaptör hazırlanıyor"))
-        request("ATZ", 3000)
+        adapterId = request("ATZ", 3000).lineSequence().map { it.trim() }.lastOrNull { it.isNotEmpty() && it != TIMEOUT } ?: "?"
         for (c in listOf("ATE0", "ATL0", "ATS0", "ATH0", "ATAT1")) checked(c, 1000)
         checked("ATSP" + (cachedProtocol ?: "0"), 1000)
 
@@ -322,6 +339,7 @@ class ObdEngine(
             base += 0x20
         }
         pids = Pids.select(supported)
+        supportedPids = supported.toSortedSet()
         lastReq.clear(); misses.clear(); suspendedUntil.clear()
 
         // CAN'da doğrudan motor ECU'suna sor (başka ECU'nun cevabı beklenmez); olmazsa fonksiyonel adrese dön.
@@ -543,6 +561,10 @@ class ObdEngine(
     }
 
     private fun setStatus(s: EngineStatus) {
+        if (s.state != status.state || s.msg != status.msg || s.mode != status.mode) synchronized(journal) {
+            journal.addLast("%tT %s%s".format(clock(), s.state, s.msg?.let { " · $it" } ?: ""))
+            while (journal.size > 60) journal.removeFirst()
+        }
         status = s
         listener.onStatus(s)
     }

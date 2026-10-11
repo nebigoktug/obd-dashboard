@@ -328,6 +328,7 @@ class SettingsActivity : Activity() {
             { Conn.prefs(this).getBoolean(BridgeService.PREF_DRIVE_LOG, true) }) {
             Conn.prefs(this).edit().putBoolean(BridgeService.PREF_DRIVE_LOG, it).apply()
         })
+        add(ui.item("Sorun bildir", "Bağlantı özeti, uygulama logu ve son 3 sürüş kaydını tek .zip olarak gönder. Şasi no ve adaptör adresi gizlenir", null) { reportProblem() })
         add(ui.item("Kayıtları paylaş", "Tüm sürüş kayıtlarını tek bir .zip olarak gönder (ör. hata bildirmek için)",
             { "${dir.listFiles { f -> f.name.endsWith(".csv") }?.size ?: 0} kayıt" }) { shareLogs(dir) })
         add(ui.item("Tüm kayıtları sil", null, null, danger = true) {
@@ -354,6 +355,32 @@ class SettingsActivity : Activity() {
         })
     }
 
+    /** Not iste, paketi arka planda hazırla (log okuma ~1 sn), paylaşım menüsünü aç. */
+    private fun reportProblem() {
+        val input = EditText(this).apply { hint = "Ne oldu? (ör. bağlanmıyor, devir yanlış gösteriliyor)"; minLines = 3 }
+        AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle("Sorun bildir")
+            .setMessage("Kısaca ne olduğunu yazın. Sonra gönderme yolunu (e-posta, WhatsApp, Telegram…) siz seçersiniz.")
+            .setView(input)
+            .setPositiveButton("Hazırla") { _, _ ->
+                val note = input.text.toString()
+                toast("Hazırlanıyor…")
+                Thread {
+                    val zip = try { ProblemReport.build(this, note) } catch (e: Exception) { null }
+                    runOnUiThread {
+                        if (zip == null) { toast("Paket hazırlanamadı"); return@runOnUiThread }
+                        startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("application/zip")
+                            .putExtra(Intent.EXTRA_STREAM, ShareProvider.uriFor(this, zip))
+                            .putExtra(Intent.EXTRA_SUBJECT, "OBD Dashboard sorun bildirimi")
+                            .putExtra(Intent.EXTRA_TEXT, note.ifBlank { "OBD Dashboard sorun bildirimi" })
+                            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION), "Sorun bildirimini gönder"))
+                    }
+                }.start()
+            }
+            .setNegativeButton("Vazgeç", null)
+            .show()
+    }
+
     private fun shareLogs(dir: java.io.File) {
         val files = dir.listFiles { f -> f.name.endsWith(".csv") }?.sortedBy { it.name } ?: emptyList()
         if (files.isEmpty()) { toast("Kayıt yok"); return }
@@ -377,6 +404,7 @@ class SettingsActivity : Activity() {
             if (++devTaps >= 7) { dash.edit().putBoolean("dev", true).apply(); toast("Gelişmiş ayarlar açıldı"); buildNav() }
             else if (devTaps >= 4) toast("${7 - devTaps} kez daha")
         })
+        add(ui.item("Sorun bildir", "Bağlantı özeti, uygulama logu ve son 3 sürüş kaydını tek .zip olarak gönder. Şasi no ve adaptör adresi gizlenir", null) { reportProblem() })
         header("Teşekkürler")
         note("Hava durumu: Open-Meteo (open-meteo.com, CC BY 4.0) · Hava simgeleri: Meteocons, Bas Milius (MIT lisansı)")
         header("Önemli")
@@ -386,7 +414,8 @@ class SettingsActivity : Activity() {
             "• Uygulama olduğu gibi sunulur; kullanımdan doğacak sonuçlardan geliştirici sorumlu değildir.")
         header("Gizlilik")
         note("Sürüş kayıtları, konumlar ve bildirimler telefondan çıkmaz. Yalnız hava durumu için yaklaşık konum " +
-            "(yaklaşık 100 m) Open-Meteo'ya gönderilir. Reklam ve takip yok.")
+            "(yaklaşık 100 m) Open-Meteo'ya gönderilir. Reklam ve takip yok. " +
+            "Sorun bildirimi yalnız sizin seçtiğiniz uygulamayla, sizin seçtiğiniz kişiye gider.")
         add(ui.item("Kurulum sihirbazını yeniden başlat", null, null) {
             startActivity(Intent(this, SetupActivity::class.java)); finish()
         })
