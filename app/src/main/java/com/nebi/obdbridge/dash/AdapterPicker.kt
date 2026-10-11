@@ -29,7 +29,7 @@ class AdapterPicker(private val a: Activity, private val askPerms: (Array<String
             body.removeAllViews()
             if (wifi) wifiPane(body) { dlg.dismiss() } else btPane(body) { dlg.dismiss() }
         }
-        root.addView(ui.chips(listOf(false to "Bluetooth", true to "Wi-Fi"), wifi) { wifi = it; render() })
+        root.addView(ui.chips(listOf(false to "Bluetooth", true to "Wi-Fi (deneysel)"), wifi) { wifi = it; render() })
         root.addView(body, LinearLayout.LayoutParams(-1, -2).apply { topMargin = ui.dp(12) })
         dlg = AlertDialog.Builder(a, android.R.style.Theme_DeviceDefault_Dialog_Alert)
             .setTitle("OBD adaptörü")
@@ -71,7 +71,7 @@ class AdapterPicker(private val a: Activity, private val askPerms: (Array<String
             list.addView(t, if (obd) 0 else list.childCount, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = ui.dp(6) })
         }
         for (d in Conn.devices(a)) row(d.address, Conn.label(d), "eşleşmiş", leOnly = false)
-        stopScan = Conn.scanBle(a) { addr, name -> row(addr, name, "yakında (BLE)", leOnly = true) }
+        stopScan = Conn.scanBle(a) { addr, name -> row(addr, name, "yakında · BLE (deneysel)", leOnly = true) }
         list.postDelayed({ status.text = if (shown.isEmpty()) "Adaptör bulunamadı. Kontak açık ve adaptör takılı mı?" else "Adaptörünü seç" }, 10_000)
         body.addView(ui.text("Listede yoksa: klasik Bluetooth adaptörleri önce telefonun Bluetooth ayarlarından eşleştir " +
             "(PIN genelde 1234 ya da 0000). BLE adaptörler eşleştirmeden burada görünür.", 13f, Pal.DIM)
@@ -81,6 +81,8 @@ class AdapterPicker(private val a: Activity, private val askPerms: (Array<String
     }
 
     private fun wifiPane(body: LinearLayout, close: () -> Unit) {
+        body.addView(ui.text("Deneysel: Wi-Fi adaptörlerle henüz gerçek araçta denenmedi. Sorun olursa Ayarlar > Kayıtlar > Sorun bildir.",
+            13f, Pal.AMBER).apply { setPadding(0, 0, 0, ui.dp(8)) })
         body.addView(ui.text("1. Telefonu adaptörün Wi-Fi ağına bağla (ör. \"WiFi_OBDII\", \"V-LINK\").\n" +
             "2. \"İnternet yok\" uyarısı çıkarsa \"Bağlı kal\"ı seç.\n" +
             "3. Adres genelde 192.168.0.10:35000; adaptörün kutusunda farklı yazıyorsa onu gir.", 14f, Pal.DIM))

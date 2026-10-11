@@ -8,8 +8,9 @@ import android.net.Uri
  * Navigasyon uygulamaları (2026-10-11): ana ekrandaki "Harita" düğmesi ve Ev/İş rotaları seçili uygulamayla açılır.
  * Dönüş oku yalnız Yandex ve Google Haritalar bildiriminden okunabiliyor (NaviListener); Waze'de ok yok.
  */
-enum class NaviApp(val pkg: String, val label: String, val arrows: Boolean) {
-    YANDEX_NAVI("ru.yandex.yandexnavi", "Yandex Navigator", true),
+/** [tested]: dönüş oku gerçek sürüşte denendi (2026-10-11: yalnız Yandex Navigator) */
+enum class NaviApp(val pkg: String, val label: String, val arrows: Boolean, val tested: Boolean = false) {
+    YANDEX_NAVI("ru.yandex.yandexnavi", "Yandex Navigator", true, tested = true),
     GOOGLE_MAPS("com.google.android.apps.maps", "Google Haritalar", true),
     YANDEX_MAPS("ru.yandex.yandexmaps", "Yandex Haritalar", true),
     WAZE("com.waze", "Waze", false);

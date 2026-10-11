@@ -164,7 +164,7 @@ class SettingsActivity : Activity() {
                     "Bluetooth: Adaptör seçiminde yakındaki adaptörler listelenir. Bazı adaptörler önce telefonun Bluetooth " +
                     "ayarlarından eşleştirilmek ister (OBDII, ELM327, V-LINK gibi; PIN genelde 1234 ya da 0000).\n\n" +
                     "Wi-Fi: Telefonu adaptörün Wi-Fi ağına bağla, \"internet yok\" uyarısında bağlı kal; adres genelde 192.168.0.10:35000.\n\n" +
-                    "ELM327 uyumlu Bluetooth (klasik ve BLE) ve Wi-Fi adaptörler desteklenir.")
+                    "En iyi denenmiş olan klasik Bluetooth ELM327. Bluetooth LE ve Wi-Fi adaptör desteği deneyseldir.")
                 .setPositiveButton("Bluetooth ayarlarını aç") { _, _ -> Conn.openBtSettings(this) }
                 .setNegativeButton("Tamam", null).show()
         })
@@ -249,7 +249,7 @@ class SettingsActivity : Activity() {
         add(ui.item("Navigasyon uygulaması", "Ana ekrandaki Harita düğmesi ve Ev/İş rotaları bununla açılır",
             { NaviApp.current(this)?.label ?: "Yüklü değil" }) {
             if (apps.isEmpty()) { toast("Yandex Navigator, Google Haritalar ya da Waze yükle"); return@item }
-            choose("Navigasyon uygulaması", apps.map { it.label + if (it.arrows) "" else "  (dönüş oku gösterilmez)" },
+            choose("Navigasyon uygulaması", apps.map { it.label + when { !it.arrows -> "  (dönüş oku gösterilmez)"; !it.tested -> "  (dönüş oku deneysel)"; else -> "" } },
                 apps.indexOf(NaviApp.current(this))) { dash.edit().putString("navi_app", apps[it].name).apply() }
         })
         header("Hızlı hedefler")
