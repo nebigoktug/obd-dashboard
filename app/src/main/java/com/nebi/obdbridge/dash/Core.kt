@@ -248,7 +248,7 @@ class GearEstimator(private val prior: DoubleArray = Vehicle.current.gearPrior()
         const val MATCH = 0.05
         const val MIN_PEAK = 15.0
         /** Tipik 5 ileri dizel, 205/55R16: rpm per km/h. Yalnız numaralandırma için; gerçek değerler öğrenilir. */
-        val PRIOR = doubleArrayOf(118.0, 63.0, 42.0, 32.0, 25.5)
+        val PRIOR = doubleArrayOf(118.0, 63.0, 39.0, 28.0, 22.0)
         private const val LO = 2.3      // ln(10)
         private const val BIN = 0.005   // %0,5
         private const val BINS = 520    // ln 10 .. ln ~134'ün ötesi

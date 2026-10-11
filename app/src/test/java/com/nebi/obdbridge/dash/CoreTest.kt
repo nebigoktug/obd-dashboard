@@ -104,6 +104,8 @@ class CoreTest {
     @Test fun gearAssignmentWithGaps() {
         assertEquals(mapOf(2 to 58.0, 3 to 38.5, 5 to 22.5), GearEstimator.assign(listOf(58.0, 38.5, 22.5)))
         assertEquals(mapOf(4 to 29.0), GearEstimator.assign(listOf(29.0)))
+        // 2026-10-11 S40 sürüşü: 1. ve 5. henüz öğrenilmemişken 4. vites 5 sanılıyordu
+        assertEquals(mapOf(2 to 62.0, 3 to 37.0, 4 to 26.0), GearEstimator.assign(listOf(62.0, 37.0, 26.0)))
     }
 
     /** Yolculuk: 60 km/h'te 30 dk = 30 km; 10 dk'dan uzun kesinti yeni yolculuk. */

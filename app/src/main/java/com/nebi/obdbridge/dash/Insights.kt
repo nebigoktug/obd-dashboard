@@ -318,7 +318,9 @@ class FuelModel {
         return when {
             rate != null -> rate * cal
             f == Fuel.PETROL && maf != null -> maf * 3600 / (14.7 * 745) * cal   // g/s hava → L/sa benzin
-            rpm != null && load != null -> k * rpm * max(load - y0, 2.0) / 1e5
+            // Isınınca rölanti yükü Y0'ın altına iniyor (S40: %47 → %38); motor yakıt kesmede değilse
+            // rölanti tüketiminin altına düşmez
+            rpm != null && load != null -> max(k * rpm * max(load - y0, 0.0) / 1e5, IDLE_LPH * cal)
             else -> null
         }?.coerceIn(0.0, 40.0)
     }
@@ -350,6 +352,8 @@ class FuelModel {
         const val DEFAULT_Y0 = 40.0
         // rölanti: 802 rpm, yük 47 → 0,7 L/sa ⇒ K ≈ 0,7e5 / (802·7) ≈ 12,5
         const val DEFAULT_K = 12.5
+        /** Sıcak rölanti tabanı; 2026-10-11 sürüşünde model 0,2 veriyordu (1.6 dizelde beklenen ≈ 0,5–0,7, ölçülmedi) */
+        const val IDLE_LPH = 0.55
     }
 }
 

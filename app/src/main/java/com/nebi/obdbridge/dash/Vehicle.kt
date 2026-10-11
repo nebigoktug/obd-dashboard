@@ -26,7 +26,7 @@ data class Vehicle(
     fun gearPrior(): DoubleArray = when (gears) {
         4 -> doubleArrayOf(118.0, 63.0, 40.0, 29.0)
         6 -> doubleArrayOf(118.0, 66.0, 44.0, 33.0, 27.0, 22.5)
-        else -> doubleArrayOf(118.0, 63.0, 42.0, 32.0, 25.5)
+        else -> doubleArrayOf(118.0, 63.0, 39.0, 28.0, 22.0)   // S40 1.6D ölçümü: 117, 62, 37, 26, 20
     }
 
     val manual get() = gearbox == Gearbox.MANUAL
