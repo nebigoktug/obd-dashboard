@@ -1,0 +1,14 @@
+# Sürüm notları
+
+## 1.0 (ilk yayın)
+
+- Araç göstergesi: hız, devir, vites tahmini, turbo, motor yükü, akü, motor sıcaklığı.
+- 6 görsel tema; güneşte otomatik gündüz teması. Üst ortada isteğe bağlı ekran yazısı (ör. araç modeli).
+- Tahmini yakıt tüketimi (yakıt debisi PID'i yoksa motor yükünden), depo dolumuyla kalibrasyon.
+- Uyarılar: DPF temizlenmesi (dizel), düşük turbo, şarj sorunu, soğuk motorda yüksek devir.
+- Arıza kodları: kayıtlı / bekleyen / kalıcı kodlar, Türkçe açıklama, paylaşma, onaylı silme.
+- Sürüş geçmişi: otomatik kayıt, haftalık özet, yolculuk ayrıntısı.
+- Navigasyon (Yandex Navigator dönüş okları; Google/Yandex Haritalar deneysel) ve medya kontrolü.
+- Sorun bildir: bağlantı özeti ve son sürüşler tek dosyada (şasi no ve adaptör adresi gizli).
+- Güncelleme denetimi (GitHub, günde bir; kapatılabilir).
+- Deneysel: Bluetooth LE ve Wi-Fi adaptörler.
