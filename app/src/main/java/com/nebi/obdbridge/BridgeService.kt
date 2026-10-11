@@ -99,6 +99,15 @@ class BridgeService : Service() {
         @Volatile var engineStatus: EngineStatus? = null
         @Volatile var lastProbeFile: String? = null
         @Volatile var lastSniffFile: String? = null
+        /** Bağlı adaptörün motoru (arıza kodu ekranı gibi tek seferlik istekler için); bağlı değilse null */
+        @Volatile private var current: ObdEngine? = null
+
+        /** Arıza kodlarını okur (ve [clear] ise siler). Bağlantı yoksa false, [onDone] çağrılmaz. */
+        fun requestDtc(clear: Boolean, onDone: (com.nebi.obdbridge.obd.DtcReport) -> Unit): Boolean {
+            val e = current ?: return false
+            e.requestDtc(clear, onDone)
+            return true
+        }
     }
 
     // Bu servis örneğine ait bayrak: eski örneğin geç uyanan thread'leri yeni örneğe karışmasın
@@ -200,6 +209,7 @@ class BridgeService : Service() {
         btThread?.interrupt()  // yeniden deneme beklemesini keser
         wakeLock?.let { if (it.isHeld) it.release() }
         engineStatus = null
+        current = null
         sniffRunning = false
         scanRunning = false
         if (wasRunning) setStatus("Bağlı değil")  // değilse hata mesajı ekranda kalsın
@@ -295,7 +305,7 @@ class BridgeService : Service() {
                 if (active) setStatus("$what: ${e.message ?: "bağlanılamadı"}")
             }
             // Bağlantı koptu: motoru durdur, istemciyi de kapat ki karşı taraf durumu anlasın
-            engine?.stop(); engine = null
+            engine?.stop(); engine = null; current = null
             closeQuietly(bt); bt = null
             client?.let { dropClient(it) }
             if (!active) break
@@ -318,6 +328,7 @@ class BridgeService : Service() {
             }
         })
         engine = eng
+        current = eng
         if (blockOut != null) attachBlockLog(eng)
         Thread({
             try {

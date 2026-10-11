@@ -77,6 +77,14 @@
             tools:ignore="DiscouragedApi,LockedOrientationActivity"
             android:theme="@android:style/Theme.DeviceDefault.NoActionBar.Fullscreen" />
 
+        <!-- Arıza kodları (Detay sekmesinden) -->
+        <activity
+            android:name=".dash.DtcActivity"
+            android:exported="false"
+            android:screenOrientation="sensorLandscape"
+            tools:ignore="DiscouragedApi,LockedOrientationActivity"
+            android:theme="@android:style/Theme.DeviceDefault.NoActionBar.Fullscreen" />
+
         <!-- İlk açılış sihirbazı -->
         <activity
             android:name=".dash.SetupActivity"

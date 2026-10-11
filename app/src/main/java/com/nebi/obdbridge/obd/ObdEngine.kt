@@ -194,6 +194,15 @@ class ObdEngine(
 
     fun cancelScan() { scanCancel = true }
 
+    /** Arıza kodlarını okumayı (ve [clear] ise önce silmeyi) sıraya koyar; canlı sorgu bir tur bekler. */
+    fun requestDtc(clear: Boolean, onDone: (DtcReport) -> Unit) {
+        dtcClear = clear
+        dtcWanted = onDone
+    }
+
+    @Volatile private var dtcWanted: ((DtcReport) -> Unit)? = null
+    @Volatile private var dtcClear = false
+
     /**
      * Blok kaydı: canlı sorgunun arasında her [rawPeriodMs]'de bir bu komutlar (ör. "2101") sorulur,
      * ham cevap [onRaw]'a (komut, cevap, zaman) verilir. Anlamı bilinmeyen üretici bloklarını sürüşte
@@ -263,6 +272,14 @@ class ObdEngine(
                 val json = VehicleProbe(::request, clock, { setStatus(EngineStatus(EngineState.PROBING, msg = it)) }, ::interrupt).run()
                 needInit = true  // test ELM ayarlarını değiştirdi
                 done(json)
+                continue
+            }
+            val dtcDone = dtcWanted
+            if (dtcDone != null) {
+                dtcWanted = null
+                dtcDone(if (needInit) DtcReport(emptyList(), emptyList(), null, null, null, null, error = "Araca bağlı değil", ts = clock())
+                    else DtcReader(::request, protocol in setOf("6", "7", "8", "9"), clock).run(dtcClear))
+                lastMil = 0L  // gösterge kutucuğundaki arıza sayısı hemen yenilensin
                 continue
             }
             if (needInit) {

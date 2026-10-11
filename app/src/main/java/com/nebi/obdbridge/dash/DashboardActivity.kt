@@ -314,8 +314,10 @@ class DashboardActivity : Activity(), SensorEventListener {
         col.addView(topBar(), LinearLayout.LayoutParams(-1, dp(36)))
         val list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         val cards = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        for ((t, rows) in listOf("YOLCULUK" to ::tripRows, "PERFORMANS" to ::perfRows, "SAĞLIK" to ::healthRows)) {
-            cards.addView(InfoCard(this, t, rows), LinearLayout.LayoutParams(0, dp(250), 1f).apply { setMargins(dp(6), dp(6), dp(6), dp(6)) })
+        for ((t, rows) in listOf("YOLCULUK" to ::tripRows, "PERFORMANS" to ::perfRows, "SAĞLIK" to ::healthRows, "ARIZA KODLARI ›" to ::dtcRows)) {
+            val card = InfoCard(this, t, rows)
+            if (rows == ::dtcRows) card.setOnClickListener { startActivity(android.content.Intent(this, DtcActivity::class.java)) }
+            cards.addView(card, LinearLayout.LayoutParams(0, dp(250), 1f).apply { setMargins(dp(6), dp(6), dp(6), dp(6)) })
         }
         list.addView(cards)
         val perRow = if (land) 4 else 2
@@ -596,6 +598,20 @@ class DashboardActivity : Activity(), SensorEventListener {
             "60–100 en iyi" to t(p.best60100),
             "Güç (anlık)" to (p.kw?.let { "%.0f kW · %.0f hp".format(it, it * 1.341) } ?: "—"),
             "Güç (en yüksek)" to (if (p.peakKw > 0) "%.0f kW · %.0f hp".format(p.peakKw, p.peakKw * 1.341) else "—"),
+        )
+    }
+
+    /** Detay'daki arıza kartı: canlı 0101 sayısı ve son okuma; dokununca DtcActivity */
+    private fun dtcRows(): List<Pair<String, String>> {
+        val mil = model.raw("mil")?.value
+        val n = model.raw("dtc_count")?.value
+        val last = DtcActivity.last
+        return listOf(
+            "Arıza lambası" to when (mil) { null -> "—"; 0.0 -> "sönük"; else -> "YANIYOR" },
+            "Kayıtlı kod" to (n?.let { "%.0f".format(it) } ?: "—"),
+            "Son okuma" to (last?.let { java.text.SimpleDateFormat("HH:mm", java.util.Locale("tr")).format(java.util.Date(it.ts)) +
+                " · ${it.stored.size + it.pending.size} kod" } ?: "yok"),
+            "" to "Okumak için dokun",
         )
     }
 

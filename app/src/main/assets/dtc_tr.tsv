@@ -1,0 +1,269 @@
+P0016	Krank/eksantrik konumu uyumsuz (Bank 1, sensör A)
+P0017	Krank/eksantrik konumu uyumsuz (Bank 1, sensör B)
+P0030	Oksijen sensörü ısıtıcı kontrol devresi (Bank 1, sensör 1)
+P0036	Oksijen sensörü ısıtıcı kontrol devresi (Bank 1, sensör 2)
+P0045	Turbo basınç kontrol solenoidi devresi / açık
+P0046	Turbo basınç kontrol solenoidi devresi aralık/performans
+P0047	Turbo basınç kontrol solenoidi devresi düşük
+P0048	Turbo basınç kontrol solenoidi devresi yüksek
+P0068	MAP/MAF ile gaz kelebeği konumu uyumsuz
+P0069	MAP ile barometrik basınç uyumsuz
+P0087	Yakıt rampası / sistem basıncı çok düşük
+P0088	Yakıt rampası / sistem basıncı çok yüksek
+P0089	Yakıt basınç regülatörü 1 performans
+P0090	Yakıt basınç regülatörü 1 kontrol devresi
+P0093	Yakıt sisteminde büyük kaçak tespit edildi
+P0100	Hava debimetresi (MAF) devresi arızası
+P0101	Hava debimetresi (MAF) devresi aralık/performans
+P0102	Hava debimetresi (MAF) devresi düşük giriş
+P0103	Hava debimetresi (MAF) devresi yüksek giriş
+P0104	Hava debimetresi (MAF) devresi aralıklı
+P0105	Manifold basınç (MAP) / barometre devresi arızası
+P0106	Manifold basınç (MAP) / barometre devresi aralık/performans
+P0107	Manifold basınç (MAP) / barometre devresi düşük giriş
+P0108	Manifold basınç (MAP) / barometre devresi yüksek giriş
+P0109	Manifold basınç (MAP) / barometre devresi aralıklı
+P0110	Emme havası sıcaklık sensörü devresi arızası
+P0111	Emme havası sıcaklık sensörü devresi aralık/performans
+P0112	Emme havası sıcaklık sensörü devresi düşük giriş
+P0113	Emme havası sıcaklık sensörü devresi yüksek giriş
+P0114	Emme havası sıcaklık sensörü devresi aralıklı
+P0115	Motor soğutma suyu sıcaklık sensörü devresi arızası
+P0116	Motor soğutma suyu sıcaklık sensörü devresi aralık/performans
+P0117	Motor soğutma suyu sıcaklık sensörü devresi düşük giriş
+P0118	Motor soğutma suyu sıcaklık sensörü devresi yüksek giriş
+P0119	Motor soğutma suyu sıcaklık sensörü devresi aralıklı
+P0120	Gaz kelebeği / pedal konum sensörü A devresi arızası
+P0121	Gaz kelebeği / pedal konum sensörü A devresi aralık/performans
+P0122	Gaz kelebeği / pedal konum sensörü A devresi düşük giriş
+P0123	Gaz kelebeği / pedal konum sensörü A devresi yüksek giriş
+P0124	Gaz kelebeği / pedal konum sensörü A devresi aralıklı
+P0125	Kapalı çevrim yakıt kontrolü için soğutma suyu sıcaklığı yetersiz
+P0128	Termostat: soğutma suyu sıcaklığı termostat değerinin altında
+P0130	Oksijen sensörü devresi arızası (Bank 1, sensör 1)
+P0131	Oksijen sensörü devresi düşük voltaj (Bank 1, sensör 1)
+P0132	Oksijen sensörü devresi yüksek voltaj (Bank 1, sensör 1)
+P0133	Oksijen sensörü yavaş tepki (Bank 1, sensör 1)
+P0134	Oksijen sensöründe hareket yok (Bank 1, sensör 1)
+P0135	Oksijen sensörü ısıtıcı devresi arızası (Bank 1, sensör 1)
+P0136	Oksijen sensörü devresi arızası (Bank 1, sensör 2)
+P0137	Oksijen sensörü devresi düşük voltaj (Bank 1, sensör 2)
+P0138	Oksijen sensörü devresi yüksek voltaj (Bank 1, sensör 2)
+P0139	Oksijen sensörü yavaş tepki (Bank 1, sensör 2)
+P0140	Oksijen sensöründe hareket yok (Bank 1, sensör 2)
+P0141	Oksijen sensörü ısıtıcı devresi arızası (Bank 1, sensör 2)
+P0150	Oksijen sensörü devresi arızası (Bank 2, sensör 1)
+P0151	Oksijen sensörü devresi düşük voltaj (Bank 2, sensör 1)
+P0152	Oksijen sensörü devresi yüksek voltaj (Bank 2, sensör 1)
+P0153	Oksijen sensörü yavaş tepki (Bank 2, sensör 1)
+P0154	Oksijen sensöründe hareket yok (Bank 2, sensör 1)
+P0155	Oksijen sensörü ısıtıcı devresi arızası (Bank 2, sensör 1)
+P0156	Oksijen sensörü devresi arızası (Bank 2, sensör 2)
+P0157	Oksijen sensörü devresi düşük voltaj (Bank 2, sensör 2)
+P0158	Oksijen sensörü devresi yüksek voltaj (Bank 2, sensör 2)
+P0159	Oksijen sensörü yavaş tepki (Bank 2, sensör 2)
+P0160	Oksijen sensöründe hareket yok (Bank 2, sensör 2)
+P0161	Oksijen sensörü ısıtıcı devresi arızası (Bank 2, sensör 2)
+P0170	Yakıt düzeltme arızası (Bank 1)
+P0171	Karışım çok fakir (Bank 1)
+P0172	Karışım çok zengin (Bank 1)
+P0173	Yakıt düzeltme arızası (Bank 2)
+P0174	Karışım çok fakir (Bank 2)
+P0175	Karışım çok zengin (Bank 2)
+P0180	Yakıt sıcaklık sensörü A devresi arızası
+P0181	Yakıt sıcaklık sensörü A devresi aralık/performans
+P0182	Yakıt sıcaklık sensörü A devresi düşük giriş
+P0183	Yakıt sıcaklık sensörü A devresi yüksek giriş
+P0190	Yakıt rampası basınç sensörü devresi arızası
+P0191	Yakıt rampası basınç sensörü devresi aralık/performans
+P0192	Yakıt rampası basınç sensörü devresi düşük giriş
+P0193	Yakıt rampası basınç sensörü devresi yüksek giriş
+P0194	Yakıt rampası basınç sensörü devresi aralıklı
+P0195	Motor yağı sıcaklık sensörü arızası
+P0196	Motor yağı sıcaklık sensörü aralık/performans
+P0197	Motor yağı sıcaklık sensörü düşük
+P0198	Motor yağı sıcaklık sensörü yüksek
+P0200	Enjektör devresi arızası
+P0201	Enjektör devresi arızası - 1. silindir
+P0202	Enjektör devresi arızası - 2. silindir
+P0203	Enjektör devresi arızası - 3. silindir
+P0204	Enjektör devresi arızası - 4. silindir
+P0205	Enjektör devresi arızası - 5. silindir
+P0206	Enjektör devresi arızası - 6. silindir
+P0217	Motor aşırı ısınma
+P0218	Şanzıman aşırı ısınma
+P0219	Motor aşırı devir
+P0220	Gaz kelebeği / pedal konum sensörü B devresi arızası
+P0221	Gaz kelebeği / pedal konum sensörü B devresi aralık/performans
+P0222	Gaz kelebeği / pedal konum sensörü B devresi düşük giriş
+P0223	Gaz kelebeği / pedal konum sensörü B devresi yüksek giriş
+P0230	Yakıt pompası birincil devre arızası
+P0231	Yakıt pompası ikincil devre düşük
+P0232	Yakıt pompası ikincil devre yüksek
+P0234	Turbo aşırı basınç (overboost)
+P0235	Turbo basınç sensörü A devresi arızası
+P0236	Turbo basınç sensörü A devresi aralık/performans
+P0237	Turbo basınç sensörü A devresi düşük
+P0238	Turbo basınç sensörü A devresi yüksek
+P0243	Turbo wastegate solenoidi A arızası
+P0244	Turbo wastegate solenoidi A aralık/performans
+P0245	Turbo wastegate solenoidi A düşük
+P0246	Turbo wastegate solenoidi A yüksek
+P0251	Yakıt pompası dozaj kontrolü A arızası
+P0261	1. silindir enjektör devresi düşük
+P0262	1. silindir enjektör devresi yüksek
+P0263	1. silindir katkı/denge hatası
+P0264	2. silindir enjektör devresi düşük
+P0265	2. silindir enjektör devresi yüksek
+P0266	2. silindir katkı/denge hatası
+P0267	3. silindir enjektör devresi düşük
+P0268	3. silindir enjektör devresi yüksek
+P0269	3. silindir katkı/denge hatası
+P0270	4. silindir enjektör devresi düşük
+P0271	4. silindir enjektör devresi yüksek
+P0272	4. silindir katkı/denge hatası
+P0299	Turbo basıncı düşük (underboost)
+P0300	Rastgele / birden çok silindirde tekleme
+P0301	1. silindirde tekleme
+P0302	2. silindirde tekleme
+P0303	3. silindirde tekleme
+P0304	4. silindirde tekleme
+P0305	5. silindirde tekleme
+P0306	6. silindirde tekleme
+P0316	İlk çalıştırmada tekleme (ilk 1000 devir)
+P0325	Vuruntu sensörü 1 devresi arızası (Bank 1)
+P0326	Vuruntu sensörü 1 devresi aralık/performans (Bank 1)
+P0327	Vuruntu sensörü 1 devresi düşük giriş (Bank 1)
+P0328	Vuruntu sensörü 1 devresi yüksek giriş (Bank 1)
+P0335	Krank mili konum sensörü A devresi arızası
+P0336	Krank mili konum sensörü A devresi aralık/performans
+P0337	Krank mili konum sensörü A devresi düşük giriş
+P0338	Krank mili konum sensörü A devresi yüksek giriş
+P0339	Krank mili konum sensörü A devresi aralıklı
+P0340	Eksantrik mili konum sensörü A devresi arızası
+P0341	Eksantrik mili konum sensörü A devresi aralık/performans
+P0342	Eksantrik mili konum sensörü A devresi düşük giriş
+P0343	Eksantrik mili konum sensörü A devresi yüksek giriş
+P0344	Eksantrik mili konum sensörü A devresi aralıklı
+P0351	Ateşleme bobini A birincil/ikincil devre arızası
+P0352	Ateşleme bobini B birincil/ikincil devre arızası
+P0353	Ateşleme bobini C birincil/ikincil devre arızası
+P0354	Ateşleme bobini D birincil/ikincil devre arızası
+P0380	Kızdırma bujisi / ısıtıcı devresi A arızası
+P0381	Kızdırma bujisi / ısıtıcı ikaz lambası devresi arızası
+P0382	Kızdırma bujisi / ısıtıcı devresi B arızası
+P0400	EGR akışı arızası
+P0401	EGR akışı yetersiz
+P0402	EGR akışı aşırı
+P0403	EGR kontrol devresi arızası
+P0404	EGR kontrol devresi aralık/performans
+P0405	EGR sensörü A devresi düşük
+P0406	EGR sensörü A devresi yüksek
+P0420	Katalizör verimi eşiğin altında (Bank 1)
+P0421	Ön katalizör verimi eşiğin altında (Bank 1)
+P0430	Katalizör verimi eşiğin altında (Bank 2)
+P0440	Yakıt buharı (EVAP) sistemi arızası
+P0441	Yakıt buharı (EVAP) sistemi hatalı tahliye akışı
+P0442	Yakıt buharı (EVAP) sisteminde küçük kaçak
+P0443	EVAP tahliye valfi devresi arızası
+P0446	EVAP havalandırma kontrol devresi arızası
+P0455	Yakıt buharı (EVAP) sisteminde büyük kaçak
+P0460	Yakıt seviye sensörü devresi arızası
+P0461	Yakıt seviye sensörü devresi aralık/performans
+P0462	Yakıt seviye sensörü devresi düşük giriş
+P0463	Yakıt seviye sensörü devresi yüksek giriş
+P0470	Egzoz basınç sensörü devresi arızası
+P0471	Egzoz basınç sensörü devresi aralık/performans
+P0472	Egzoz basınç sensörü devresi düşük
+P0473	Egzoz basınç sensörü devresi yüksek
+P0480	Soğutma fanı 1 kontrol devresi arızası
+P0481	Soğutma fanı 2 kontrol devresi arızası
+P0500	Araç hız sensörü arızası
+P0501	Araç hız sensörü aralık/performans
+P0502	Araç hız sensörü düşük giriş
+P0503	Araç hız sensörü aralıklı/düzensiz/yüksek
+P0505	Rölanti kontrol sistemi arızası
+P0506	Rölanti devri beklenenden düşük
+P0507	Rölanti devri beklenenden yüksek
+P0520	Motor yağı basınç sensörü/müşürü devresi arızası
+P0521	Motor yağı basınç sensörü/müşürü aralık/performans
+P0522	Motor yağı basınç sensörü/müşürü düşük voltaj
+P0523	Motor yağı basınç sensörü/müşürü yüksek voltaj
+P0530	Klima soğutucu basınç sensörü devresi arızası
+P0560	Sistem voltajı arızası
+P0562	Sistem voltajı düşük
+P0563	Sistem voltajı yüksek
+P0571	Fren müşürü A devresi arızası
+P0575	Hız sabitleyici giriş devresi arızası
+P0600	Seri iletişim hattı arızası
+P0601	Kontrol modülü iç bellek sağlama toplamı hatası
+P0602	Kontrol modülü programlama hatası
+P0603	Kontrol modülü kalıcı bellek (KAM) hatası
+P0604	Kontrol modülü RAM hatası
+P0605	Kontrol modülü ROM hatası
+P0606	Kontrol modülü işlemci arızası
+P0607	Kontrol modülü performans
+P0615	Marş rölesi devresi
+P0620	Alternatör kontrol devresi arızası
+P0627	Yakıt pompası kontrol devresi açık
+P0641	Sensör referans voltajı A devresi açık
+P0650	Arıza lambası (MIL) kontrol devresi arızası
+P0651	Sensör referans voltajı B devresi açık
+P0670	Kızdırma bujisi kontrol modülü devresi
+P0671	1. silindir kızdırma bujisi devresi
+P0672	2. silindir kızdırma bujisi devresi
+P0673	3. silindir kızdırma bujisi devresi
+P0674	4. silindir kızdırma bujisi devresi
+P0683	Kızdırma bujisi kontrol modülü ile motor beyni iletişim devresi
+P0685	Motor beyni güç rölesi kontrol devresi açık
+P0700	Şanzıman kontrol sistemi arızası (şanzıman beyninde kod var)
+P0704	Debriyaj müşürü giriş devresi arızası
+P0705	Şanzıman konum (vites seçici) sensörü devresi arızası
+P0715	Şanzıman giriş/türbin hız sensörü devresi arızası
+P0720	Şanzıman çıkış hız sensörü devresi arızası
+P0730	Yanlış vites oranı
+P0740	Tork konvertörü kavrama devresi arızası
+P0805	Debriyaj konum sensörü devresi
+P0806	Debriyaj konum sensörü devresi aralık/performans
+P0807	Debriyaj konum sensörü devresi düşük
+P0808	Debriyaj konum sensörü devresi yüksek
+P2002	Partikül filtresi (DPF) verimi eşiğin altında (Bank 1)
+P2031	Egzoz gazı sıcaklık sensörü devresi (Bank 1, sensör 2)
+P2032	Egzoz gazı sıcaklık sensörü devresi düşük (Bank 1, sensör 2)
+P2033	Egzoz gazı sıcaklık sensörü devresi yüksek (Bank 1, sensör 2)
+P2080	Egzoz gazı sıcaklık sensörü devresi aralık/performans (Bank 1, sensör 1)
+P2096	Katalizör sonrası yakıt düzeltme: çok fakir (Bank 1)
+P2097	Katalizör sonrası yakıt düzeltme: çok zengin (Bank 1)
+P2100	Gaz kelebeği motoru devresi açık
+P2101	Gaz kelebeği motoru devresi aralık/performans
+P2110	Gaz kelebeği kontrol sistemi: güç sınırlandı
+P2119	Gaz kelebeği gövdesi aralık/performans
+P2122	Gaz pedalı konum sensörü D devresi düşük
+P2123	Gaz pedalı konum sensörü D devresi yüksek
+P2127	Gaz pedalı konum sensörü E devresi düşük
+P2128	Gaz pedalı konum sensörü E devresi yüksek
+P2135	Gaz kelebeği/pedal konum sensörü A/B voltaj uyumsuzluğu
+P2138	Gaz pedalı konum sensörü D/E voltaj uyumsuzluğu
+P2146	Enjektör grup A besleme devresi açık
+P2149	Enjektör grup B besleme devresi açık
+P2263	Turbo basınç sistemi performans
+P2264	Yakıtta su sensörü devresi
+P2269	Yakıtta su var
+P242F	Partikül filtresi (DPF) tıkanması: kül birikimi
+P244A	Partikül filtresi (DPF) fark basıncı çok düşük (Bank 1)
+P244B	Partikül filtresi (DPF) fark basıncı çok yüksek (Bank 1)
+P2452	Partikül filtresi (DPF) basınç sensörü A devresi
+P2453	Partikül filtresi (DPF) basınç sensörü A devresi aralık/performans
+P2454	Partikül filtresi (DPF) basınç sensörü A devresi düşük
+P2455	Partikül filtresi (DPF) basınç sensörü A devresi yüksek
+P2458	Partikül filtresi (DPF) rejenerasyon süresi
+P2463	Partikül filtresi (DPF) kurum birikimi aşırı
+P2563	Turbo basınç kontrol konum sensörü devresi aralık/performans
+U0001	Yüksek hızlı CAN iletişim hattı
+U0073	Kontrol modülü iletişim hattı A kapalı (bus off)
+U0100	Motor beyni (ECM/PCM A) ile iletişim yok
+U0101	Şanzıman beyni (TCM) ile iletişim yok
+U0121	ABS modülü ile iletişim yok
+U0140	Gövde kontrol modülü (BCM) ile iletişim yok
+U0155	Gösterge paneli (IPC) ile iletişim yok
+U0401	Motor beyninden geçersiz veri alındı
