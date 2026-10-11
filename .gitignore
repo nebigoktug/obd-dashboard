@@ -7,3 +7,4 @@ __pycache__/
 # Araç raporları VIN içerir; depoya girmesin
 probe-reports/
 *.apk
+NOTES.md

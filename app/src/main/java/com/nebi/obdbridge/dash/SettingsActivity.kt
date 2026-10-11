@@ -408,6 +408,26 @@ class SettingsActivity : Activity() {
             if (++devTaps >= 7) { dash.edit().putBoolean("dev", true).apply(); toast("Gelişmiş ayarlar açıldı"); buildNav() }
             else if (devTaps >= 4) toast("${7 - devTaps} kez daha")
         })
+        add(ui.item("Güncellemeleri denetle", "Yeni sürüm yayınlanınca haber verir (GitHub)", {
+            dash.getString("upd_latest", null)?.let { if (Updates.newer(it, ver ?: "0")) "Yeni: $it" else "Güncel" } ?: ""
+        }) {
+            toast("Denetleniyor…")
+            Thread {
+                val r = Updates.fetch()
+                runOnUiThread {
+                    when {
+                        r == null -> toast("Denetlenemedi (internet?)")
+                        Updates.newer(r.version, ver ?: "0") -> { dash.edit().putString("upd_latest", r.version).apply(); Updates.offer(this, r) }
+                        else -> { dash.edit().putString("upd_latest", r.version).apply(); toast("Güncel sürümü kullanıyorsunuz") }
+                    }
+                    rows.forEach { it.refresh() }
+                }
+            }.start()
+        })
+        add(ui.toggle("Otomatik denetle", "Günde en çok bir kez, uygulama açılırken", { dash.getBoolean("upd_auto", true) }) {
+            dash.edit().putBoolean("upd_auto", it).apply()
+        })
+        add(ui.item("Kaynak kod ve sürümler", "github.com/${Updates.REPO} · GPL-3.0", null) { Updates.open(this, "https://github.com/${Updates.REPO}") })
         add(ui.item("Sorun bildir", "Bağlantı özeti, uygulama logu ve son 3 sürüş kaydını tek .zip olarak gönder. Şasi no ve adaptör adresi gizlenir", null) { reportProblem() })
         header("Teşekkürler")
         note("Hava durumu: Open-Meteo (open-meteo.com, CC BY 4.0) · Hava simgeleri: Meteocons, Bas Milius (MIT lisansı)")
@@ -419,7 +439,8 @@ class SettingsActivity : Activity() {
         header("Gizlilik")
         note("Sürüş kayıtları, konumlar ve bildirimler telefondan çıkmaz. Yalnız hava durumu için yaklaşık konum " +
             "(yaklaşık 100 m) Open-Meteo'ya gönderilir. Reklam ve takip yok. " +
-            "Sorun bildirimi yalnız sizin seçtiğiniz uygulamayla, sizin seçtiğiniz kişiye gider.")
+            "Sorun bildirimi yalnız sizin seçtiğiniz uygulamayla, sizin seçtiğiniz kişiye gider. " +
+            "Güncelleme denetimi günde bir kez GitHub'a sorar (kapatılabilir).")
         add(ui.item("Kurulum sihirbazını yeniden başlat", null, null) {
             startActivity(Intent(this, SetupActivity::class.java)); finish()
         })

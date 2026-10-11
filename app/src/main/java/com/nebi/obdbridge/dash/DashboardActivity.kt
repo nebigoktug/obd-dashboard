@@ -152,6 +152,7 @@ class DashboardActivity : Activity(), SensorEventListener {
         applySpeedFactor()
         if (prefs.getBoolean("open_strip", false)) { prefs.edit().remove("open_strip").apply(); root.post { chooseStripSlot() } }
         if (prefs.getBoolean("autoconnect", false) && !BridgeService.running && !prefs.getBoolean("demo", false)) Conn.start(this)
+        Updates.checkDaily(this)
         setSource(pickSource())
         com.nebi.obdbridge.NaviListener.rebind(this)
         media.start()
