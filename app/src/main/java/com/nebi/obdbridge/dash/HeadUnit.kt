@@ -545,6 +545,31 @@ class InfoCard(ctx: Context, private val title: String, private val rows: () -> 
     }
 }
 
+/** Detay sekmesinde arıza kodları şeridi: "ARIZA KODLARI  özet  ›" (özet her saniye yenilenir). */
+@SuppressLint("ViewConstructor")  // yalnız koddan oluşturuluyor
+class DtcBar(ctx: Context, private val summary: () -> Pair<String, Boolean>) : View(ctx) {
+    private val pc = HashMap<String, Paint>()
+    private val rect = RectF()
+    private val dp = ctx.resources.displayMetrics.density
+
+    override fun onDraw(c: Canvas) {
+        val w = width.toFloat(); val h = height.toFloat()
+        rect.set(1f, 1f, w - 1, h - 1)
+        Glass.card(c, rect, 300 * dp)
+        val pad = 14 * dp
+        val tp = Glass.text(pc, "t", 12 * dp, Glass.ICE); tp.letterSpacing = 0.15f
+        val base = h / 2 + 5 * dp
+        c.drawText("ARIZA KODLARI", pad, base, tp)
+        val (s, warn) = summary()
+        val vp = Glass.text(pc, "v", 16 * dp, if (warn) Glass.AMBER else Glass.TEXT); vp.color = if (warn) Glass.AMBER else Glass.TEXT
+        val x = pad + tp.measureText("ARIZA KODLARI") + 20 * dp
+        c.drawText(Glass.ellipsize(s, vp, w - x - 40 * dp), x, base, vp)
+        val ap = Glass.text(pc, "a", 22 * dp, Glass.DIM); ap.textAlign = Paint.Align.RIGHT
+        c.drawText("›", w - pad, base + 2 * dp, ap)
+        postInvalidateDelayed(1000)
+    }
+}
+
 // ---------------- Geçmiş sekmesi ----------------
 
 /** Geçmiş listesinde bir yolculuk satırı: tarih/saat, süre, km, tüketim, puan. */

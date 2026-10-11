@@ -97,6 +97,24 @@ class Ui(private val ctx: Context) {
         SettingRow(ctx, this, title, summary, null, get, false) { set(!get()) }
 }
 
+/**
+ * Kamera deliği tarafındaki siyah şeridi kaldırır: pencere kesik alana uzanır, arka plan oraya kadar boyanır,
+ * içerik yalnız kesik kadar içeri itilir.
+ */
+fun Activity.fillCutout(root: View) {
+    window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Pal.BG))
+    if (Build.VERSION.SDK_INT < 28) return
+    window.attributes = window.attributes.apply {
+        layoutInDisplayCutoutMode = android.view.WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+    }
+    val base = intArrayOf(root.paddingLeft, root.paddingTop, root.paddingRight, root.paddingBottom)
+    root.setOnApplyWindowInsetsListener { v, insets ->
+        val c = insets.displayCutout
+        v.setPadding(base[0] + (c?.safeInsetLeft ?: 0), base[1], base[2] + (c?.safeInsetRight ?: 0), base[3])
+        insets
+    }
+}
+
 /** Ayarlar listesindeki tek satır; [refresh] ile değer/anahtar güncellenir. */
 @SuppressLint("ViewConstructor")
 class SettingRow(

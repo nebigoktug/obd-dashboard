@@ -61,6 +61,7 @@ class SettingsActivity : Activity() {
         scroll = ScrollView(this).apply { addView(pane) }
         root.addView(scroll, LinearLayout.LayoutParams(0, -1, 0.68f))
         setContentView(root)
+        fillCutout(root)
         buildNav()
         show(section)
     }

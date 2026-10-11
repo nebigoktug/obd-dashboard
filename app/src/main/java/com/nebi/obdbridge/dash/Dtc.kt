@@ -58,7 +58,7 @@ object DtcCatalog {
     }
 
     fun area(c: String): String = when (c.firstOrNull()) {
-        'P' -> when (c.getOrNull(2)) {
+        'P' -> if (c.getOrNull(1) == '2' && (c.getOrNull(2) ?: ' ') in "012") "yakıt-hava ölçümü ve emisyon" else when (c.getOrNull(2)) {
             '0', '1' -> "yakıt ve hava ölçümü"
             '2' -> "yakıt ve hava ölçümü, enjektörler"
             '3' -> "ateşleme / tekleme"
@@ -117,6 +117,7 @@ class DtcActivity : Activity() {
         list = ui.column(16)
         root.addView(ScrollView(this).apply { addView(list) }, LinearLayout.LayoutParams(0, -1, 0.66f))
         setContentView(root)
+        fillCutout(root)
         if (last == null || System.currentTimeMillis() - last!!.ts > 60_000) read(false) else render()
     }
 
@@ -137,6 +138,7 @@ class DtcActivity : Activity() {
         if (demo) {
             last = if (clear) DEMO.copy(stored = emptyList(), pending = emptyList(), mil = false, readyDone = 2, cleared = true, ts = System.currentTimeMillis())
                 else DEMO.copy(ts = System.currentTimeMillis())
+            if (clear) message = CLEARED
             render(); return
         }
         val ok = BridgeService.requestDtc(clear) { r -> main.post { done(r) } }
@@ -151,7 +153,7 @@ class DtcActivity : Activity() {
         main.removeCallbacks(timeout)
         busy = null
         message = r.error ?: when (r.cleared) {
-            true -> "Kodlar silindi. Arıza giderilmediyse kod birkaç sürüş içinde geri gelir."
+            true -> CLEARED
             false -> "Motor beyni silmeyi reddetti. Motor çalışıyorsa durdurun, kontağı açık bırakıp yeniden deneyin."
             null -> null
         }
@@ -263,6 +265,7 @@ class DtcActivity : Activity() {
             "Kalıcı" to "Silinemez; arıza giderilip araç kendi testlerini bitirince kendiliğinden kalkar.",
         )
 
+        private const val CLEARED = "Kodlar silindi. Arıza giderilmediyse kod birkaç sürüş içinde geri gelir."
         private val DEMO = DtcReport(listOf("P0341", "U300B"), listOf("P2002"), emptyList(), false, 5, 7, ts = 0)
     }
 }

@@ -314,12 +314,12 @@ class DashboardActivity : Activity(), SensorEventListener {
         col.addView(topBar(), LinearLayout.LayoutParams(-1, dp(36)))
         val list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         val cards = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        for ((t, rows) in listOf("YOLCULUK" to ::tripRows, "PERFORMANS" to ::perfRows, "SAĞLIK" to ::healthRows, "ARIZA KODLARI ›" to ::dtcRows)) {
-            val card = InfoCard(this, t, rows)
-            if (rows == ::dtcRows) card.setOnClickListener { startActivity(android.content.Intent(this, DtcActivity::class.java)) }
-            cards.addView(card, LinearLayout.LayoutParams(0, dp(250), 1f).apply { setMargins(dp(6), dp(6), dp(6), dp(6)) })
+        for ((t, rows) in listOf("YOLCULUK" to ::tripRows, "PERFORMANS" to ::perfRows, "SAĞLIK" to ::healthRows)) {
+            cards.addView(InfoCard(this, t, rows), LinearLayout.LayoutParams(0, dp(250), 1f).apply { setMargins(dp(6), dp(6), dp(6), dp(6)) })
         }
         list.addView(cards)
+        list.addView(DtcBar(this, ::dtcSummary).apply { setOnClickListener { startActivity(android.content.Intent(this@DashboardActivity, DtcActivity::class.java)) } },
+            LinearLayout.LayoutParams(-1, dp(56)).apply { setMargins(dp(6), dp(6), dp(6), dp(6)) })
         val perRow = if (land) 4 else 2
         SignalCatalog.ALL.chunked(perRow).forEach { chunk ->
             val r = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
@@ -601,18 +601,17 @@ class DashboardActivity : Activity(), SensorEventListener {
         )
     }
 
-    /** Detay'daki arıza kartı: canlı 0101 sayısı ve son okuma; dokununca DtcActivity */
-    private fun dtcRows(): List<Pair<String, String>> {
+    /** Detay'daki arıza şeridi: canlı 0101 (lamba, sayı) ve son okuma; dokununca DtcActivity. (metin, uyarı mı) */
+    private fun dtcSummary(): Pair<String, Boolean> {
         val mil = model.raw("mil")?.value
         val n = model.raw("dtc_count")?.value
         val last = DtcActivity.last
-        return listOf(
-            "Arıza lambası" to when (mil) { null -> "—"; 0.0 -> "sönük"; else -> "YANIYOR" },
-            "Kayıtlı kod" to (n?.let { "%.0f".format(it) } ?: "—"),
-            "Son okuma" to (last?.let { java.text.SimpleDateFormat("HH:mm", java.util.Locale("tr")).format(java.util.Date(it.ts)) +
-                " · ${it.stored.size + it.pending.size} kod" } ?: "yok"),
-            "" to "Okumak için dokun",
+        val parts = listOfNotNull(
+            when (mil) { null -> null; 0.0 -> "lamba sönük"; else -> "LAMBA YANIYOR" },
+            n?.let { "%.0f kayıtlı kod".format(it) },
+            last?.let { "son okuma " + java.text.SimpleDateFormat("HH:mm", java.util.Locale("tr")).format(java.util.Date(it.ts)) },
         )
+        return (parts.ifEmpty { listOf("okumak için dokun") }.joinToString(" · ")) to (mil != null && mil != 0.0)
     }
 
     private fun healthRows(): List<Pair<String, String>> {
