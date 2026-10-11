@@ -215,14 +215,29 @@ class DashboardActivity : Activity(), SensorEventListener {
     private fun pickSource(): SignalSource =
         if (prefs.getBoolean("demo", false)) DemoSource() else LiveSource { gpsSpeed }
 
-    private fun startGps() {
+    private val gpsPacer = GpsPacer()
+    private var gpsInterval = 0L
+
+    private fun startGps(interval: Long = GpsPacer.FAST) {
         if (checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) != android.content.pm.PackageManager.PERMISSION_GRANTED) return
         val lm = getSystemService(LOCATION_SERVICE) as android.location.LocationManager
-        try { lm.requestLocationUpdates(android.location.LocationManager.GPS_PROVIDER, 500L, 0f, gpsListener, mainLooper) }
-        catch (_: Exception) {}
+        try {
+            lm.removeUpdates(gpsListener)
+            lm.requestLocationUpdates(android.location.LocationManager.GPS_PROVIDER, interval, 0f, gpsListener, mainLooper)
+            gpsInterval = interval
+        } catch (_: Exception) {}
+    }
+
+    /** Evde masada açık kalınca pil yemesin: hareketsizken GPS seyrek (GpsPacer) */
+    private fun paceGps() {
+        if (gpsInterval == 0L) return
+        val live = BridgeService.engineStatus?.state == com.nebi.obdbridge.obd.EngineState.LIVE
+        val want = gpsPacer.intervalMs(live, model.source is DemoSource, gpsSpeed?.value, prefs.getBoolean("motion_sensors", true))
+        if (want != gpsInterval) startGps(want)
     }
 
     private fun stopGps() {
+        gpsInterval = 0L
         (getSystemService(LOCATION_SERVICE) as android.location.LocationManager).removeUpdates(gpsListener)
         gpsSpeed = null
     }
@@ -476,6 +491,7 @@ class DashboardActivity : Activity(), SensorEventListener {
             motion.baro.onCar(v("map"), v("rpm"), v("speed"), v("coolant"), insights.fuelCut, Vehicle.current.fuel == Fuel.DIESEL)
         }
         weather.pressureHpa?.let { motion.baro.onWeather(it) }
+        paceGps()
         for (k in listOf("heading", "altitude", "grade", "baro", "g_long", "g_lat")) put(k, model.raw(k)?.value)
         for (p in pills) p.alerts = shown
         val note = if (!prefs.getBoolean("note_fuelcut", true)) null
@@ -535,6 +551,7 @@ class DashboardActivity : Activity(), SensorEventListener {
             Sensor.TYPE_ACCELEROMETER -> {
                 val now = System.currentTimeMillis()
                 motion.g.onAccel(now, e.values, gravity?.takeIf { now - gravityTs < 500 })
+                gpsPacer.onAccel(e.values)
                 return
             }
             Sensor.TYPE_PRESSURE -> { motion.baro.onPhone(e.values[0].toDouble()); return }

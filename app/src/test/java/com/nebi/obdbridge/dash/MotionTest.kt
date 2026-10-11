@@ -115,4 +115,20 @@ class MotionTest {
         repeat(100) { g.onAccel(it * 20L, floatArrayOf(0f, 0f, 4f), null) }
         assertEquals(GMeter.State.UNRELIABLE, g.state)
     }
+
+    @Test fun gpsSlowsDownWhenStill() {
+        var t = 0L
+        val p = GpsPacer { t }
+        val still = floatArrayOf(0f, 0f, 9.81f)
+        assertEquals(GpsPacer.FAST, p.intervalMs(false, false, 0.0, true))
+        repeat(70) { t += 1000; p.onAccel(still) }
+        assertEquals(GpsPacer.SLOW, p.intervalMs(false, false, 0.0, true))
+        assertEquals(GpsPacer.FAST, p.intervalMs(true, false, 0.0, true))          // OBD bağlı
+        t += 1000
+        assertEquals(GpsPacer.FAST, p.intervalMs(false, false, 0.0, true))         // az önce bağlıydı: 60 sn hızlı kalır
+        repeat(70) { t += 1000; p.onAccel(still) }
+        assertEquals(GpsPacer.SLOW, p.intervalMs(false, false, 0.0, true))
+        p.onAccel(floatArrayOf(4f, 0f, 9.81f))                                       // telefon alındı (~0,8 m/s² sarsıntı)
+        assertEquals(GpsPacer.FAST, p.intervalMs(false, false, 0.0, true))
+    }
 }

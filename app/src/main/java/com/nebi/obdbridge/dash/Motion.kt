@@ -352,3 +352,34 @@ class ElevationClient(private val onResult: (Double, Double) -> Unit, private va
         }, "elevation").start()
     }
 }
+
+/**
+ * GPS sıklığı (pil): araç bağlı değilken ve telefon 60 sn kıpırdamadıysa 10 sn'de bir; hareket, OBD bağlantısı
+ * ya da GPS hızı görülünce hemen 0,5 sn'ye döner. Telefonun kıpırdaması ivmeölçerden ([onAccel]).
+ */
+class GpsPacer(private val clock: () -> Long = System::currentTimeMillis) {
+    private var mean = Double.NaN
+    private var lastMove = clock()
+
+    fun onAccel(a: FloatArray) {
+        val m = sqrt((a[0] * a[0] + a[1] * a[1] + a[2] * a[2]).toDouble())
+        if (mean.isNaN()) mean = m
+        if (abs(m - mean) > 0.5) lastMove = clock()
+        mean += (m - mean) * 0.02
+    }
+
+    /** [sensors] false: ivmeölçer kapalı, yalnız GPS hızına bakılır */
+    fun intervalMs(obdLive: Boolean, demo: Boolean, gpsKmh: Double?, sensors: Boolean): Long {
+        val now = clock()
+        if (obdLive || demo || (gpsKmh ?: 0.0) > 5) { lastMove = maxOf(lastMove, now); return FAST }
+        // İvmeölçer kapalıysa kıpırdama görülmez: yalnız GPS hızı (yukarıda) uyandırır
+        if (!sensors && gpsKmh == null) return FAST
+        return if (now - lastMove > STILL_MS) SLOW else FAST
+    }
+
+    companion object {
+        const val FAST = 500L
+        const val SLOW = 10_000L
+        const val STILL_MS = 60_000L
+    }
+}
