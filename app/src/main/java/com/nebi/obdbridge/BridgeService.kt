@@ -545,7 +545,7 @@ class BridgeService : Service() {
             this, 1, Intent(this, BridgeService::class.java).setAction(ACTION_STOP), PendingIntent.FLAG_IMMUTABLE
         )
         return Notification.Builder(this, CHANNEL)
-            .setSmallIcon(android.R.drawable.stat_sys_data_bluetooth)
+            .setSmallIcon(R.drawable.ic_stat_obd)
             .setContentTitle("OBD köprü · 127.0.0.1:$PORT")
             .setContentText(text)
             .setOngoing(true)
