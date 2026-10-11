@@ -572,14 +572,16 @@ class GMeterView(ctx: Context, private val motion: Motion) : View(ctx) {
         val peaks = Glass.text(pc, "p", 13 * dp, Glass.DIM)
         c.drawText("Fren %.2f · Hızlanma %.2f · Viraj %.2f g".format(g.maxBrake, g.maxAccel, g.maxLat), pad, h - pad, peaks)
 
-        val cx = w / 2; val cy = (h + 12 * dp) / 2 - 4 * dp
-        val r = minOf(w / 2 - pad, h / 2 - 34 * dp)
+        // Üstte başlık + "HIZLANMA", altta "FREN" + rekor satırı için yer bırak
+        val top = pad + 30 * dp; val bottom = h - pad - 34 * dp
+        val r = minOf(w / 2 - pad, (bottom - top) / 2)
+        val cx = w / 2; val cy = (top + bottom) / 2
         line.strokeWidth = 1 * dp; line.color = Glass.DIM; line.alpha = 70
         for (k in 1..3) c.drawCircle(cx, cy, r * k / 3, line)
         c.drawLine(cx - r, cy, cx + r, cy, line); c.drawLine(cx, cy - r, cx, cy + r, line)
         val lp = Glass.text(pc, "l", 10 * dp, Glass.DIM); lp.textAlign = Paint.Align.CENTER
-        c.drawText("HIZLANMA", cx, cy - r - 4 * dp, lp)
-        c.drawText("FREN", cx, cy + r + 12 * dp, lp)
+        c.drawText("HIZLANMA", cx, cy - r - 5 * dp, lp)
+        c.drawText("FREN", cx, cy + r + 13 * dp, lp)
 
         val lo = motion.gLong; val la = motion.gLat
         if (lo == null || la == null) {

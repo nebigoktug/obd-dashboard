@@ -257,6 +257,13 @@ class GMeter {
     /** Test için: öğrenilen ileri yön (telefon ekseni) */
     internal fun forward() = fwd.copyOf()
 
+    /** Demo: rekorları uydurma değerlerle güncel tut */
+    internal fun notePeaks(long: Double, lat: Double) {
+        if (-long > maxBrake) maxBrake = -long
+        if (long > maxAccel) maxAccel = long
+        if (abs(lat) > maxLat) maxLat = abs(lat)
+    }
+
     fun resetPeaks() { maxBrake = 0.0; maxAccel = 0.0; maxLat = 0.0 }
 
     fun relearn() {
@@ -288,6 +295,7 @@ class Motion(clock: () -> Long = System::currentTimeMillis) {
         baro.onWeather(1008.0 + 2 * sin(t / 60))
         demoAlt = 850 + 40 * sin(t / 25); demoGrade = 6 * cos(t / 25)
         demoLong = 0.25 * sin(t / 3.1); demoLat = 0.3 * sin(t / 4.7)
+        g.notePeaks(demoLong!!, demoLat!!)
     }
     var demoAlt: Double? = null; private set
     var demoGrade: Double? = null; private set

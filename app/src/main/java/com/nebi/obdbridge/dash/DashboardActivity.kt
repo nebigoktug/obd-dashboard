@@ -669,7 +669,7 @@ class DashboardActivity : Activity(), SensorEventListener {
         val b = m.baro
         val rows = mutableListOf(
             "Yön" to (h?.let { "${Heading.name(it)} · ${Math.round(it) % 360}°" } ?: "GPS + hareket gerekli"),
-            "Rakım" to (alt?.let { "%.0f m".format(it) + when (m.alt.source) { AltitudeTrack.Src.DEM -> " (harita)"; AltitudeTrack.Src.GPS -> " (GPS)"; null -> "" } }
+            "Rakım" to (alt?.let { "%.0f m".format(it) + if (demo) " (demo)" else when (m.alt.source) { AltitudeTrack.Src.DEM -> " (harita)"; AltitudeTrack.Src.GPS -> " (GPS)"; null -> "" } }
                 ?: "GPS gerekli"),
             "Eğim" to (gr?.let { val r = Math.round(it); when { r >= 2 -> "%%%d yokuş".format(r); r <= -2 -> "%%%d iniş".format(-r); else -> "düz" } }
                 ?: if (alt != null) "ölçülüyor" else "—"),
