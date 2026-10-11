@@ -51,9 +51,13 @@ object ProblemReport {
         DtcActivity.last?.let { append('\n').append(DtcCatalog.shareText(it)) }
     }
 
-    /** Uygulamanın kendi logu (izin gerekmez: kendi sürecimiz) */
+    /**
+     * Uygulamanın logu: kendi etiketimiz tümüyle, diğerlerinden yalnız uyarı/hata (sistem gürültüsü olmasın).
+     * Uygulama yalnız kendi UID'inin loglarını görür; önceki süreçlerin çökme kayıtları da gelir.
+     */
     private fun logcat(): String = try {
-        val proc = ProcessBuilder("logcat", "-d", "-t", "3000", "--pid=${android.os.Process.myPid()}").redirectErrorStream(true).start()
+        val proc = ProcessBuilder("logcat", "-d", "-t", "5000", "-v", "time", "*:W", "${BridgeService.TAG}:V", "${com.nebi.obdbridge.NaviListener.TAG}:V")
+            .redirectErrorStream(true).start()
         proc.inputStream.bufferedReader().use { it.readText() }.ifEmpty { "(boş)" }
     } catch (e: Exception) { "Log okunamadı: ${e.message}" }
 

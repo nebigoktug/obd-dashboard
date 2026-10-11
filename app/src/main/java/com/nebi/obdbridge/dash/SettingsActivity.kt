@@ -357,11 +357,12 @@ class SettingsActivity : Activity() {
 
     /** Not iste, paketi arka planda hazırla (log okuma ~1 sn), paylaşım menüsünü aç. */
     private fun reportProblem() {
-        val input = EditText(this).apply { hint = "Ne oldu? (ör. bağlanmıyor, devir yanlış gösteriliyor)"; minLines = 3 }
+        val input = EditText(this).apply { hint = "Ne oldu? (ör. bağlanmıyor, devir yanlış gösteriliyor)"; minLines = 2 }
+        val box = android.widget.FrameLayout(this).apply { setPadding(ui.dp(20), 0, ui.dp(20), 0); addView(input) }
         AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
             .setTitle("Sorun bildir")
             .setMessage("Kısaca ne olduğunu yazın. Sonra gönderme yolunu (e-posta, WhatsApp, Telegram…) siz seçersiniz.")
-            .setView(input)
+            .setView(box)
             .setPositiveButton("Hazırla") { _, _ ->
                 val note = input.text.toString()
                 toast("Hazırlanıyor…")
