@@ -206,7 +206,17 @@ class SettingsActivity : Activity() {
             val opts = listOf(200, 220, 240, 260)
             choose("Hız göstergesi (km/h)", opts.map { "$it km/h" }, opts.indexOf(v.speedMax)) { vehicle = v.copy(speedMax = opts[it]) }
         })
-        add(ui.toggle("Volvo logosu", "Ekranın üst ortasındaki VOLVO yazısı", { v.logo }) { vehicle = v.copy(logo = it) })
+        add(ui.item("Ekran yazısı", "Görsel temalarda üst ortada (ör. araç modeli). Boş bırakılırsa yazı olmaz", { v.badge.ifBlank { "yok" } }) {
+            val input = EditText(this).apply {
+                hint = "ör. S40"; setText(v.badge); filters = arrayOf(android.text.InputFilter.LengthFilter(Vehicle.MAX_BADGE))
+            }
+            val box = android.widget.FrameLayout(this).apply { setPadding(ui.dp(20), 0, ui.dp(20), 0); addView(input) }
+            AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle("Ekran yazısı").setView(box)
+                .setPositiveButton("Kaydet") { _, _ -> vehicle = v.copy(badge = input.text.toString().trim()); show(section) }
+                .setNegativeButton("Vazgeç", null)
+                .show()
+        })
         add(ui.toggle("Hız düzeltmesi (GPS)", "Araç göstergeleri genelde %3–7 fazla gösterir; GPS'e göre düzeltir",
             { dash.getBoolean("speed_corr", false) }) { dash.edit().putBoolean("speed_corr", it).apply() })
     }

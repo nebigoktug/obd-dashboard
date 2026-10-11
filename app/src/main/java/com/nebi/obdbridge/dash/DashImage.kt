@@ -47,12 +47,12 @@ object DashImageGeom {
         RectF(916f, 625f, 1222f, 806f), RectF(1236f, 625f, 1547f, 806f),
     )
     val NAVI = RectF(930f, 440f, 1540f, 600f)
-    /** Araç ekranı orta sütunu (HEADUNIT.md): VOLVO yazısının altından yol çizimine kadar */
+    /** Araç ekranı orta sütunu (HEADUNIT.md): ekran yazısının altından yol çizimine kadar */
     val NAV_CARD = RectF(900f, 205f, 1525f, 470f)
     val MEDIA_CARD = RectF(900f, 492f, 1525f, 835f)
     /** Alt değer şeridi: yol çiziminin iki yanı (araç x≈1150..1250) */
     val STRIP = RectF(780f, 855f, 1620f, 990f)
-    /** Uyarı hapı: VOLVO yazısının üstü (yazı x≈1080..1330, y≈135..170) */
+    /** Uyarı hapı: ekran yazısının üstü (yazı x≈1080..1330, y≈135..170) */
     val PILL = RectF(860f, 118f, 1540f, 188f)
     /** Devir halkasında rpm yazısının altındaki kısa not ("yakıt kesik") */
     const val NOTE_BASE = 742f
@@ -65,7 +65,7 @@ object DashImageGeom {
     const val TICK_R0 = 312f
     const val TICK_MAJOR = 26f
     const val TICK_MINOR = 13f
-    /** İsteğe bağlı VOLVO logosu (dash_logo.png, make_layers.py çıktısı) */
+    /** İsteğe bağlı ekran yazısı (Vehicle.badge), referanstaki marka yazısının yeri */
     val LOGO = RectF(1068f, 132f, 1068f + 271f, 132f + 48f)
 }
 
@@ -108,9 +108,11 @@ class DashImageDials(ctx: Context, spec: WidgetSpec, private val th: ImageTheme 
     /** Resmin kenar rengi: ekran oranı farklıysa kalan şerit bununla boyanır */
     private val edgeColor = base.getPixel(4, base.height / 2)
     private val ink = if (th.light) 0xFF15181C.toInt() else Color.WHITE
-    private val logoTint = if (th.light) android.graphics.PorterDuffColorFilter(0xFF2A2F36.toInt(), android.graphics.PorterDuff.Mode.SRC_IN) else null
-    private val logo: Bitmap = load(ctx, R.drawable.dash_logo)
-    private val logoDst = RectF()
+    private val badgeP = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        typeface = android.graphics.Typeface.create(android.graphics.Typeface.SERIF, android.graphics.Typeface.BOLD)
+        textAlign = Paint.Align.CENTER; letterSpacing = 0.55f
+        color = if (th.light) 0xFF2A2F36.toInt() else 0xFFF2F5F8.toInt()
+    }
     private val tickP = Paint(Paint.ANTI_ALIAS_FLAG).apply { strokeCap = Paint.Cap.ROUND }
     private val labelP = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         textAlign = Paint.Align.CENTER; typeface = Typeface.create("sans-serif-light", Typeface.NORMAL)
@@ -154,12 +156,10 @@ class DashImageDials(ctx: Context, spec: WidgetSpec, private val th: ImageTheme 
         c.drawBitmap(base, null, dst, bmpP)
 
         val v = Vehicle.current
-        if (v.logo) {
-            logoDst.set(ox + DashImageGeom.LOGO.left * s, oy + DashImageGeom.LOGO.top * s,
-                ox + DashImageGeom.LOGO.right * s, oy + DashImageGeom.LOGO.bottom * s)
-            bmpP.colorFilter = logoTint
-            c.drawBitmap(logo, null, logoDst, bmpP)
-            bmpP.colorFilter = null
+        if (v.badge.isNotBlank()) {
+            val r = DashImageGeom.LOGO
+            badgeP.textSize = 34f * s
+            c.drawText(v.badge.uppercase(), ox + r.centerX() * s, oy + (r.centerY() + 12f) * s, badgeP)
         }
         dial(c, DashImageGeom.SPEED_C, frame["speed"], centerKey = null)
         // Otomatik vites: vites tahmini yok, ortada devir yazar

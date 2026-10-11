@@ -7,7 +7,8 @@ Değişen yazılar (üst çubuk, kutucuklar, kadran ortaları, devir çubuğu) s
 Koordinatlar DashImage.kt'deki sabitlerle aynı olmalı.
 
 2026-10-10 (genel OBD aracı): kadran rakamları ve VOLVO yazısı da silinir; rakamlar uygulamada araca göre
-(devir ölçeği) canlı çizilir, logo isteğe bağlı olarak dash_logo.png'den (beyaz, alfa) eklenir.
+(devir ölçeği) canlı çizilir. 2026-10-11: marka logosu dağıtılmıyor; reference.jpg depoda yok (marka yazısı içerir),
+yalnız yazısız reference_clean.png var. Üst ortadaki yazıyı uygulama kullanıcının girdiği metinle çizer.
 """
 import cv2
 import numpy as np
@@ -19,7 +20,7 @@ DIM = float(sys.argv[1]) if len(sys.argv) > 1 else 0.5   # sönük bant parlakl�
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "..", "..", "app", "src", "main", "res", "drawable-nodpi")
 
-img = cv2.imread(os.path.join(HERE, "reference.jpg"))
+img = cv2.imread(os.path.join(HERE, "reference.jpg")) if os.path.exists(os.path.join(HERE, "reference.jpg")) else cv2.imread(os.path.join(HERE, "reference_clean.png"))
 H, W = img.shape[:2]
 # Gemini ile yazısız ve çentiksiz hale getirilmiş referans (2026-10-10, hizası ölçüldü: < 0,2 px). Varsa silme maskesine gerek yok;
 # OpenCV inpaint kadran bandında iz bırakıyordu.
@@ -47,18 +48,6 @@ for (cx, cy), n in (((302, 395), 11), ((1088, 395), 6)):
             x, y = cx + r * math.cos(a), cy + r * math.sin(a)
             cv2.rectangle(mask, (int(x - 23), int(y - 13)), (int(x + 23), int(y + 13)), 255, -1)
 
-# Logo: silmeden önce alfa maske olarak sakla (beyaz yazı, koyu zemin)
-lx0, ly0, lx1, ly1 = 615, 165, 765, 192
-crop = cv2.cvtColor(img[ly0:ly1, lx0:lx1], cv2.COLOR_BGR2GRAY).astype(np.float32)
-bg = np.percentile(crop, 30)
-alpha = np.clip((crop - bg) / max(1.0, crop.max() - bg) * 1.15, 0, 1)
-SC = 2400 / 1328
-logo = np.zeros((ly1 - ly0, lx1 - lx0, 4), np.uint8)
-logo[..., :3] = 255
-logo[..., 3] = (alpha * 255).astype(np.uint8)
-logo = cv2.resize(logo, (int((lx1 - lx0) * SC), int((ly1 - ly0) * SC)), interpolation=cv2.INTER_LANCZOS4)
-cv2.imwrite(os.path.join(OUT, "dash_logo.png"), logo)
-print("logo konumu (2400x1080):", round((lx0 - 24) * SC), round((ly0 - 92) * SC), logo.shape[1], logo.shape[0])
 if os.path.exists(CLEAN):
     clean = cv2.imread(CLEAN)
 else:

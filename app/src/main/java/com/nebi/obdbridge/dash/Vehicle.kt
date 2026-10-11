@@ -1,7 +1,7 @@
 package com.nebi.obdbridge.dash
 
 // Araç profili (2026-10-10): uygulama forumda her OBD'li araç için paylaşılacak. S40 1.6D'ye özel
-// varsayımlar (dizel uyarıları, 5 ileri vites, 0–5000 devir ölçeği, VOLVO logosu) buradan gelir.
+// varsayımlar (dizel uyarıları, 5 ileri vites, 0–5000 devir ölçeği, ekran yazısı) buradan gelir.
 // İlk açılış sihirbazında sorulur, Ayarlar > Araç'tan değiştirilir.
 
 enum class Fuel { DIESEL, PETROL }
@@ -16,8 +16,8 @@ data class Vehicle(
     val redline: Int = 4500,
     /** Hız göstergesi üst sınırı (km/h) */
     val speedMax: Int = 200,
-    /** Referans görseldeki VOLVO yazısı */
-    val logo: Boolean = true,
+    /** Ekranın üst ortasındaki yazı (ör. "S40"); boşsa yok. Marka logosu dağıtılmıyor, kullanıcı kendisi yazar. */
+    val badge: String = "",
 ) {
     /** Devir ölçeği: kırmızı bölgenin üstündeki ilk tam bin (4500 → 5000, 6500 → 7000, 7000 → 8000) */
     val rpmMax get() = (redline / 1000 + 1) * 1000
@@ -32,16 +32,19 @@ data class Vehicle(
     val manual get() = gearbox == Gearbox.MANUAL
 
     fun toJson(): String = org.json.JSONObject().put("fuel", fuel.name).put("gearbox", gearbox.name).put("gears", gears)
-        .put("turbo", turbo).put("redline", redline).put("speedMax", speedMax).put("logo", logo).toString()
+        .put("turbo", turbo).put("redline", redline).put("speedMax", speedMax).put("badge", badge).toString()
 
     companion object {
         /** Uygulamanın her yerinde geçerli profil (Activity açılışta ayarlardan yükler) */
         @Volatile var current = Vehicle()
+        const val MAX_BADGE = 16
 
         fun fromJson(s: String?): Vehicle? = if (s == null) null else try {
             val o = org.json.JSONObject(s)
             Vehicle(Fuel.valueOf(o.getString("fuel")), Gearbox.valueOf(o.getString("gearbox")), o.getInt("gears"),
-                o.getBoolean("turbo"), o.getInt("redline"), o.optInt("speedMax", 200), o.optBoolean("logo", false))
+                o.getBoolean("turbo"), o.getInt("redline"), o.optInt("speedMax", 200),
+                // Eski profil: "logo": true idi (VOLVO resmi); yazı olarak sürdürülür
+                o.optString("badge", if (o.optBoolean("logo", false)) "VOLVO" else "").take(MAX_BADGE))
         } catch (_: Exception) { null }
     }
 }

@@ -32,7 +32,7 @@ class SetupActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         ui = Ui(this)
-        v = Vehicle.fromJson(dash.getString("vehicle", null)) ?: Vehicle(logo = false)
+        v = Vehicle.fromJson(dash.getString("vehicle", null)) ?: Vehicle()
         val root = ui.column().apply { setBackgroundColor(Pal.BG) }
         dots = ui.row().apply { gravity = Gravity.CENTER; setPadding(0, ui.dp(14), 0, 0) }
         root.addView(dots, LinearLayout.LayoutParams(-1, -2))
@@ -131,8 +131,6 @@ class SetupActivity : Activity() {
             v.redline) { v = v.copy(redline = it) })
         body.addView(ui.text("Bilmiyorsan varsayılan kalsın: devir göstergesindeki kırmızı çizginin başladığı yer.", 13f, Pal.DIM)
             .apply { setPadding(0, ui.dp(6), 0, 0) })
-        label("Volvo logosu")
-        body.addView(ui.chips(listOf(true to "Göster", false to "Gösterme"), v.logo) { v = v.copy(logo = it) })
         nav { VehicleStore.save(this, v); dash.edit().remove("gears2").apply(); show(step + 1) }
     }
 

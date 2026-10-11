@@ -484,7 +484,7 @@ class Weather(private val ctx: Context) {
 
 // ---------------- Durum hapı (VOLVO yazısının yerinde) ----------------
 
-/** En önemli uyarı + kaç tane daha olduğu. Uyarı yokken görünmez, referanstaki VOLVO yazısı kalır. */
+/** En önemli uyarı + kaç tane daha olduğu. Uyarı yokken görünmez, ekran yazısı (varsa) görünür. */
 class StatusPill(ctx: Context) : View(ctx) {
     var alerts: List<Alert> = emptyList()
         set(v) { if (field != v) { field = v; visibility = if (v.isEmpty()) INVISIBLE else VISIBLE; invalidate() } }
