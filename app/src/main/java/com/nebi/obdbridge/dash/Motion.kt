@@ -173,12 +173,17 @@ class GMeter {
     var maxBrake = 0.0; private set      // g (pozitif)
     var maxAccel = 0.0; private set
     var maxLat = 0.0; private set
+    /**
+     * Geri gidiyor: hız artarken araç geriye ivmeleniyor (ya da azalırken ileriye). OBD/GPS hızı işaretsiz;
+     * bunu yalnız öğrenilmiş ileri yön söyleyebilir. Araç durunca sıfırlanır.
+     */
+    var reverse = false; private set
+    private var revScore = 0.0
     /** Öğrenme ilerlemesi 0..1 */
     val progress get() = (learnN / LEARN_N.toDouble()).coerceAtMost(1.0)
 
     private val grav = DoubleArray(3)
     private var gravInit = false
-    private var frozenSince = 0L
     private val down0 = DoubleArray(3)
     private val fwdSum = DoubleArray(3)
     private var learnN = 0
@@ -214,10 +219,12 @@ class GMeter {
         // o da kısa bir alçak geçirgen ve hızlanmayı yutuyor (gerçek sürüş 2026-10-12, G-ölçer hiç öğrenemedi).
         if (!gravInit) { for (i in 0..2) grav[i] = (gravity ?: a)[i].toDouble() }
         else {
-            // Viraj da (yatay ivme ≥ 0,1 g) dondurur; yanlış başlangıçta takılı kalmasın diye en çok 10 sn
-            val busy = (ts - dvdtTs < 1500 && abs(dvdt) > 0.4) || norm(h) > 1.0
-            if (!busy) frozenSince = 0L else if (frozenSince == 0L) frozenSince = ts
-            val k = if (busy && ts - frozenSince < 10_000) 0.0 else 1 - exp(-dt / 20.0)
+            // Araç dururken ölçülen ivme tam yerçekimi: hızlı öğren (1 sn). Sabit hızda yavaş (20 sn).
+            // Hızlanma/fren ya da viraj (yatay ivme ≥ 0,1 g) varken hiç güncelleme: şehirde dur-kalk sürekli
+            // olduğu için süre sınırı konmadı; telefon yerinden oynarsa ilk duruşta düzelir.
+            val still = !lastSpeed.isNaN() && lastSpeed < 0.5 && ts - lastSpeedTs < 2000 && abs(dvdt) < 0.2
+            val busy = (ts - dvdtTs < 1500 && abs(dvdt) > 0.3) || norm(h) > 1.0
+            val k = when { still -> 1 - exp(-dt / 1.0); busy -> 0.0; else -> 1 - exp(-dt / 20.0) }
             for (i in 0..2) grav[i] += (a[i] - grav[i]) * k
         }
         gravInit = true
@@ -255,6 +262,12 @@ class GMeter {
         val right = cross(fwd, d)   // ileri × yukarı = sağ
         long = dot(h, fwd) / G
         lat = dot(h, right) / G
+        if (lastSpeed.isNaN() || lastSpeed < 1.0) { reverse = false; revScore = 0.0 }
+        else if (lastSpeed < 25 && ts - dvdtTs < 1000 && abs(dvdt) > 0.5 && abs(long) > 0.04) {
+            // Fren → gaz geçişinde ivme hızdan önce döner: kısa ters işaretleri saymasın diye 0,8 sn birikim
+            revScore = (revScore + if ((long > 0) != (dvdt > 0)) dt else -dt).coerceIn(-1.0, 1.0)
+            if (revScore > 0.8) reverse = true else if (revScore < -0.8) reverse = false
+        }
         if (-long > maxBrake) maxBrake = -long
         if (long > maxAccel) maxAccel = long
         if (abs(lat) > maxLat) maxLat = abs(lat)
@@ -273,7 +286,7 @@ class GMeter {
     fun resetPeaks() { maxBrake = 0.0; maxAccel = 0.0; maxLat = 0.0 }
 
     fun relearn() {
-        fwdSum.fill(0.0); learnN = 0; agree = 0.0
+        fwdSum.fill(0.0); learnN = 0; agree = 0.0; reverse = false; revScore = 0.0
         if (state == State.READY) state = State.LEARNING
         long = 0.0; lat = 0.0
     }

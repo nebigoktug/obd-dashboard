@@ -128,6 +128,39 @@ class MotionTest {
         assertTrue(g.maxBrake > 0.35)
     }
 
+    /** Geri vites: hız işaretsiz; hız artarken geriye ivme = geri gidiyor. Durunca sıfırlanır, ileri kalkışta R yok. */
+    @Test fun gmeterDetectsReverse() {
+        val g = GMeter()
+        val rnd = java.util.Random(5)
+        var ts = 0L; var v = 60.0
+        val seen = ArrayList<Boolean>()
+        // carAccel: aracın ileri eksenindeki ivme (g); geri giderken hız = −(ileri hız)
+        fun drive(seconds: Double, carAccel: Double, backwards: Boolean = false) {
+            seen.clear()
+            repeat((seconds * 50).toInt()) { i ->
+                ts += 20
+                v = (v + (if (backwards) -carAccel else carAccel) * GMeter.G * 0.02 * 3.6).coerceAtLeast(0.0)
+                if (i % 25 == 0) g.onSpeed(ts, Math.round(v).toDouble())   // OBD: 2 Hz, tam sayı km/h
+                g.onAccel(ts, floatArrayOf((carAccel * GMeter.G + rnd.nextGaussian() * 0.8).toFloat(), (rnd.nextGaussian() * 0.8).toFloat(), (-GMeter.G).toFloat()), null)
+                seen += g.reverse
+            }
+        }
+        drive(3.0, 0.0)
+        repeat(4) { drive(4.0, 0.3); drive(3.0, -0.4); drive(1.0, 0.0) }
+        assertEquals(GMeter.State.READY, g.state)
+        drive(6.0, -0.3); drive(2.0, 0.0); assertEquals(0.0, v, 0.1)   // dur
+        drive(3.0, -0.12, backwards = true)                               // geri kalkış: araç geriye ivmelenir, hız artar
+        assertTrue("geri kalkış", g.reverse)
+        drive(2.0, 0.0, backwards = true); assertTrue("geri sabit hız: R kalır", g.reverse)
+        drive(3.0, 0.15, backwards = true)                                // geri giderken fren
+        assertTrue(v < 1); drive(1.0, 0.0); assertTrue("durunca sıfır", !g.reverse)
+        drive(4.0, 0.15)                                                  // ileri kalkış
+        assertTrue("ileri kalkışta R yok", seen.none { it })
+        drive(3.0, -0.3)                                                  // fren → gaz geçişi
+        drive(3.0, 0.2)
+        assertTrue("fren sonrası gazda R yok", seen.none { it })
+    }
+
     @Test fun gmeterRejectsBrokenSensor() {
         val g = GMeter()
         repeat(100) { g.onAccel(it * 20L, floatArrayOf(0f, 0f, 4f), null) }

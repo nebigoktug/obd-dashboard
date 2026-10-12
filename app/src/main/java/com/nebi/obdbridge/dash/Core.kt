@@ -59,7 +59,8 @@ object SignalCatalog {
         SignalDef("speed", "Hız", "km/h", 0.0, v.speedMax.toDouble(), tickStep = 20.0, maxTauMs = 300),
         SignalDef("rpm", "Devir", "rpm", 0.0, v.rpmMax.toDouble(), warnAbove = v.redline - 500.0, critAbove = v.redline.toDouble(),
             tickStep = 1000.0, tickLabelDiv = 1000.0, maxTauMs = 220),
-        SignalDef("gear", "Vites", "", 0.0, 6.0, staleMs = 1500, minTauMs = 0, maxTauMs = 0),
+        SignalDef("gear", "Vites", "", 0.0, 6.0, staleMs = 1500, minTauMs = 0, maxTauMs = 0,
+            text = { if (it < 0) "R" else Math.round(it).toString() }),   // −1: geri vites
         SignalDef("coolant", "Motor", "°C", 40.0, 130.0, warnAbove = 105.0, critAbove = 112.0, coldBelow = 60.0,
             staleMs = 6000, minTauMs = 300, maxTauMs = 800, tickStep = 30.0),
         SignalDef("iat", "Emme havası", "°C", -20.0, 80.0, warnAbove = 55.0, critAbove = 70.0,
@@ -430,12 +431,18 @@ class DashModel(var source: SignalSource, var gears: GearEstimator = GearEstimat
         val pairTs = maxOf(rpm.ts, speed.ts)
         if (pairTs != lastPairTs && abs(rpm.ts - speed.ts) < 500) {
             lastPairTs = pairTs
-            gear = if (Vehicle.current.manual) gears.update(rpm.value, speed.value) else null
+            // Geri vites oranı 1.'ye yakın; ayırt eden yalnız telefonun ivmeölçeri (G-ölçer öğrendiyse).
+            // Geri giderken vites oranı öğrenilmez (yoksa sahte bir tepe vites numaralarını kaydırabilir)
+            gear = when {
+                !Vehicle.current.manual -> null
+                motion?.g?.reverse == true && speed.value >= 1 -> -1
+                else -> gears.update(rpm.value, speed.value)
+            }
             gearTs = pairTs
             // Basit dizel ekonomi önerisi; aracın kendi önerisi çözülürse onunla değiştirilecek
             val g = gear
             shift = when {
-                g == null -> 0
+                g == null || g < 1 -> 0
                 rpm.value > (if (Vehicle.current.fuel == Fuel.PETROL) 3000 else 2600) && g < Vehicle.current.gears -> 1
                 rpm.value < (if (Vehicle.current.fuel == Fuel.PETROL) 1500 else 1250) && g > 1 -> -1
                 else -> 0
