@@ -228,6 +228,8 @@ class Health {
     val boostBase = DoubleArray(11)
     val boostN = IntArray(11)
     private val recent = ArrayDeque<Pair<Long, Double>>()   // (ts, ölçüm / taban)
+    private val rpmHist = ArrayDeque<Pair<Long, Double>>()
+    private var highLoadSince = 0L
 
     fun update(i: Inputs, running: Boolean, engineOnSince: Long) {
         val v = i.battery
@@ -261,9 +263,16 @@ class Health {
         } else if (!running) { dpfSince = 0 }
 
         // Turbo: yüksek yükte (≥ %80) devir dilimine göre turbo basıncı; taban oturduktan sonra %25 düşüş uyarı.
-        // Soğuk motorda (< 70 °C) ECU turboyu kısıyor (gerçek sürüş 2026-10-12: %30-40 düşük): o anlar sayılmaz
+        // Soğuk motorda (< 70 °C) ECU turboyu kısıyor (gerçek sürüş 2026-10-12: %30-40 düşük): o anlar sayılmaz.
+        // Yalnız oturmuş anlar: yük ≥ 1,5 sn yüksek ve devir 1 sn'dir sabit (± 150), 1750 altı yok. Şehirde düşük
+        // devirde gaza basınca turbo henüz dolmamış oluyor; 2026-10-12 öğleden sonra sürüşünde bu yüzden yanlış
+        // alarm verdi (aynı sürüşte 2500 devirde 1,4 bar, yani turbo sağlam).
         val map = i.map
-        if (running && (i.coolant ?: 0.0) >= 70 && rpm != null && load != null && map != null && load >= 80 && rpm in 1500.0..4000.0 && idleN > 0) {
+        if (rpm != null) { rpmHist.addLast(i.ts to rpm); while (rpmHist.size > 1 && i.ts - rpmHist.first().first > 1500) rpmHist.removeFirst() }
+        if (load != null && load >= 80) { if (highLoadSince == 0L) highLoadSince = i.ts } else highLoadSince = 0L
+        val rpmAgo = rpmHist.firstOrNull { i.ts - it.first <= 1500 && i.ts - it.first >= 900 }?.second
+        val steady = highLoadSince != 0L && i.ts - highLoadSince >= 1500 && rpm != null && rpmAgo != null && abs(rpm - rpmAgo) < 150
+        if (running && steady && (i.coolant ?: 0.0) >= 70 && map != null && rpm!! in 1750.0..4000.0 && idleN > 0) {
             val boost = (map - BARO) / 100.0
             val b = ((rpm - 1500) / 250).toInt().coerceIn(0, 10)
             if (boostN[b] < 200 || !turboLow) {
@@ -271,15 +280,11 @@ class Health {
                 val k = if (boostN[b] < 200) 1.0 / boostN[b] else 0.002
                 boostBase[b] += (boost - boostBase[b]) * k
             }
-            if (boostN[b] >= 100 && boostBase[b] > 0.2) {
-                recent.addLast(i.ts to boost / boostBase[b])
-                while (recent.isNotEmpty() && i.ts - recent.first().first > 60_000) recent.removeFirst()
-                if (recent.size >= 30) {
-                    val med = recent.map { it.second }.sorted()[recent.size / 2]
-                    turboLow = med < 0.75
-                }
-            }
+            if (boostN[b] >= 100 && boostBase[b] > 0.4) recent.addLast(i.ts to boost / boostBase[b])
         }
+        // Son 2 dakikada en az 30 oturmuş ölçüm yoksa karar yok (uyarı kendiliğinden söner)
+        while (recent.isNotEmpty() && i.ts - recent.first().first > 120_000) recent.removeFirst()
+        turboLow = recent.size >= 30 && recent.map { it.second }.sorted()[recent.size / 2] < 0.75
 
         // Hız göstergesi sapması: sabit hızda (≥ 40 km/h) OBD ile GPS karşılaştırması
         val g = i.gpsSpeed
@@ -365,7 +370,7 @@ fun Insights.save(): String = org.json.JSONObject().apply {
     put("idleRpm", health.idleRpm); put("idleLoad", health.idleLoad); put("idleN", health.idleN)
     put("dpf", health.dpfCount)
     health.speedoError?.let { put("speedo", it) }; put("speedoN", health.speedoN)
-    put("boostBase", org.json.JSONArray(health.boostBase.toList())); put("boostN", org.json.JSONArray(health.boostN.toList()))
+    put("boostBase2", org.json.JSONArray(health.boostBase.toList())); put("boostN2", org.json.JSONArray(health.boostN.toList()))
     perf.best0100?.let { put("b0100", it) }; perf.best60100?.let { put("b60100", it) }; put("peakKw", perf.peakKw)
 }.toString()
 
@@ -378,8 +383,8 @@ fun Insights.load(s: String?) {
         health.idleRpm = o.optDouble("idleRpm", 0.0); health.idleLoad = o.optDouble("idleLoad", 0.0); health.idleN = o.optInt("idleN")
         health.dpfCount = o.optInt("dpf")
         if (o.has("speedo")) health.speedoError = o.getDouble("speedo"); health.speedoN = o.optInt("speedoN")
-        o.optJSONArray("boostBase")?.let { a -> for (i in 0 until minOf(a.length(), 11)) health.boostBase[i] = a.getDouble(i) }
-        o.optJSONArray("boostN")?.let { a -> for (i in 0 until minOf(a.length(), 11)) health.boostN[i] = a.getInt(i) }
+        o.optJSONArray("boostBase2")?.let { a -> for (i in 0 until minOf(a.length(), 11)) health.boostBase[i] = a.getDouble(i) }
+        o.optJSONArray("boostN2")?.let { a -> for (i in 0 until minOf(a.length(), 11)) health.boostN[i] = a.getInt(i) }
         if (o.has("b0100")) perf.best0100 = o.getDouble("b0100")
         if (o.has("b60100")) perf.best60100 = o.getDouble("b60100")
         perf.peakKw = o.optDouble("peakKw", 0.0)

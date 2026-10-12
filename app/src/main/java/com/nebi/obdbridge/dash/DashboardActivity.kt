@@ -489,6 +489,12 @@ class DashboardActivity : Activity(), SensorEventListener {
         else {
             if (motion.demoAlt != null) motion.endDemo()
             spd?.let { motion.g.onSpeed(now, it) }
+            // G-ölçer teşhisi (sorun bildirimi logunda görünür): durum değişince ve öğrenirken dakikada bir
+            val gs = motion.g.state
+            if (gs != gLogState || (gs == GMeter.State.LEARNING && now - gLogTs > 60_000)) {
+                android.util.Log.i(com.nebi.obdbridge.BridgeService.TAG, "G-ölçer: $gs, öğrenme %%%.0f".format(motion.g.progress * 100))
+                gLogState = gs; gLogTs = now
+            }
             motion.baro.onCar(v("map"), v("rpm"), v("speed"))
         }
         weather.pressureHpa?.let { motion.baro.onWeather(it) }
@@ -544,6 +550,8 @@ class DashboardActivity : Activity(), SensorEventListener {
 
     /** Gündüz otomatiği: aydınlıkta Gündüz temasına, karanlıkta seçili temaya; titremesin diye eşik aralığı ve 20 sn kilit. */
     private var gravity: FloatArray? = null
+    private var gLogState: GMeter.State? = null
+    private var gLogTs = 0L
     private var gravityTs = 0L
 
     override fun onSensorChanged(e: SensorEvent) {

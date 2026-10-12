@@ -78,7 +78,13 @@ class MotionTest {
     /** Yerçekimi sensörü olmayan telefon: alçak geçirgen yedek yol; uzun virajda biraz kayar */
     @Test fun gmeterFallbackWithoutGravitySensor() = gmeterScenario(gravitySensor = false, tol = 0.1)
 
-    private fun gmeterScenario(gravitySensor: Boolean, tol: Double) {
+    /**
+     * Bazı telefonların (MTK) yerçekimi "sensörü" ivmeölçerin kısa alçak geçirgeni: süren ivmelenmeyi
+     * yerçekimi sanıp yutar. Gerçek sürüş 2026-10-12: Redmi Note 13 Pro'da G-ölçer 15 dk'da öğrenmeyi bitiremedi.
+     */
+    @Test fun gmeterIgnoresLaggyGravitySensor() = gmeterScenario(gravitySensor = true, tol = 0.1, gravityLagS = 0.5)
+
+    private fun gmeterScenario(gravitySensor: Boolean, tol: Double, gravityLagS: Double = 0.0) {
         // Araç ekseni: x ileri, y sağ, z aşağı. Telefon ekseni = R * araç
         val pitch = Math.toRadians(70.0); val yaw = Math.toRadians(25.0)
         fun toPhone(v: DoubleArray): FloatArray {
@@ -91,6 +97,7 @@ class MotionTest {
         val rnd = java.util.Random(3)
         var ts = 0L; var v = 60.0   // yolda seyir (fren hızı sıfırın altına indirmesin)
         var mLong = 0.0; var mLat = 0.0   // son 1 sn ortalaması (ekran da yumuşatarak gösterir)
+        var lag: FloatArray? = null
         fun drive(seconds: Double, longG: Double, latG: Double) {
             val n = (seconds * 50).toInt()
             mLong = 0.0; mLat = 0.0
@@ -100,7 +107,13 @@ class MotionTest {
                 if (i % 10 == 0) g.onSpeed(ts, v)
                 // Telefon ivmeölçeri: özgül kuvvet = ivme − yerçekimi; araçta yerçekimi +z (aşağı), ölçülen −g z... Android: dururken +9,81 yukarı
                 val car = doubleArrayOf(longG * GMeter.G + rnd.nextGaussian() * 0.8, latG * GMeter.G + rnd.nextGaussian() * 0.8, -GMeter.G)
-                g.onAccel(ts, toPhone(car), if (gravitySensor) toPhone(doubleArrayOf(0.0, 0.0, -GMeter.G)) else null)
+                val acc = toPhone(car)
+                val grav = when {
+                    !gravitySensor -> null
+                    gravityLagS > 0 -> (lag ?: acc.copyOf()).also { l -> for (j in 0..2) l[j] += ((acc[j] - l[j]) * (1 - kotlin.math.exp(-0.02 / gravityLagS))).toFloat(); lag = l }
+                    else -> toPhone(doubleArrayOf(0.0, 0.0, -GMeter.G))
+                }
+                g.onAccel(ts, acc, grav)
                 if (i >= n - 50) { mLong += g.long / 50; mLat += g.lat / 50 }
             }
         }

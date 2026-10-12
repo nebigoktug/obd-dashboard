@@ -178,6 +178,7 @@ class GMeter {
 
     private val grav = DoubleArray(3)
     private var gravInit = false
+    private var frozenSince = 0L
     private val down0 = DoubleArray(3)
     private val fwdSum = DoubleArray(3)
     private var learnN = 0
@@ -208,12 +209,15 @@ class GMeter {
         val dt = if (lastTs == 0L) 0.02 else ((ts - lastTs) / 1000.0).coerceIn(0.001, 0.2)
         lastTs = ts
         if (state == State.NO_SENSOR) state = State.LEARNING
-        if (gravity != null) for (i in 0..2) grav[i] = gravity[i].toDouble()
+        // Yerçekimi: yavaş alçak geçirgen, araç belirgin hızlanırken dondurulur (yoksa süren ivmelenmeyi
+        // yerçekimi sanıp yutar). Sistemin yerçekimi sensörü yalnız başlangıç değeri: bazı telefonlarda (MTK)
+        // o da kısa bir alçak geçirgen ve hızlanmayı yutuyor (gerçek sürüş 2026-10-12, G-ölçer hiç öğrenemedi).
+        if (!gravInit) { for (i in 0..2) grav[i] = (gravity ?: a)[i].toDouble() }
         else {
-            // Yerçekimi sensörü yoksa: yavaş alçak geçirgen, araç belirgin hızlanırken dondurulur
-            // (yoksa süren ivmelenmeyi yerçekimi sanıp yutar)
-            val accelerating = ts - dvdtTs < 1500 && abs(dvdt) > 0.4
-            val k = if (!gravInit) 1.0 else if (accelerating) 0.0 else 1 - exp(-dt / 20.0)
+            // Viraj da (yatay ivme ≥ 0,1 g) dondurur; yanlış başlangıçta takılı kalmasın diye en çok 10 sn
+            val busy = (ts - dvdtTs < 1500 && abs(dvdt) > 0.4) || norm(h) > 1.0
+            if (!busy) frozenSince = 0L else if (frozenSince == 0L) frozenSince = ts
+            val k = if (busy && ts - frozenSince < 10_000) 0.0 else 1 - exp(-dt / 20.0)
             for (i in 0..2) grav[i] += (a[i] - grav[i]) * k
         }
         gravInit = true
