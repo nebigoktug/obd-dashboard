@@ -43,8 +43,39 @@ internal object Glass {
     /** Kenar çizgisinin rengi (koyu temada beyaz, açık temada siyah); [edge] her kullanımdan sonra buna döner */
     var EDGE = Color.WHITE
 
+    /**
+     * Zemin üstündeki yazının rengi (kart dışındaki saat, hava, sekmeler, alt şerit). Temalar arasında zemin
+     * çok farklı (mermer, tuğla, gökyüzü): yazının altındaki bölgenin parlaklığı tema resminden ölçülür,
+     * açık zeminde koyu yazı + beyaz hâle, koyu zeminde açık yazı + siyah hâle.
+     */
+    class Ink(val text: Int, val dim: Int, val halo: Int)
+    private val DARK_INK = Ink(0xFF15181C.toInt(), 0xFF3A4048.toInt(), 0xC8FFFFFF.toInt())
+    private val LIGHT_INK = Ink(0xFFF2F5F8.toInt(), 0xFFC4CAD0.toInt(), 0xD0000000.toInt())
+    private var luma: Bitmap? = null
+    private val inks = HashMap<RectF, Ink>()
+
+    /** [r] resim koordinatında (2400×1080, DashImageGeom); resim yoksa koyu zemin varsayılır */
+    fun ink(r: RectF): Ink = inks.getOrPut(r) {
+        val b = luma ?: return@getOrPut LIGHT_INK
+        val sx = b.width / DashImageGeom.W; val sy = b.height / DashImageGeom.H
+        var sum = 0.0; var n = 0
+        for (y in (r.top * sy).toInt().coerceIn(0, b.height - 1)..(r.bottom * sy).toInt().coerceIn(0, b.height - 1))
+            for (x in (r.left * sx).toInt().coerceIn(0, b.width - 1)..(r.right * sx).toInt().coerceIn(0, b.width - 1)) {
+                val c = b.getPixel(x, y)
+                sum += 0.2126 * Color.red(c) + 0.7152 * Color.green(c) + 0.0722 * Color.blue(c); n++
+            }
+        if (n > 0 && sum / n / 255 > 0.55) DARK_INK else LIGHT_INK
+    }
+
+    /** Yazıya zemin karşıtı hâle (yoğun desenli zeminde de okunsun) */
+    fun halo(p: Paint, ink: Ink) = p.setShadowLayer(p.textSize * 0.14f, 0f, 0f, ink.halo)
+
     /** Temaya göre kart rengi: koyu cam ya da (gündüz) açık cam */
-    fun use(t: ImageTheme) {
+    fun use(t: ImageTheme, res: android.content.res.Resources) {
+        inks.clear()
+        luma = try {
+            android.graphics.BitmapFactory.decodeResource(res, t.base, android.graphics.BitmapFactory.Options().apply { inSampleSize = 16 })
+        } catch (_: Exception) { null }
         val l = t.light
         fill.color = if (l) 0xFFFFFFFF.toInt() else 0xFF10141A.toInt(); fill.alpha = if (l) 215 else 205
         EDGE = if (l) Color.BLACK else Color.WHITE
@@ -409,6 +440,9 @@ class ValueStrip(ctx: Context, private val specs: List<WidgetSpec>) : DashWidget
         val SHORT = mapOf("boost" to "TURBO", "load" to "YÜK", "battery" to "AKÜ", "coolant" to "MOTOR", "iat" to "EMME",
             "rail" to "RAİL", "map" to "MAP", "speed" to "HIZ", "rpm" to "DEVİR", "dtc_count" to "ARIZA",
             "fuel_lph" to "L/SA", "fuel_l100" to "TÜKETİM", "fuel_avg" to "ORT. TÜK.")
+        /** Şeridin iki yanı (yol çiziminin solu / sağı), resim koordinatında: yazı rengi ayrı ölçülür */
+        private val STRIP_L = DashImageGeom.STRIP.let { RectF(it.left, it.top, it.left + it.width() * 0.42f, it.bottom) }
+        private val STRIP_R = DashImageGeom.STRIP.let { RectF(it.right - it.width() * 0.42f, it.top, it.right, it.bottom) }
     }
 
     override fun onDraw(c: Canvas) {
@@ -419,12 +453,15 @@ class ValueStrip(ctx: Context, private val specs: List<WidgetSpec>) : DashWidget
         val vp = Glass.text(pc, "r10", h * 0.44f); vp.textAlign = Paint.Align.CENTER
         val up = Glass.text(pc, "r11", h * 0.22f, Glass.DIM)
         specs.take(4).forEachIndexed { i, spec ->
+            val ink = Glass.ink(if (i < 2) STRIP_L else STRIP_R)
+            lp.color = ink.dim; up.color = ink.dim
+            Glass.halo(lp, ink); Glass.halo(vp, ink); Glass.halo(up, ink)
             val cx = if (i < 2) slot * (i + 0.5f) else w - side + slot * (i - 2 + 0.5f)
             val d = frame[spec.signal]
             val def = SignalCatalog[spec.signal] ?: return@forEachIndexed
             c.drawText(SHORT[spec.signal] ?: def.label.uppercase(), cx, h * 0.3f, lp)
             val txt = d?.text ?: "—"
-            vp.color = if (d != null && d.level != Level.NORMAL && !d.missing) theme.levelColor(d.level) else Glass.TEXT
+            vp.color = if (d != null && d.level != Level.NORMAL && !d.missing) theme.levelColor(d.level) else ink.text
             vp.alpha = alphaFor(d)
             val unit = if (d == null || d.missing) "" else def.unit
             val tw = vp.measureText(txt); val uw = if (unit.isEmpty()) 0f else up.measureText(" $unit")
@@ -693,9 +730,10 @@ class ClockView(ctx: Context) : View(ctx) {
     override fun onDraw(c: Canvas) {
         val w = width.toFloat(); val h = height.toFloat()
         now.time = System.currentTimeMillis()
-        val tp = Glass.text(pc, "t", h * 0.62f); tp.textAlign = Paint.Align.RIGHT
+        val ink = Glass.ink(DashImageGeom.CLOCK)
+        val tp = Glass.text(pc, "t", h * 0.62f, ink.text); tp.textAlign = Paint.Align.RIGHT; Glass.halo(tp, ink)
         c.drawText(hm.format(now), w, h * 0.62f, tp)
-        val dp = Glass.text(pc, "d", h * 0.22f, Glass.DIM); dp.textAlign = Paint.Align.RIGHT; dp.letterSpacing = 0.06f
+        val dp = Glass.text(pc, "d", h * 0.22f, ink.dim); dp.textAlign = Paint.Align.RIGHT; dp.letterSpacing = 0.06f; Glass.halo(dp, ink)
         c.drawText(day.format(now), w, h * 0.95f, dp)
         postInvalidateDelayed(1000 - now.time % 1000)
     }
@@ -733,9 +771,10 @@ class WeatherView(ctx: Context, private val weather: Weather) : View(ctx) {
             c.drawBitmap(b, null, dst, bmpP)
             x = side * 0.95f
         }
-        val tp = Glass.text(pc, "t", h * 0.62f)
+        val ink = Glass.ink(DashImageGeom.WEATHER)
+        val tp = Glass.text(pc, "t", h * 0.62f, ink.text); Glass.halo(tp, ink)
         c.drawText(t?.let { "${Math.round(it)}°" } ?: "—°", x, h * 0.62f, tp)
-        val dp = Glass.text(pc, "d", h * 0.22f, Glass.DIM); dp.letterSpacing = 0.06f
+        val dp = Glass.text(pc, "d", h * 0.22f, ink.dim); dp.letterSpacing = 0.06f; Glass.halo(dp, ink)
         c.drawText(Glass.ellipsize(text(code), dp, width - x), x, h * 0.95f, dp)
     }
 

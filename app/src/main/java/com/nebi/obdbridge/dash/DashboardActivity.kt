@@ -516,7 +516,7 @@ class DashboardActivity : Activity(), SensorEventListener {
     private fun applyImageTheme(t: ImageTheme) {
         val changed = t != imgTheme
         imgTheme = t
-        Glass.use(t)
+        Glass.use(t, resources)
         applyTheme(t.dash())
         if (changed) build()   // kadran resimleri temaya bağlı
     }

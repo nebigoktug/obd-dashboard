@@ -221,6 +221,9 @@ class DashImageDials(ctx: Context, spec: WidgetSpec, private val th: ImageTheme 
             val r = DashImageGeom.LABEL_R * s * (if (frac < 0.08f || frac > 0.92f) 0.955f else 1f)
             val x = cx + r * cos(a).toFloat(); val y = cy + r * sin(a).toFloat() + labelP.textSize * 0.36f
             labelP.color = if (frac <= f) litColor else th.dimLabel
+            // Desenli bantta okunurluk: rakamın tersi renkte hafif hâle
+            val lum = 0.2126 * Color.red(labelP.color) + 0.7152 * Color.green(labelP.color) + 0.0722 * Color.blue(labelP.color)
+            labelP.setShadowLayer(labelP.textSize * 0.12f, 0f, 0f, if (lum > 128) 0xB0000000.toInt() else 0x90FFFFFF.toInt())
             c.drawText(t, x, y, labelP)
         }
     }

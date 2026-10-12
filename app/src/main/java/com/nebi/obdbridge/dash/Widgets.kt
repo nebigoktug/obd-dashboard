@@ -426,8 +426,11 @@ class TopBar(ctx: Context, private val tabs: List<String>, private val onTab: (I
         val h = height.toFloat()
         items.clear()
         val off = if (showTempClock) 1 else 0   // ilk sekmenin öğe sırası
-        if (showTempClock) items += tempText to theme.text
-        tabs.forEachIndexed { i, t -> items += t to (if (i == selected) theme.text else theme.dim) }
+        // Resimli temada sekme yazısı altındaki zemine göre (Glass.ink); vektör temada tema rengi
+        val ink = if (theme.image) Glass.ink(DashImageGeom.TOPBAR) else null
+        if (ink != null) Glass.halo(p.apply { textSize = h * 0.4f }, ink) else p.clearShadowLayer()
+        if (showTempClock) items += tempText to (ink?.text ?: theme.text)
+        tabs.forEachIndexed { i, t -> items += t to (if (i == selected) ink?.text ?: theme.text else ink?.dim ?: theme.dim) }
         now.time = System.currentTimeMillis()
         if (showTempClock) items += clock.format(now) to theme.text
         // Çubukların yanında kaynak etiketi: demo uyarı renginde, OBD yokken GPS hızı
