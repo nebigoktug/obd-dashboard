@@ -39,6 +39,14 @@ THEMES = {
     "holo": (110, 210, "dark", 0.35, True),
     "graffiti": (112, 216, "dark", 0.40, True),
     "carbon": (168, 204, "dark", 0.25, True),
+    # Yerel temalar (2026-10-12)
+    "nazar": (118, 200, "dark", 0.35),
+    "ebru": (118, 210, "dark", 0.40, True),
+    "gokturk": (112, 208, "light", 0.55, True),
+    "iznik": (108, 214, "dark", 0.40, True),
+    "kilim": (112, 210, "dark", 0.40, True),
+    "semazen": (118, 210, "dark", 0.35, True),
+    "copper": (120, 208, "dark", 0.35, True),
 }
 CENTERS = ((302, 391), (1087, 391))
 CROP = (24, 92, 1352, 690)  # referansla aynı: 1328x598 ≈ 2,22:1 → 2400x1080
@@ -58,19 +66,20 @@ def make(name, r0, r1, mode, amount, cut_gap=False):
         ann = np.maximum(ann, ((r >= r0) & (r <= r1) & (a <= 271)).astype(np.float32))
         gap = np.maximum(gap, ((r >= r0 - 6) & (r <= r1 + 8) & (a > 274) & (a < 356)).astype(np.float32))
     ann = cv2.GaussianBlur(ann, (0, 0), 1.2)[..., None]
+    # Açık temada sönük bant ve boşluk zemin rengine açılır: zemin iki halkanın arasından ölçülür (taş, mermer)
+    panel = np.median(img[200:330, 560:830].reshape(-1, 3), axis=0).astype(np.float32)
     if cut_gap:
         gap = cv2.GaussianBlur(gap, (0, 0), 4)[..., None]
         f0 = img.astype(np.float32)
         # Koyu temada boşluk karartılır; açık temada zemine (açık gri) doğru açılır
-        fill = f0 * 0.15 if mode == "dark" else f0 * 0.2 + np.array([228, 230, 232], np.float32) * 0.8
+        fill = f0 * 0.15 if mode == "dark" else f0 * 0.2 + panel * 0.8
         img = (f0 * (1 - gap) + fill * gap).clip(0, 255).astype(np.uint8)
     f = img.astype(np.float32)
     gray = f.mean(axis=2, keepdims=True)
     if mode == "dark":
         dim = (f * 0.85 + gray * 0.15) * amount
     else:  # gündüz: koyu bant zemin rengine doğru açılır (değerin ötesi soluk)
-        panel = np.array([236, 236, 236], np.float32)
-        dim = f * (1 - amount) + panel * amount
+        dim = f * (1 - amount) + (np.array([236, 236, 236], np.float32) if name == "day" else panel) * amount
     base = f * (1 - ann) + dim * ann
     x0, y0, x1, y1 = CROP
     for suffix, im in (("lit", img), ("base", base.clip(0, 255).astype(np.uint8))):

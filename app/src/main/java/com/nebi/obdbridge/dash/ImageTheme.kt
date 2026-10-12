@@ -88,6 +88,21 @@ data class ImageTheme(
                 0xFF101010.toInt(), 0xFFF0F0F0.toInt(), accent = 0xFFFF4FB0.toInt()),
             ImageTheme("carbon", "Geleceğin Karbonu", R.drawable.theme_carbon_base, R.drawable.theme_carbon_lit, R.drawable.theme_carbon_thumb, 304f, 369f,
                 0xFF061826.toInt(), 0xFFA8C8E0.toInt(), accent = 0xFF30B8FF.toInt()),
+            // Yerel temalar (2026-10-12)
+            ImageTheme("nazar", "Nazar Boncuğu", R.drawable.theme_nazar_base, R.drawable.theme_nazar_lit, R.drawable.theme_nazar_thumb, 213f, 361f,
+                0xFF0A1A40.toInt(), 0xFFB8C8E8.toInt(), accent = 0xFFF0C030.toInt()),
+            ImageTheme("ebru", "Ebru", R.drawable.theme_ebru_base, R.drawable.theme_ebru_lit, R.drawable.theme_ebru_thumb, 213f, 380f,
+                0xFF201810.toInt(), 0xFFE0D0B8.toInt(), accent = 0xFFD08050.toInt()),
+            ImageTheme("gokturk", "Göktürk", R.drawable.theme_gokturk_base, R.drawable.theme_gokturk_lit, R.drawable.theme_gokturk_thumb, 202f, 376f,
+                0xFFF0E8D8.toInt(), 0xFF4A4438.toInt(), light = true, accent = 0xFF8A7A60.toInt()),
+            ImageTheme("iznik", "İznik Çinisi", R.drawable.theme_iznik_base, R.drawable.theme_iznik_lit, R.drawable.theme_iznik_thumb, 195f, 387f,
+                0xFF0A1840.toInt(), 0xFFC8D8F0.toInt(), accent = 0xFF40C8D8.toInt()),
+            ImageTheme("kilim", "Türk Halısı", R.drawable.theme_kilim_base, R.drawable.theme_kilim_lit, R.drawable.theme_kilim_thumb, 202f, 380f,
+                0xFFFFF4E8.toInt(), 0xFFE0C8B0.toInt(), accent = 0xFFE05030.toInt()),
+            ImageTheme("semazen", "Semazen", R.drawable.theme_semazen_base, R.drawable.theme_semazen_lit, R.drawable.theme_semazen_thumb, 213f, 380f,
+                0xFF0A1A30.toInt(), 0xFFC0D0E8.toInt(), accent = 0xFFB8D8F8.toInt()),
+            ImageTheme("copper", "Bakır İşçiliği", R.drawable.theme_copper_base, R.drawable.theme_copper_lit, R.drawable.theme_copper_thumb, 217f, 376f,
+                0xFF2A1408.toInt(), 0xFFE0B898.toInt(), accent = 0xFFE08A50.toInt()),
         )
 
         /** Eski kayıtlar (auto/night/day/premium vektör temaları) referans temaya düşer */
