@@ -77,7 +77,7 @@ internal object Glass {
             android.graphics.BitmapFactory.decodeResource(res, t.base, android.graphics.BitmapFactory.Options().apply { inSampleSize = 16 })
         } catch (_: Exception) { null }
         val l = t.light
-        fill.color = if (l) 0xFFFFFFFF.toInt() else 0xFF10141A.toInt(); fill.alpha = if (l) 215 else 205
+        fill.color = if (l) 0xFFFFFFFF.toInt() else 0xFF10141A.toInt(); fill.alpha = if (l) 150 else 140   // yarı şeffaf: tema resmi arkadan görünsün
         EDGE = if (l) Color.BLACK else Color.WHITE
         edge.color = EDGE; edge.alpha = if (l) 30 else 38
         pressed.color = EDGE; pressed.alpha = if (l) 22 else 28
