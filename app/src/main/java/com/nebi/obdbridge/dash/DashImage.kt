@@ -223,7 +223,7 @@ class DashImageDials(ctx: Context, spec: WidgetSpec, private val th: ImageTheme 
             labelP.color = if (frac <= f) litColor else th.dimLabel
             // Desenli bantta okunurluk: rakamın tersi renkte hafif hâle
             val lum = 0.2126 * Color.red(labelP.color) + 0.7152 * Color.green(labelP.color) + 0.0722 * Color.blue(labelP.color)
-            labelP.setShadowLayer(labelP.textSize * 0.12f, 0f, 0f, if (lum > 128) 0xB0000000.toInt() else 0x90FFFFFF.toInt())
+            labelP.setShadowLayer(labelP.textSize * 0.2f, 0f, 0f, if (lum > 128) 0xE8000000.toInt() else 0xD0FFFFFF.toInt())
             c.drawText(t, x, y, labelP)
         }
     }

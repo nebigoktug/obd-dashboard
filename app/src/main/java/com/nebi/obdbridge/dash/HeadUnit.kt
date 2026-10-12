@@ -49,8 +49,8 @@ internal object Glass {
      * açık zeminde koyu yazı + beyaz hâle, koyu zeminde açık yazı + siyah hâle.
      */
     class Ink(val text: Int, val dim: Int, val halo: Int)
-    private val DARK_INK = Ink(0xFF15181C.toInt(), 0xFF3A4048.toInt(), 0xC8FFFFFF.toInt())
-    private val LIGHT_INK = Ink(0xFFF2F5F8.toInt(), 0xFFC4CAD0.toInt(), 0xD0000000.toInt())
+    private val DARK_INK = Ink(0xFF15181C.toInt(), 0xFF3A4048.toInt(), 0xF0FFFFFF.toInt())
+    private val LIGHT_INK = Ink(0xFFF2F5F8.toInt(), 0xFFC4CAD0.toInt(), 0xF5000000.toInt())
     private var luma: Bitmap? = null
     private val inks = HashMap<RectF, Ink>()
 
@@ -68,7 +68,7 @@ internal object Glass {
     }
 
     /** Yazıya zemin karşıtı hâle (yoğun desenli zeminde de okunsun) */
-    fun halo(p: Paint, ink: Ink) = p.setShadowLayer(p.textSize * 0.14f, 0f, 0f, ink.halo)
+    fun halo(p: Paint, ink: Ink) = p.setShadowLayer(p.textSize * 0.22f, 0f, 0f, ink.halo)
 
     /** Temaya göre kart rengi: koyu cam ya da (gündüz) açık cam */
     fun use(t: ImageTheme, res: android.content.res.Resources) {
