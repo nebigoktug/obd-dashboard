@@ -148,6 +148,39 @@ class SettingsActivity : Activity() {
             .show()
     }
 
+    /** Tema seçici: küçük önizlemeli iki sütunlu ızgara */
+    private fun chooseTheme(themes: List<ImageTheme>, cur: ImageTheme, done: (ImageTheme) -> Unit) {
+        val cols = if (resources.configuration.screenWidthDp >= 600) 3 else 2
+        var dlg: AlertDialog? = null
+        val grid = android.widget.GridLayout(this).apply { columnCount = cols; setPadding(ui.dp(8), ui.dp(8), ui.dp(8), ui.dp(8)) }
+        for (t in themes) {
+            val cell = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(ui.dp(4), ui.dp(4), ui.dp(4), ui.dp(4))
+                if (t == cur) background = android.graphics.drawable.GradientDrawable().apply {
+                    setStroke(ui.dp(2), t.accent); cornerRadius = ui.dp(8).toFloat()
+                }
+                setOnClickListener { done(t); dlg?.dismiss(); show(section) }
+            }
+            cell.addView(android.widget.ImageView(this).apply {
+                setImageResource(t.thumb); adjustViewBounds = true
+                scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
+            })
+            cell.addView(android.widget.TextView(this).apply {
+                text = t.name; textSize = 13f; setTextColor(0xFFE0E4E8.toInt())
+                gravity = android.view.Gravity.CENTER; setPadding(0, ui.dp(2), 0, 0)
+            })
+            grid.addView(cell, android.widget.GridLayout.LayoutParams(
+                android.widget.GridLayout.spec(android.widget.GridLayout.UNDEFINED),
+                android.widget.GridLayout.spec(android.widget.GridLayout.UNDEFINED, 1f)).apply { width = 0 })
+        }
+        dlg = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle("Tema")
+            .setView(android.widget.ScrollView(this).apply { addView(grid) })
+            .setNegativeButton("Vazgeç", null)
+            .show()
+    }
+
     private fun confirm(title: String, msg: String, yes: String, act: () -> Unit) {
         AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
             .setTitle(title).setMessage(msg)
@@ -252,7 +285,7 @@ class SettingsActivity : Activity() {
         val themes = ImageTheme.ALL
         val cur = ImageTheme.byId(dash.getString("theme", DashboardActivity.DEFAULT_THEME))
         add(ui.item("Tema", "Göstergelerin görünümü", { cur.name }) {
-            choose("Tema", themes.map { it.name }, themes.indexOf(cur)) { dash.edit().putString("theme", themes[it].id).apply() }
+            chooseTheme(themes, cur) { dash.edit().putString("theme", it.id).apply() }
         })
         add(ui.toggle("Güneşte Gündüz temasına geç", "Ortam ışığı çok artınca okunurluk için açık temaya, kararınca seçili temaya döner",
             { dash.getBoolean("auto_day", true) }) { dash.edit().putBoolean("auto_day", it).apply() })
