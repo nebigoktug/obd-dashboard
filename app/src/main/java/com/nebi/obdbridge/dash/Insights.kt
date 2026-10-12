@@ -260,9 +260,10 @@ class Health {
             }
         } else if (!running) { dpfSince = 0 }
 
-        // Turbo: yüksek yükte (≥ %80) devir dilimine göre turbo basıncı; taban oturduktan sonra %25 düşüş uyarı
+        // Turbo: yüksek yükte (≥ %80) devir dilimine göre turbo basıncı; taban oturduktan sonra %25 düşüş uyarı.
+        // Soğuk motorda (< 70 °C) ECU turboyu kısıyor (gerçek sürüş 2026-10-12: %30-40 düşük): o anlar sayılmaz
         val map = i.map
-        if (running && rpm != null && load != null && map != null && load >= 80 && rpm in 1500.0..4000.0 && idleN > 0) {
+        if (running && (i.coolant ?: 0.0) >= 70 && rpm != null && load != null && map != null && load >= 80 && rpm in 1500.0..4000.0 && idleN > 0) {
             val boost = (map - BARO) / 100.0
             val b = ((rpm - 1500) / 250).toInt().coerceIn(0, 10)
             if (boostN[b] < 200 || !turboLow) {

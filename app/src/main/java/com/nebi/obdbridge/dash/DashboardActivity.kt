@@ -487,8 +487,9 @@ class DashboardActivity : Activity(), SensorEventListener {
         val spd = v("speed") ?: gpsSpeed?.takeIf { now - it.ts < 3000 }?.value
         if (src is DemoSource) motion.demo((now - demoT0) / 1000.0, spd ?: 0.0, now)
         else {
+            if (motion.demoAlt != null) motion.endDemo()
             spd?.let { motion.g.onSpeed(now, it) }
-            motion.baro.onCar(v("map"), v("rpm"), v("speed"), v("coolant"), insights.fuelCut, Vehicle.current.fuel == Fuel.DIESEL)
+            motion.baro.onCar(v("map"), v("rpm"), v("speed"))
         }
         weather.pressureHpa?.let { motion.baro.onWeather(it) }
         paceGps()

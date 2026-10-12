@@ -49,19 +49,24 @@ class MotionTest {
         assertEquals(5.0, g.grade!!, 1.5)
     }
 
-    @Test fun baroPrefersCarMapOnDieselIdle() {
+    @Test fun baroUsesCarMapOnlyWithEngineStopped() {
         var t = 0L
         val b = Baro { t }
-        b.onWeather(1009.0)
-        assertEquals(Baro.Src.WEATHER, b.source)
-        repeat(100) { t += 500; b.onCar(101.0, 790.0, 0.0, 85.0, fuelCut = false, diesel = true) }
+        // Rölanti ve yakıt kesmede MAP dış basınçtan yüksek: kullanılmaz
+        repeat(100) { t += 500; b.onCar(106.0, 790.0, 0.0) }
+        repeat(100) { t += 500; b.onCar(110.0, 1500.0, 50.0) }
+        assertNull(b.source)
+        // Kontak açık, motor durmuş
+        repeat(10) { t += 500; b.onCar(101.0, 0.0, 0.0) }
         assertEquals(Baro.Src.CAR, b.source)
         assertEquals(1010.0, b.hpa!!, 1.0)
+        // Motor çalıştıktan sonra da saatlerce geçerli
+        t += 2 * 3600_000L
+        assertEquals(Baro.Src.CAR, b.source)
+        // Hava servisi varsa o öncelikli; fark MAP sensörünün kayması
+        b.onWeather(1009.0)
+        assertEquals(Baro.Src.WEATHER, b.source)
         assertEquals(1.0, b.mapOffset!!, 1.0)
-        // Benzinlide MAP rölantide vakumdur: kullanılmaz
-        val p = Baro { t }
-        repeat(100) { t += 500; p.onCar(35.0, 790.0, 0.0, 85.0, false, diesel = false) }
-        assertNull(p.source)
     }
 
     /**

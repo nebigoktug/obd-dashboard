@@ -114,8 +114,9 @@ class AltitudeTrack(private val clock: () -> Long = System::currentTimeMillis) {
 }
 
 /**
- * Hava basıncı (hPa). Kaynak önceliği: telefonun barometresi > aracın MAP sensörü (yalnız dizelde, rölantide ya da
- * yakıt kesmede: gaz kelebeği yok, manifold dış basınçta) > hava durumu servisinin yerel basıncı.
+ * Hava basıncı (hPa). Kaynak önceliği: telefonun barometresi > hava durumu servisinin yerel basıncı > aracın MAP
+ * sensörü (kontak açık, motor durmuşken: manifold dış basınçta). Rölantide ve yakıt kesmede MAP dizelde bile
+ * 2..60 kPa yüksek okunuyor (gerçek sürüş, 2026-10-12), o anlar kullanılmaz.
  * MAP ile servis karşılaştırılarak MAP sensörünün kayması da izlenir.
  */
 class Baro(private val clock: () -> Long = System::currentTimeMillis) {
@@ -126,23 +127,22 @@ class Baro(private val clock: () -> Long = System::currentTimeMillis) {
 
     fun onPhone(hpa: Double) { phone = if (phone.isNaN()) hpa else phone + (hpa - phone) * 0.1; phoneTs = clock() }
 
-    /** Her OBD turunda; yalnız dizelde ve uygun anlarda örneklenir */
-    fun onCar(mapKpa: Double?, rpm: Double?, speed: Double?, coolant: Double?, fuelCut: Boolean, diesel: Boolean) {
-        if (!diesel || mapKpa == null || rpm == null || mapKpa !in 60.0..110.0) return
-        val idle = (speed ?: 1.0) < 1 && rpm in 600.0..1000.0 && (coolant ?: 0.0) >= 40
-        if (!idle && !fuelCut) return
+    /** Her OBD turunda; yalnız motor durmuşken (devir 0, kontak açık) örneklenir */
+    fun onCar(mapKpa: Double?, rpm: Double?, speed: Double?) {
+        if (mapKpa == null || rpm == null || rpm > 0 || (speed ?: 0.0) >= 1 || mapKpa !in 60.0..110.0) return
         val hpa = mapKpa * 10
-        // MAP 1 kPa çözünürlüklü: uzun ortalama
-        car = if (car.isNaN() || clock() - carTs > 15 * 60_000) hpa else car + (hpa - car) * 0.02
+        car = if (car.isNaN() || clock() - carTs > CAR_MS) hpa else car + (hpa - car) * 0.2
         carTs = clock(); carN++
     }
 
     fun onWeather(hpa: Double) { weather = hpa; weatherTs = clock() }
 
+    private val carFresh get() = !car.isNaN() && carN >= 6 && clock() - carTs < CAR_MS
+
     val source: Src? get() = when {
         !phone.isNaN() && clock() - phoneTs < 60_000 -> Src.PHONE
-        !car.isNaN() && carN >= 20 && clock() - carTs < 20 * 60_000 -> Src.CAR
         !weather.isNaN() && clock() - weatherTs < 90 * 60_000 -> Src.WEATHER
+        carFresh -> Src.CAR
         else -> null
     }
 
@@ -150,9 +150,11 @@ class Baro(private val clock: () -> Long = System::currentTimeMillis) {
 
     /** MAP sensörü − hava servisi (hPa); ikisi de tazeyse */
     val mapOffset: Double? get() =
-        if (!car.isNaN() && carN >= 60 && clock() - carTs < 20 * 60_000 && !weather.isNaN() && clock() - weatherTs < 90 * 60_000) car - weather else null
+        if (carFresh && !weather.isNaN() && clock() - weatherTs < 90 * 60_000) car - weather else null
 
     companion object {
+        /** Motor durmuşken alınan basınç bu kadar süre geçerli (hava basıncı saatte ~1 hPa değişir) */
+        const val CAR_MS = 3 * 3600_000L
         /** Basınçtan yükseklik (standart atmosfer); [seaHpa] deniz seviyesi basıncı */
         fun altitude(hpa: Double, seaHpa: Double = 1013.25) = 44330.0 * (1 - (hpa / seaHpa).pow(1 / 5.255))
     }
@@ -297,6 +299,8 @@ class Motion(clock: () -> Long = System::currentTimeMillis) {
         demoLong = 0.25 * sin(t / 3.1); demoLat = 0.3 * sin(t / 4.7)
         g.notePeaks(demoLong!!, demoLat!!)
     }
+    /** Demo kapanınca uydurma değerler gerçek sensörlere bırakılır */
+    fun endDemo() { demoAlt = null; demoGrade = null; demoLong = null; demoLat = null; g.resetPeaks() }
     var demoAlt: Double? = null; private set
     var demoGrade: Double? = null; private set
     var demoLong: Double? = null; private set

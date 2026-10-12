@@ -125,7 +125,7 @@ class SettingsActivity : Activity() {
                 "barometre" to has(android.hardware.Sensor.TYPE_PRESSURE))
                 .joinToString(" · ") { (n, ok) -> if (ok) n else "$n yok" }
         }, onClick = null))
-        add(ui.item("Hava basıncı kaynağı", "Telefonda barometre yoksa dizel araçta rölantideki emme basıncı (MAP), o da yoksa hava durumu servisi",
+        add(ui.item("Hava basıncı kaynağı", "Telefonda barometre yoksa hava durumu servisi; çevrimdışıysa kontak açık, motor dururken okunan emme basıncı (MAP)",
             { m.baro.source?.label ?: "henüz yok" }, onClick = null))
         header("Rakım ve eğim")
         add(ui.toggle("Hassas rakım (çevrimiçi)", "Arazi yükseklik haritasından (Open-Meteo). Sürüşte yaklaşık her 500 m'de konum (~10 m) sorulur. " +
