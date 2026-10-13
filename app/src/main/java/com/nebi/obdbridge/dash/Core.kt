@@ -59,8 +59,7 @@ object SignalCatalog {
         SignalDef("speed", "Hız", "km/h", 0.0, v.speedMax.toDouble(), tickStep = 20.0, maxTauMs = 300),
         SignalDef("rpm", "Devir", "rpm", 0.0, v.rpmMax.toDouble(), warnAbove = v.redline - 500.0, critAbove = v.redline.toDouble(),
             tickStep = 1000.0, tickLabelDiv = 1000.0, maxTauMs = 220),
-        SignalDef("gear", "Vites", "", 0.0, 6.0, staleMs = 1500, minTauMs = 0, maxTauMs = 0,
-            text = { if (it < 0) "R" else Math.round(it).toString() }),   // −1: geri vites
+        SignalDef("gear", "Vites", "", 0.0, 6.0, staleMs = 1500, minTauMs = 0, maxTauMs = 0),
         SignalDef("coolant", "Motor", "°C", 40.0, 130.0, warnAbove = 105.0, critAbove = 112.0, coldBelow = 60.0,
             staleMs = 6000, minTauMs = 300, maxTauMs = 800, tickStep = 30.0),
         SignalDef("iat", "Emme havası", "°C", -20.0, 80.0, warnAbove = 55.0, critAbove = 70.0,
@@ -76,15 +75,8 @@ object SignalCatalog {
         SignalDef("fuel_lph", "Anlık tüketim", "L/sa", 0.0, 20.0, decimals = 1, staleMs = 2500, minTauMs = 300, maxTauMs = 800),
         SignalDef("fuel_l100", "Tüketim", "L/100", 0.0, 30.0, decimals = 1, staleMs = 2500, minTauMs = 400, maxTauMs = 1000),
         SignalDef("fuel_avg", "Ort. tüketim", "L/100", 0.0, 30.0, decimals = 1, staleMs = 5000, minTauMs = 0, maxTauMs = 0),
-        // Telefon sensörleri (Motion): yön yumuşatılmaz (359 → 0 geçişi)
-        SignalDef("heading", "Yön", "", 0.0, 360.0, staleMs = 600_000, minTauMs = 0, maxTauMs = 0,
-            text = { "${Heading.name(it)} ${Math.round(it) % 360}°" }),
-        SignalDef("altitude", "Rakım", "m", 0.0, 3000.0, staleMs = 60_000, minTauMs = 500, maxTauMs = 1500),
-        SignalDef("grade", "Eğim", "%", -15.0, 15.0, staleMs = 30_000, minTauMs = 500, maxTauMs = 1500,
-            text = { val r = Math.round(it); if (r == 0L) "0" else "%+d".format(r) }),
+        // Hava basıncı (Motion.baro): hava servisi ya da motor durmuşken MAP
         SignalDef("baro", "Hava basıncı", "hPa", 900.0, 1060.0, staleMs = 600_000, minTauMs = 1000, maxTauMs = 3000),
-        SignalDef("g_long", "İvme (ileri)", "g", -1.0, 1.0, decimals = 2, staleMs = 1500, minTauMs = 100, maxTauMs = 300),
-        SignalDef("g_lat", "İvme (yanal)", "g", -1.0, 1.0, decimals = 2, staleMs = 1500, minTauMs = 100, maxTauMs = 300),
     )
     operator fun get(key: String): SignalDef? = BY_KEY[key]
 }
@@ -406,12 +398,7 @@ class DashModel(var source: SignalSource, var gears: GearEstimator = GearEstimat
             val l = insights?.stats?.liters ?: 0.0; val km = trip?.km ?: 0.0
             if (km >= 0.5) Sample(k, l / km * 100, clock()) else null
         }
-        "heading" -> motion?.heading?.let { h -> h.degrees?.let { Sample(k, it, if (motion?.demoAlt != null) clock() else h.ts) } }
-        "altitude" -> motion?.altitudeM?.let { Sample(k, it, clock()) }
-        "grade" -> motion?.gradePct?.let { Sample(k, it, clock()) }
         "baro" -> motion?.baro?.hpa?.let { Sample(k, it, clock()) }
-        "g_long" -> motion?.gLong?.let { Sample(k, it, clock()) }
-        "g_lat" -> motion?.gLat?.let { Sample(k, it, clock()) }
         "boost" -> {
             val m = source.sample("map")
             // Rölanti henüz görülmediyse standart atmosfer (101,3 kPa) varsayılır
@@ -431,18 +418,12 @@ class DashModel(var source: SignalSource, var gears: GearEstimator = GearEstimat
         val pairTs = maxOf(rpm.ts, speed.ts)
         if (pairTs != lastPairTs && abs(rpm.ts - speed.ts) < 500) {
             lastPairTs = pairTs
-            // Geri vites oranı 1.'ye yakın; ayırt eden yalnız telefonun ivmeölçeri (G-ölçer öğrendiyse).
-            // Geri giderken vites oranı öğrenilmez (yoksa sahte bir tepe vites numaralarını kaydırabilir)
-            gear = when {
-                !Vehicle.current.manual -> null
-                motion?.g?.reverse == true && speed.value >= 1 -> -1
-                else -> gears.update(rpm.value, speed.value)
-            }
+            gear = if (Vehicle.current.manual) gears.update(rpm.value, speed.value) else null
             gearTs = pairTs
             // Basit dizel ekonomi önerisi; aracın kendi önerisi çözülürse onunla değiştirilecek
             val g = gear
             shift = when {
-                g == null || g < 1 -> 0
+                g == null -> 0
                 rpm.value > (if (Vehicle.current.fuel == Fuel.PETROL) 3000 else 2600) && g < Vehicle.current.gears -> 1
                 rpm.value < (if (Vehicle.current.fuel == Fuel.PETROL) 1500 else 1250) && g > 1 -> -1
                 else -> 0

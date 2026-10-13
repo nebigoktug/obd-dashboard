@@ -585,67 +585,6 @@ class InfoCard(ctx: Context, private val title: String, private val rows: () -> 
     }
 }
 
-/**
- * G-ölçer: yukarı hızlanma, aşağı fren, sağ sağa viraj. Halkalar 0,2 / 0,4 / 0,6 g; son 2 sn iz bırakır.
- * Öğrenirken ya da sensör güvenilmezken ortada durum yazısı.
- */
-@SuppressLint("ViewConstructor")  // yalnız koddan oluşturuluyor
-class GMeterView(ctx: Context, private val motion: Motion) : View(ctx) {
-    private val pc = HashMap<String, Paint>()
-    private val rect = RectF()
-    private val dp = ctx.resources.displayMetrics.density
-    private val trail = ArrayDeque<Pair<Float, Float>>()
-    private val line = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
-    private val dot = Paint(Paint.ANTI_ALIAS_FLAG)
-
-    override fun onDraw(c: Canvas) {
-        val w = width.toFloat(); val h = height.toFloat()
-        rect.set(1f, 1f, w - 1, h - 1)
-        Glass.card(c, rect, 300 * dp)
-        val pad = 14 * dp
-        val tp = Glass.text(pc, "t", 12 * dp, Glass.ICE); tp.letterSpacing = 0.15f
-        c.drawText("G-KUVVETİ", pad, pad + 12 * dp, tp)
-        val g = motion.g
-        val peaks = Glass.text(pc, "p", 13 * dp, Glass.DIM)
-        c.drawText("Fren %.2f · Hızlanma %.2f · Viraj %.2f g".format(g.maxBrake, g.maxAccel, g.maxLat), pad, h - pad, peaks)
-
-        // Üstte başlık + "HIZLANMA", altta "FREN" + rekor satırı için yer bırak
-        val top = pad + 30 * dp; val bottom = h - pad - 34 * dp
-        val r = minOf(w / 2 - pad, (bottom - top) / 2)
-        val cx = w / 2; val cy = (top + bottom) / 2
-        line.strokeWidth = 1 * dp; line.color = Glass.DIM; line.alpha = 70
-        for (k in 1..3) c.drawCircle(cx, cy, r * k / 3, line)
-        c.drawLine(cx - r, cy, cx + r, cy, line); c.drawLine(cx, cy - r, cx, cy + r, line)
-        val lp = Glass.text(pc, "l", 10 * dp, Glass.DIM); lp.textAlign = Paint.Align.CENTER
-        c.drawText("HIZLANMA", cx, cy - r - 5 * dp, lp)
-        c.drawText("FREN", cx, cy + r + 13 * dp, lp)
-
-        val lo = motion.gLong; val la = motion.gLat
-        if (lo == null || la == null) {
-            trail.clear()
-            val sp = Glass.text(pc, "s", 14 * dp, Glass.TEXT); sp.textAlign = Paint.Align.CENTER
-            val msg = when (g.state) {
-                GMeter.State.NO_SENSOR -> "Sensör kapalı"
-                GMeter.State.UNRELIABLE -> "Sensör güvenilmez"
-                else -> "Öğreniyor %%%d".format((g.progress * 100).toInt())
-            }
-            c.drawText(msg, cx, cy - 2 * dp, sp)
-            if (g.state == GMeter.State.LEARNING) c.drawText("düz yolda hızlanıp yavaşlayın", cx, cy + 16 * dp, lp)
-        } else {
-            val x = cx + (la / 0.6).coerceIn(-1.0, 1.0).toFloat() * r
-            val y = cy - (lo / 0.6).coerceIn(-1.0, 1.0).toFloat() * r
-            trail.addLast(x to y); while (trail.size > 40) trail.removeFirst()
-            trail.forEachIndexed { i, (tx, ty) ->
-                dot.color = Glass.ICE; dot.alpha = 20 + 120 * i / trail.size
-                c.drawCircle(tx, ty, 3 * dp, dot)
-            }
-            dot.color = Glass.ICE; dot.alpha = 255
-            c.drawCircle(x, y, 7 * dp, dot)
-        }
-        postInvalidateDelayed(50)
-    }
-}
-
 /** Detay sekmesinde arıza kodları şeridi: "ARIZA KODLARI  özet  ›" (özet her saniye yenilenir). */
 @SuppressLint("ViewConstructor")  // yalnız koddan oluşturuluyor
 class DtcBar(ctx: Context, private val summary: () -> Pair<String, Boolean>) : View(ctx) {

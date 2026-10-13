@@ -55,9 +55,8 @@ object ProblemReport {
         append("\nÖğrenilenler: yakıt K=%.2f (%d dolum) · rölanti %.0f rpm, yük %%%.0f (n=%d)\n".format(java.util.Locale.US,
             ins.fuel.k, ins.fuel.calibrations, ins.health.idleRpm, ins.health.idleLoad, ins.health.idleN))
         val m = DashboardActivity.motion
-        append("Sensörler: G-ölçer ").append(m.g.state).append(" · basınç ").append(m.baro.source?.label ?: "-")
-            .append(m.baro.mapOffset?.let { " (MAP−servis %+.0f hPa)".format(java.util.Locale.US, it) } ?: "")
-            .append(" · rakım ").append(m.alt.source ?: "-").append('\n')
+        append("Hava basıncı: ").append(m.baro.source?.label ?: "-")
+            .append(m.baro.mapOffset?.let { " (MAP−servis %+.0f hPa)".format(java.util.Locale.US, it) } ?: "").append('\n')
         DtcActivity.last?.let { append('\n').append(DtcCatalog.shareText(it)) }
     }
 
