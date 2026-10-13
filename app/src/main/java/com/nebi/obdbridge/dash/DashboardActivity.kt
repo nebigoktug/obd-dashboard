@@ -186,6 +186,7 @@ class DashboardActivity : Activity(), SensorEventListener {
         (getSystemService(SENSOR_SERVICE) as SensorManager).let { sm ->
             sm.getDefaultSensor(Sensor.TYPE_LIGHT)?.let { sm.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL) }
             // G-ölçer ve barometre (Ayarlar > Sensörler ile kapatılabilir)
+            sensorLogOn = prefs.getBoolean("sensor_log", com.nebi.obdbridge.BuildConfig.DEBUG)
             if (prefs.getBoolean("motion_sensors", true)) {
                 sm.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)?.let { sm.registerListener(this, it, SensorManager.SENSOR_DELAY_GAME) }
                 sm.getDefaultSensor(Sensor.TYPE_GRAVITY)?.let { sm.registerListener(this, it, SensorManager.SENSOR_DELAY_GAME) }
@@ -202,6 +203,7 @@ class DashboardActivity : Activity(), SensorEventListener {
         stopGps()
         (getSystemService(SENSOR_SERVICE) as SensorManager).unregisterListener(this)
         saveGears()
+        sensorLog.close()
         prefs.edit().putString("insights", insights.save()).apply()
         super.onPause()
     }
@@ -482,13 +484,16 @@ class DashboardActivity : Activity(), SensorEventListener {
         put("fuel_lph", insights.fuelLph)
         put("fuel_cut", if (insights.fuelCut) 1.0 else 0.0)
         put("coast", if (insights.coasting) 1.0 else 0.0)
+        put("g_state", motion.g.state.ordinal.toDouble())
+        put("g_learn", motion.g.learnN.toDouble())
         put("alerts", insights.alerts.fold(0) { m, a -> m or (1 shl a.kind.ordinal) }.toDouble())
         // Telefon sensörleri
         val spd = v("speed") ?: gpsSpeed?.takeIf { now - it.ts < 3000 }?.value
         if (src is DemoSource) motion.demo((now - demoT0) / 1000.0, spd ?: 0.0, now)
         else {
             if (motion.demoAlt != null) motion.endDemo()
-            spd?.let { motion.g.onSpeed(now, it) }
+            spd?.let { motion.g.onSpeed(now, it); if (sensorLogOn) sensorLog.speed(now, it) }
+            if (sensorLogOn) sensorLog.tick(obd || (spd ?: 0.0) > 3, motion.g)
             // G-ölçer teşhisi (sorun bildirimi logunda görünür): durum değişince ve öğrenirken dakikada bir
             val gs = motion.g.state
             if (gs != gLogState || (gs == GMeter.State.LEARNING && now - gLogTs > 60_000)) {
@@ -550,15 +555,23 @@ class DashboardActivity : Activity(), SensorEventListener {
 
     /** Gündüz otomatiği: aydınlıkta Gündüz temasına, karanlıkta seçili temaya; titremesin diye eşik aralığı ve 20 sn kilit. */
     private var gravity: FloatArray? = null
+    /** Ham sensör kaydı (teşhis, Ayarlar > Sensörler); varsayılan yalnız debug derlemede açık */
+    private val sensorLog by lazy { SensorLog(java.io.File(getExternalFilesDir(null), "sensors")) }
+    private var sensorLogOn = false
     private var gLogState: GMeter.State? = null
     private var gLogTs = 0L
     private var gravityTs = 0L
 
     override fun onSensorChanged(e: SensorEvent) {
         when (e.sensor.type) {
-            Sensor.TYPE_GRAVITY -> { gravity = e.values.copyOf(); gravityTs = System.currentTimeMillis(); return }
+            Sensor.TYPE_GRAVITY -> {
+                gravity = e.values.copyOf(); gravityTs = System.currentTimeMillis()
+                if (sensorLogOn) sensorLog.gravity(gravityTs, e.values)
+                return
+            }
             Sensor.TYPE_ACCELEROMETER -> {
                 val now = System.currentTimeMillis()
+                if (sensorLogOn) sensorLog.accel(now, e.values)
                 motion.g.onAccel(now, e.values, gravity?.takeIf { now - gravityTs < 500 })
                 gpsPacer.onAccel(e.values)
                 return

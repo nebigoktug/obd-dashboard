@@ -120,6 +120,8 @@ class SettingsActivity : Activity() {
             { when (m.g.state) { GMeter.State.READY -> "hazır"; GMeter.State.LEARNING -> "öğreniyor"; GMeter.State.UNRELIABLE -> "güvenilmez"; else -> "" } }) {
             m.g.relearn(); m.g.resetPeaks(); toast("G-ölçer yeniden öğrenecek")
         })
+        add(ui.toggle("Ham sensör kaydı (teşhis)", "Sürüşte ivmeölçer verisini kaydeder (sensors klasörü, 7 gün, ~2 MB / 20 dk). Sorun incelemesi için",
+            { dash.getBoolean("sensor_log", com.nebi.obdbridge.BuildConfig.DEBUG) }) { dash.edit().putBoolean("sensor_log", it).apply() })
         add(ui.item("Sensörler", null, {
             listOf("ivme" to has(android.hardware.Sensor.TYPE_ACCELEROMETER), "yerçekimi" to has(android.hardware.Sensor.TYPE_GRAVITY),
                 "barometre" to has(android.hardware.Sensor.TYPE_PRESSURE))

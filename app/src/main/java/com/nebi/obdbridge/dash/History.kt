@@ -70,7 +70,9 @@ class DriveLog(private val dir: File, private val clock: () -> Long = System::cu
             // uyarılar (AlertKind sıra numaralarının bit maskesi)
             "gear", "gps_speed", "fuel_lph", "fuel_cut", "coast", "alerts",
             // Telefon sensörleri (v1.1): yön (°), rakım (m), eğim (%), hava basıncı (hPa), ileri/yanal ivme (g)
-            "heading", "altitude", "grade", "baro", "g_long", "g_lat")
+            "heading", "altitude", "grade", "baro", "g_long", "g_lat",
+            // G-ölçer teşhisi (2026-10-13): durum (GMeter.State sırası: 0 sensör yok, 1 öğreniyor, 2 hazır, 3 güvenilmez), öğrenme örneği
+            "g_state", "g_learn")
     }
 }
 

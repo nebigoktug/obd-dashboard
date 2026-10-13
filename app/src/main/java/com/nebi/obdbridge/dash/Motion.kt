@@ -4,6 +4,7 @@ import kotlin.math.abs
 import kotlin.math.asin
 import kotlin.math.cos
 import kotlin.math.exp
+import kotlin.math.max
 import kotlin.math.pow
 import kotlin.math.sin
 import kotlin.math.sqrt
@@ -59,8 +60,29 @@ class AltitudeTrack(private val clock: () -> Long = System::currentTimeMillis) {
         }
     }
 
-    /** Arazi haritasından gelen rakım; [dist] isteğin yapıldığı andaki [distance] */
-    fun onDem(dist: Double, alt: Double) = push(dem, Pt(dist, alt, clock()))
+    /** Şüpheli harita noktası: bir sonraki nokta onu doğrularsa eklenir, yoksa atılır */
+    private var demHold: Pt? = null
+
+    /**
+     * Arazi haritasından gelen rakım; [dist] isteğin yapıldığı andaki [distance].
+     * Haritada köprü/vadi kenarı tek bir saçma nokta verebiliyor (gerçek sürüş 2026-10-13: 135 m → 400 m, eğim %25'te
+     * takıldı). Öncekiyle arasında [MAX_ROAD_GRADE]'den dik eğim çıkaran nokta bekletilir; sonraki nokta da eski
+     * rakımdan uzaksa ikisi de alınır (gerçek dik yokuş), eskiye döndüyse bekleyen atılır.
+     */
+    @Synchronized fun onDem(dist: Double, alt: Double) {
+        val p = Pt(dist, alt, clock())
+        val last = dem.lastOrNull()
+        val hold = demHold
+        demHold = null
+        when {
+            last == null -> push(dem, p)
+            hold != null -> { if (steep(last, p)) push(dem, hold); push(dem, p) }   // p de uzaksa yokuş gerçek; döndüyse sıçramaydı
+            steep(last, p) -> demHold = p
+            else -> push(dem, p)
+        }
+    }
+
+    private fun steep(a: Pt, b: Pt) = abs(b.alt - a.alt) > MAX_ROAD_GRADE * max(abs(b.dist - a.dist), 50.0)
 
     private fun push(q: ArrayDeque<Pt>, p: Pt) {
         q.addLast(p)
@@ -77,7 +99,9 @@ class AltitudeTrack(private val clock: () -> Long = System::currentTimeMillis) {
             // Son iki harita noktası arasında gidilen yola göre doğrusal
             val a = dem.last()
             val b = dem.getOrNull(dem.size - 2)
-            if (b == null || a.dist - b.dist < 1) a.alt else a.alt + (a.alt - b.alt) / (a.dist - b.dist) * (distance - a.dist).coerceAtMost(300.0)
+            // Eğim yol için makul aralıkta, ileri tahmin en çok 150 m (yeni harita noktası gecikirse uçmasın)
+            if (b == null || a.dist - b.dist < 1) a.alt
+            else a.alt + ((a.alt - b.alt) / (a.dist - b.dist)).coerceIn(-0.15, 0.15) * (distance - a.dist).coerceIn(0.0, 150.0)
         }
         Src.GPS -> gpsAlt
         null -> null
@@ -92,9 +116,11 @@ class AltitudeTrack(private val clock: () -> Long = System::currentTimeMillis) {
         return (slope(pts.map { it.dist }, pts.map { it.alt }) * 100).coerceIn(-25.0, 25.0)
     }
 
-    fun reset() { dem.clear(); gps.clear(); distance = 0.0; lastLat = Double.NaN; lastLon = Double.NaN; gpsAlt = Double.NaN }
+    fun reset() { demHold = null; dem.clear(); gps.clear(); distance = 0.0; lastLat = Double.NaN; lastLon = Double.NaN; gpsAlt = Double.NaN }
 
     companion object {
+        /** Bundan dik harita eğimi şüpheli (Türkiye'de en dik şehir sokakları ~%30) */
+        const val MAX_ROAD_GRADE = 0.30
         fun haversine(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
             val r = 6_371_000.0
             val p1 = Math.toRadians(lat1); val p2 = Math.toRadians(lat2)
@@ -186,8 +212,9 @@ class GMeter {
     private var gravInit = false
     private val down0 = DoubleArray(3)
     private val fwdSum = DoubleArray(3)
-    private var learnN = 0
-    private var agree = 0.0
+    var learnN = 0; private set
+    /** İleri yön örneklerinin birbirini ne kadar tuttuğu (0..1, teşhis) */
+    var agree = 0.0; private set
     private val fwd = DoubleArray(3)
     private val h = DoubleArray(3)       // yatay ivme, yumuşatılmış
     private var lastTs = 0L

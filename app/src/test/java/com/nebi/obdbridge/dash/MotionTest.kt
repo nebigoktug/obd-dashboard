@@ -49,6 +49,30 @@ class MotionTest {
         assertEquals(5.0, g.grade!!, 1.5)
     }
 
+    /** Haritanın tek saçma noktası (gerçek sürüş 2026-10-13: 135 → 400 m) atılır; doğrulanan dik yokuş kalır */
+    @Test fun demSpikeRejected() {
+        var t = 0L
+        val tr = AltitudeTrack { t }
+        var lat = 39.0
+        for (i in 0..60) {           // 10 m adım, 100 m'de bir harita noktası, düz yol 150 m
+            t = i * 500L; lat += 10 / 111_195.0
+            tr.onLocation(t, lat, 32.0, 5f, null, null)
+            if (i % 10 == 0) tr.onDem(tr.distance, if (i == 30) 240.0 else 150.0)
+            tr.altitude?.let { assertEquals("i=$i", 150.0, it, 1.0) }
+        }
+        assertEquals(0.0, tr.grade!!, 1.0)
+        // Gerçek dik yokuş (%35, iki nokta birbirini tutuyor): kabul edilir
+        val st = AltitudeTrack { t }
+        lat = 39.0
+        for (i in 0..60) {
+            t = i * 500L; lat += 10 / 111_195.0
+            st.onLocation(t, lat, 32.0, 5f, null, null)
+            if (i % 10 == 0) st.onDem(st.distance, 150.0 + st.distance * 0.35)
+        }
+        assertEquals(150.0 + st.distance * 0.35, st.altitude!!, 40.0)
+        assertEquals(25.0, st.grade!!, 0.1)   // gösterim %25'te sınırlı
+    }
+
     @Test fun baroUsesCarMapOnlyWithEngineStopped() {
         var t = 0L
         val b = Baro { t }
