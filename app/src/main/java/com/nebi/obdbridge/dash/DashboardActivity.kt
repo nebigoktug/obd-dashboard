@@ -156,6 +156,9 @@ class DashboardActivity : Activity(), SensorEventListener {
         turnMaps.forEach { it.onResume() }
         if (com.nebi.obdbridge.BuildConfig.DEBUG && intent.getBooleanExtra("turn_demo", false)) {
             intent.removeExtra("turn_demo"); turnDemoT0 = System.currentTimeMillis()
+            // Rota denemesi: dönüşten sonra 150° yönünde ~1,5 km ileride bir hedef
+            route.setDest(41.0175 + 555 * 0.5 / 111_195.0 - 1500 * 0.866 / 111_195.0,
+                28.9390 + (555 * 0.866 + 1500 * 0.5) / (111_195.0 * kotlin.math.cos(Math.toRadians(41.0175))))
         }
         hideSystemBars()
         // Geliştirme: "am start ... --es theme <id>" ile tema önizlemesi (yalnız debug derlemede)
@@ -256,7 +259,7 @@ class DashboardActivity : Activity(), SensorEventListener {
         panel.addView(content, FrameLayout.LayoutParams(-1, -1))
         keys = widgets.flatMap { it.keys() }.distinct()
         applyTheme(theme)
-        turnMaps.forEach { it.onStart(); if (resumed) it.onResume() }
+        turnMaps.forEach { it.onStart(); if (resumed) it.onResume(); it.setRoute(route.route) }
     }
 
     /** Devir göstergesi ile harita arasında dikey kaydırmayla geçiş (harita görünmezken de yeri ayrılmış) */
@@ -282,7 +285,19 @@ class DashboardActivity : Activity(), SensorEventListener {
 
     private fun feedTurnMaps(lat: Double, lon: Double, bearing: Float?, kmh: Double?) {
         for (m in turnMaps) m.onLocation(lat, lon, bearing, kmh)
+        // Rota: hedef varsa ilk konumda ve yoldan çıkınca yeniden (RouteTracker kota için seyreltir)
+        val map = turnMaps.firstOrNull { it.canRoute } ?: return
+        val dest = route.dest
+        if (route.onFix(lat, lon) && dest != null) {
+            route.onRequested()
+            map.requestRoute(RouteTracker.LatLon(lat, lon), dest, bearing?.toDouble()?.takeIf { (kmh ?: 0.0) > 6 }) { pts ->
+                route.onRoute(pts)
+                turnMaps.forEach { it.setRoute(route.route) }
+            }
+        } else if (route.dest == null && shownRoute != null) turnMaps.forEach { it.setRoute(null) }
+        shownRoute = route.route
     }
+    private var shownRoute: List<RouteTracker.LatLon>? = null
 
     private fun landscape(): View {
         // Referanstaki gibi: halkalar iki yanda, üst çubuk panelin üst ortasında, kutucuklar ortada
@@ -827,6 +842,8 @@ class DashboardActivity : Activity(), SensorEventListener {
         val insights = Insights()
         /** Hava basıncı (hava servisi / motor durmuşken MAP) */
         val motion = Motion()
+        /** Yuvarlak haritanın rotası: Ev/İş ile başlatılan navigasyonun hedefi (NaviApp.routeTo) */
+        val route = RouteTracker()
         private val demoT0 = System.currentTimeMillis()
         /** Araç ekranı referans görselle açılır (HEADUNIT.md) */
         const val DEFAULT_THEME = "image"

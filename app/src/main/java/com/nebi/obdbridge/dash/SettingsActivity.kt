@@ -473,6 +473,9 @@ class SettingsActivity : Activity() {
         add(ui.item("Kaynak kod ve sürümler", "github.com/${Updates.REPO} · GPL-3.0", null) { Updates.open(this, "https://github.com/${Updates.REPO}") })
         add(ui.item("Sorun bildir", "Bağlantı özeti, uygulama logu ve son 3 sürüş kaydını tek .zip olarak gönder. Şasi no ve adaptör adresi gizlenir", null) { reportProblem() })
         header("Teşekkürler")
+        add(ui.item("Harita ve yol tarifi: Yandex Haritalar", "Kullanım koşulları (yandex.com/legal/maps_termsofuse)", null) {
+            try { startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://yandex.com/legal/maps_termsofuse/"))) } catch (_: Exception) {}
+        })
         note("Hava durumu: Open-Meteo (open-meteo.com, CC BY 4.0) · Hava simgeleri: Meteocons, Bas Milius (MIT lisansı)")
         header("Önemli")
         note("• Sürüş sırasında uygulamayla uğraşmayın; ayarları araç dururken yapın.\n" +

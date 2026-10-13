@@ -42,6 +42,9 @@ enum class NaviApp(val pkg: String, val label: String, val arrows: Boolean, val 
         fun routeTo(ctx: Context, latLon: String): Boolean {
             val (lat, lon) = latLon.split(',').map { it.trim() }.takeIf { it.size == 2 } ?: return false
             val app = current(ctx) ?: return false
+            // Yuvarlak haritadaki rota çizgisi aynı hedefe (Navigator rotasını vermez)
+            val la = lat.toDoubleOrNull(); val lo = lon.toDoubleOrNull()
+            if (la != null && lo != null) DashboardActivity.route.setDest(la, lo)
             return try { ctx.startActivity(app.route(lat, lon)); true } catch (_: Exception) { open(ctx) }
         }
     }
