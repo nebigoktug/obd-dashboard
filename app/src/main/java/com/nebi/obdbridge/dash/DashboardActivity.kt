@@ -64,9 +64,14 @@ class DashboardActivity : Activity(), SensorEventListener {
     private val dialsList = ArrayList<DashImageDials>()
     private var tripStart = 0L
     @Volatile private var gpsSpeed: com.nebi.obdbridge.obd.Sample? = null
+    /** Dönüşe yaklaşırken devir göstergesinin yerinde harita (TurnWatch karar verir) */
+    private val turnWatch = TurnWatch()
+    private val turnMaps = ArrayList<TurnMapView>()
+    private var resumed = false
     private val gpsListener = android.location.LocationListener { loc ->
         // Dururken GPS 1-2 km/h gürültü verir: 3 km/h altı sıfır
         if (loc.hasSpeed()) gpsSpeed = com.nebi.obdbridge.obd.Sample("speed", (loc.speed * 3.6).let { if (it < 3) 0.0 else it }, System.currentTimeMillis())
+        if (turnDemoT0 == 0L) feedTurnMaps(loc.latitude, loc.longitude, if (loc.hasBearing()) loc.bearing else null, if (loc.hasSpeed()) loc.speed * 3.6 else null)
     }
     private val media by lazy { MediaHub(this).apply { onChange = { mediaCards.forEach { it.postInvalidate() } } } }
     private lateinit var panel: PanelLayout
@@ -140,8 +145,18 @@ class DashboardActivity : Activity(), SensorEventListener {
         setIntent(i)
     }
 
+    override fun onStart() { super.onStart(); turnMaps.forEach { it.onStart() } }
+    override fun onStop() { turnMaps.forEach { it.onStop() }; super.onStop() }
+    override fun onDestroy() { turnMaps.forEach { it.onDestroy() }; super.onDestroy() }
+    override fun onLowMemory() { super.onLowMemory(); turnMaps.forEach { it.onLowMemory() } }
+
     override fun onResume() {
         super.onResume()
+        resumed = true
+        turnMaps.forEach { it.onResume() }
+        if (com.nebi.obdbridge.BuildConfig.DEBUG && intent.getBooleanExtra("turn_demo", false)) {
+            intent.removeExtra("turn_demo"); turnDemoT0 = System.currentTimeMillis()
+        }
         hideSystemBars()
         // Geliştirme: "am start ... --es theme <id>" ile tema önizlemesi (yalnız debug derlemede)
         if (com.nebi.obdbridge.BuildConfig.DEBUG) intent.getStringExtra("theme")?.let {
@@ -166,6 +181,8 @@ class DashboardActivity : Activity(), SensorEventListener {
     }
 
     override fun onPause() {
+        resumed = false
+        turnMaps.forEach { it.onPause() }
         Choreographer.getInstance().removeFrameCallback(frameCb)
         media.stop()
         stopGps()
@@ -220,6 +237,8 @@ class DashboardActivity : Activity(), SensorEventListener {
 
     private fun build() {
         root.removeAllViews()
+        turnMaps.forEach { if (resumed) it.onPause(); it.onStop(); it.onDestroy() }
+        turnMaps.clear()
         widgets.clear(); topBars.clear(); brands.clear(); roads.clear(); navis.clear(); naviCards.clear(); mediaCards.clear(); pills.clear(); dialsList.clear()
         val land = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
         val imageMode = theme.image && land && tab == 0
@@ -237,6 +256,32 @@ class DashboardActivity : Activity(), SensorEventListener {
         panel.addView(content, FrameLayout.LayoutParams(-1, -1))
         keys = widgets.flatMap { it.keys() }.distinct()
         applyTheme(theme)
+        turnMaps.forEach { it.onStart(); if (resumed) it.onResume() }
+    }
+
+    /** Devir göstergesi ile harita arasında dikey kaydırmayla geçiş (harita görünmezken de yeri ayrılmış) */
+    private val swipe by lazy {
+        android.view.GestureDetector(this, object : android.view.GestureDetector.SimpleOnGestureListener() {
+            override fun onFling(e1: android.view.MotionEvent?, e2: android.view.MotionEvent, vx: Float, vy: Float): Boolean {
+                if (e1 == null) return false
+                val dy = e2.rawY - e1.rawY; val dx = e2.rawX - e1.rawX
+                if (kotlin.math.abs(dy) < dp(40) || kotlin.math.abs(dy) < 1.5f * kotlin.math.abs(dx)) return false
+                if (turnMaps.none { it.hit(e1.rawX, e1.rawY) }) return false
+                turnWatch.toggle(); updateTurnMap()
+                return true
+            }
+        })
+    }
+
+    override fun dispatchTouchEvent(ev: android.view.MotionEvent): Boolean {
+        if (tab == 0) swipe.onTouchEvent(ev)
+        return super.dispatchTouchEvent(ev)
+    }
+
+    private fun turnMap(light: Boolean) = TurnMapView(this, light).also { turnMaps += it }
+
+    private fun feedTurnMaps(lat: Double, lon: Double, bearing: Float?, kmh: Double?) {
+        for (m in turnMaps) m.onLocation(lat, lon, bearing, kmh)
     }
 
     private fun landscape(): View {
@@ -250,7 +295,7 @@ class DashboardActivity : Activity(), SensorEventListener {
         mid.addView(navi(), LinearLayout.LayoutParams(-1, dp(56)).apply { setMargins(dp(8), dp(4), dp(8), 0) })
         if (theme.premium) mid.addView(road(), LinearLayout.LayoutParams(-1, dp(64)))
         row.addView(mid, LinearLayout.LayoutParams(0, -1, 0.95f))
-        row.addView(ring(right), LinearLayout.LayoutParams(0, -1, 1f))
+        row.addView(RingSlot(this, ring(right), turnMap(android.graphics.Color.luminance(theme.bg) > 0.5f)), LinearLayout.LayoutParams(0, -1, 1f))
         frame.addView(row, FrameLayout.LayoutParams(-1, -1))
         val w = resources.displayMetrics.widthPixels
         frame.addView(topBar(), FrameLayout.LayoutParams((w * 0.46).toInt(), dp(40), android.view.Gravity.TOP or android.view.Gravity.CENTER_HORIZONTAL)
@@ -277,6 +322,9 @@ class DashboardActivity : Activity(), SensorEventListener {
         strip.setOnLongClickListener { chooseStripSlot(); true }
         lay.place(strip, DashImageGeom.STRIP)
         lay.place(StatusPill(this).also { it.visibility = View.INVISIBLE; pills += it }, DashImageGeom.PILL)
+        val (rx, ry) = DashImageGeom.RPM_C.let { it[0] to it[1] }
+        val rr = imgTheme.bandOut
+        lay.place(turnMap(imgTheme.light), android.graphics.RectF(rx - rr, ry - rr, rx + rr, ry + rr))
         return lay
     }
 
@@ -316,7 +364,7 @@ class DashboardActivity : Activity(), SensorEventListener {
         if (theme.premium) col.addView(brand(), LinearLayout.LayoutParams(-1, dp(22)))
         val rings = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         rings.addView(ring(left), LinearLayout.LayoutParams(0, -1, 1f))
-        rings.addView(ring(right), LinearLayout.LayoutParams(0, -1, 1f))
+        rings.addView(RingSlot(this, ring(right), turnMap(android.graphics.Color.luminance(theme.bg) > 0.5f)), LinearLayout.LayoutParams(0, -1, 1f))
         val ringH = (resources.displayMetrics.widthPixels - dp(44)) / 2
         col.addView(rings, LinearLayout.LayoutParams(-1, ringH))
         col.addView(navi(), LinearLayout.LayoutParams(-1, dp(64)).apply { setMargins(dp(8), dp(8), dp(8), 0) })
@@ -415,6 +463,7 @@ class DashboardActivity : Activity(), SensorEventListener {
             n.visibility = if (ns != null) View.VISIBLE else View.INVISIBLE
         }
         for (n in naviCards) n.state = ns
+        updateTurnMap()
         trip.update(model.raw("speed"))
         if (trip.startTs != tripStart) { tripStart = trip.startTs; insights.stats.reset() }
         updateInsights()
@@ -427,6 +476,45 @@ class DashboardActivity : Activity(), SensorEventListener {
             t.hz = model.source.rpmHz
             t.invalidate()
         }
+    }
+
+    private fun updateTurnMap() {
+        if (turnMaps.isEmpty()) return
+        val now = System.currentTimeMillis()
+        val navi = if (turnDemoT0 != 0L) turnDemo(now)
+            else com.nebi.obdbridge.NaviListener.state?.takeIf { now - it.ts < 10 * 60_000 }?.distance
+        val kmh = model.raw("speed")?.value ?: gpsSpeed?.value
+        turnWatch.update(navi, kmh)
+        for (m in turnMaps) m.update(turnWatch.visible, turnWatch.prepare, turnWatch.distanceM)
+    }
+
+    /**
+     * Masada deneme (yalnız debug): "am start ... --ez turn_demo true". Düz bir caddede 50 km/h ile dönüşe yaklaşma,
+     * dönüşte 90° sağa, sonra sıradaki manevra 2 km. Gerçek konum yerine sahte konum beslenir. 70 sn sürer.
+     */
+    private var turnDemoT0 = 0L
+    private fun turnDemo(now: Long): String? {
+        val t = (now - turnDemoT0) / 1000.0
+        if (t > 70) { turnDemoT0 = 0L; return null }
+        val v = 50 / 3.6
+        // Başlangıç: İstanbul, Vatan Caddesi doğrultusu (genel bir yer; kişisel konum değil)
+        val lat0 = 41.0175; val lon0 = 28.9390
+        val mLat = 111_195.0; val mLon = 111_195.0 * kotlin.math.cos(Math.toRadians(lat0))
+        val turnAt = 40.0                        // 40. sn'de dönüş noktası (≈ 555 m)
+        val bearing: Float; val lat: Double; val lon: Double
+        val dist: Double
+        if (t < turnAt) {
+            val d = v * t; bearing = 60f
+            lat = lat0 + d * kotlin.math.cos(Math.toRadians(60.0)) / mLat; lon = lon0 + d * kotlin.math.sin(Math.toRadians(60.0)) / mLon
+            dist = v * (turnAt - t)
+        } else {
+            val dTurn = v * turnAt; val d = v * (t - turnAt); bearing = 150f
+            val tl = lat0 + dTurn * kotlin.math.cos(Math.toRadians(60.0)) / mLat; val tn = lon0 + dTurn * kotlin.math.sin(Math.toRadians(60.0)) / mLon
+            lat = tl + d * kotlin.math.cos(Math.toRadians(150.0)) / mLat; lon = tn + d * kotlin.math.sin(Math.toRadians(150.0)) / mLon
+            dist = 2000 - d
+        }
+        feedTurnMaps(lat, lon, bearing, 50.0)
+        return if (dist >= 1000) "%.1f km".format(dist / 1000).replace('.', ',') else "${(dist / 10).toInt() * 10} m"
     }
 
     private fun updateInsights() {

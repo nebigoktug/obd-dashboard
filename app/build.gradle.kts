@@ -48,6 +48,9 @@ android {
 }
 
 dependencies {
+    // Dönüşe yaklaşırken yuvarlak harita (TurnMapView). 12.x: Kotlin 2.0 stdlib, projenin 1.9 derleyicisiyle uyumlu.
+    // Harita verisi OpenFreeMap (anahtarsız, ücretsiz; © OpenMapTiles, © OpenStreetMap katkıcıları)
+    implementation("org.maplibre.gl:android-sdk:12.3.1")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20231013")  // android.jar'daki org.json JVM testinde boş
 }
