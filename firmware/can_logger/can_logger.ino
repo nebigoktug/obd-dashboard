@@ -3,12 +3,13 @@
 // her açılışta yeni bir oturum dosyasına (/sN.txt) yazar. Eve dönünce bilgisayara takılıp
 // seri porttan "d" gönderilince bütün oturumlar dökülür ("x": hepsini sil).
 // Mavi ışık: hızlı yanıp sönme = mesaj geliyor, yavaş = mesaj yok (hız aranıyor).
-// İzleme dosyası /tN.csv: saniyede 5 kez çözülmüş devir ve hız + incelenecek mesajların ham baytları
+// İzleme dosyası /tN.csv: saniyede 4 kez çözülmüş devir ve hız + incelenecek mesajların ham baytları
 // (kimlikler web araştırmasından, NOTES.md "HS-CAN çözümleri").
 #include "driver/twai.h"
 #include <LittleFS.h>
 #include <Preferences.h>
 #include <map>
+#include <algorithm>
 
 static const gpio_num_t CAN_TX = GPIO_NUM_5;
 static const gpio_num_t CAN_RX = GPIO_NUM_4;
@@ -23,10 +24,13 @@ static char path[16];
 static File raw;
 static uint32_t rawCount = 0;
 static const uint32_t RAW_MAX = 500;    // ilk 500 çerçeve ham olarak da yazılır
-static const size_t TRACE_MAX = 700 * 1024;
+static const size_t TRACE_MAX = 1000 * 1024;   // ~19 dk (4 Hz, 9 kimlik)
 static File trace;
 // İzlenen kimlikler: son veri saklanır, izleme satırına ham yazılır
-static const uint32_t WATCH[] = {0x02804026, 0x02104136, 0x0300410E, 0x0110483C, 0x1B700030};
+// İlk ikisi çözüldü (devir, hız); sonrakiler incelenecek. 800006/90411E/3800006/1B600002 = ECM'nin yayınları
+// (V50 ecm_msgs_full.ftl), motor suyu sıcaklığı büyük olasılıkla bunlardan birinde.
+static const uint32_t WATCH[] = {0x02804026, 0x02104136, 0x0300410E, 0x0110483C, 0x1B700030,
+                                 0x00800006, 0x0090411E, 0x03800006, 0x1B600002};
 static const int NW = sizeof(WATCH) / sizeof(WATCH[0]);
 static uint8_t last[NW][8];
 static bool have[NW];
@@ -44,11 +48,34 @@ static bool startCan(int kbps) {
   return true;
 }
 
-static void dump() {
+static std::vector<String> listFiles() {
+  std::vector<String> names;
   File root = LittleFS.open("/");
-  for (File f = root.openNextFile(); f; f = root.openNextFile()) {
-    Serial.printf("\n##### %s (%u bayt)\n", f.name(), (unsigned)f.size());
-    while (f.available()) Serial.write(f.read());
+  // LittleFS: yeni oluşturulup henüz kapatılmamış dosya varken liste aynı adı tekrar tekrar verebiliyor → tekrarı görünce dur
+  for (File f = root.openNextFile(); f && names.size() < 64; f = root.openNextFile()) {
+    String n = String("/") + f.name(); f.close();
+    if (std::find(names.begin(), names.end(), n) != names.end()) break;
+    names.push_back(n);
+  }
+  root.close();
+  return names;
+}
+
+/** Önce adları topla, sonra tek tek aç: açık dosyalar varken klasörü dolaşmak döngüye girebiliyor */
+static void dump() {
+  static int calls = 0;
+  Serial.printf("\n#dump %d\n", ++calls);
+  if (raw) raw.flush();
+  if (trace) trace.flush();
+  auto names = listFiles();
+  Serial.printf("#dosya %u\n", (unsigned)names.size());
+  for (auto &p : names) {
+    File f = LittleFS.open(p, "r");
+    if (!f) continue;
+    Serial.printf("\n##### %s (%u bayt)\n", p.c_str() + 1, (unsigned)f.size());
+    uint8_t buf[256];
+    while (f.available()) { size_t n = f.read(buf, sizeof buf); Serial.write(buf, n); }
+    f.close();
   }
   Serial.println("\n##### SON");
 }
@@ -154,9 +181,9 @@ void loop() {
   uint32_t period = (millis() - lastFrameMs < 500 && lastFrameMs) ? 100 : 1000;
   if (millis() - lastLed > period / 2) { lastLed = millis(); digitalWrite(LED, !digitalRead(LED)); }
 
-  // İzleme satırı: saniyede 5
+  // İzleme satırı: saniyede 4
   static uint32_t lastTrace = 0;
-  if (trace && locked && millis() - lastTrace >= 200) {
+  if (trace && locked && millis() - lastTrace >= 250) {
     lastTrace = millis();
     if (trace.size() > TRACE_MAX) { trace.close(); }
     else {
@@ -185,13 +212,9 @@ void loop() {
     int c = Serial.read();
     if (c == 'd') dump();
     if (c == 'x') {
-      File root = LittleFS.open("/");
-      std::vector<String> names;
-      for (File f = root.openNextFile(); f; f = root.openNextFile()) names.push_back(String("/") + f.name());
-      root.close();
       if (raw) raw.close();
       if (trace) trace.close();
-      for (auto &p : names) LittleFS.remove(p);
+      for (auto &p : listFiles()) LittleFS.remove(p);
       Serial.println("silindi");
     }
   }
