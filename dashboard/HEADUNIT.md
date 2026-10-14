@@ -10,7 +10,7 @@ Kullanıcının bundan sonra kullanacağı uygulama bu. `DESIGN.md` §0'daki OBD
 | Cihaz | **Redmi Note 13 Pro, araç tutucusunda**, günlük telefon | Uygulama her binişte açılıp kapanır. Arama ve bildirimler aynı cihazda |
 | Yön | **Yalnız yatay** | Dikey yerleşim bırakılır (eski dikey kod kaldırılabilir) |
 | Başlatma | **Elle** (değişmedi) | Otomatik açılma yok |
-| Navigasyon | **Yandex Navigator + bizim kabuk** | Harita ve rota Yandex'te. Bizde dönüş kartı (NaviListener, çalışıyor) ve Yandex'e geçiş |
+| Navigasyon | **Kendi navigasyonumuz (2026-10-14)** | Rota, manevralar ve arama Yandex MapKit'ten (dash/YandexNav, Guidance). Navigator bildirimi okunmuyor |
 | Yandex açıkken | **Hiçbir şey gösterilmez** | Overlay yok, "diğer uygulamaların üzerinde" izni gerekmez. Geri tuşuyla bize dönülür |
 | Multimedya | **Var olan uygulamaları kumanda et** | MediaSession (Spotify, YT Music, radyo…). Kendi çalarımız yok |
 | Ses çıkışı | **AUX kablo** | Ses yönlendirme işi yok. Arama sesi de AUX'tan |

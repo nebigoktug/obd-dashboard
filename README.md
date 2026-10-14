@@ -13,7 +13,7 @@ Hız, devir, vites, turbo, motor sıcaklığı, tahmini yakıt tüketimi, naviga
 - **Uyarılar:** DPF temizlenmesi (dizel), düşük turbo, şarj sorunu, soğuk motorda yüksek devir.
 - **Arıza kodları:** Okuma, Türkçe açıklama, paylaşma, onaylı silme.
 - **Sürüş geçmişi:** Her sürüş otomatik kaydedilir (yalnız telefonda, 30 gün).
-- **Navigasyon ve medya:** Yandex Navigator ve Google Haritalar dönüş okları (Waze açılır ama ok göstermez), çalan müziğin kontrolü.
+- **Navigasyon ve medya:** uygulamanın kendi navigasyonu (Yandex haritası, adres arama, rota, dönüş kartı, Türkçe sesli yönlendirme; dönüşe yaklaşınca devir göstergesinin yerinde yuvarlak harita), çalan müziğin kontrolü. Ayrı bir navigasyon uygulaması gerekmez.
 
 Herhangi bir OBD-II araçta çalışır (Avrupa'da benzinli 2001+, dizel 2004+). Geliştirildiği araç: 2010 Volvo S40 1.6D.
 
@@ -30,7 +30,7 @@ Herhangi bir OBD-II araçta çalışır (Avrupa'da benzinli 2001+, dizel 2004+).
 
 - Sürüş sırasında uygulamayla uğraşmayın. Gösterilen değerler tahmindir; aracın kendi göstergeleri esastır.
 - Uygulama araca yalnız okuma istekleri gönderir. Arıza kodu silme yalnız sizin onayınızla yapılır.
-- Kayıtlar telefondan çıkmaz. İnternete giden istekler: hava durumu (yaklaşık konum, Open-Meteo) ve günde bir güncelleme denetimi (GitHub). "Sorun bildir" paketi yalnız sizin seçtiğiniz kişiye gider; şasi no ve adaptör adresi gizlenir.
+- Kayıtlar telefondan çıkmaz. İnternete giden istekler: hava durumu (yaklaşık konum, Open-Meteo), harita, adres arama ve rota (Yandex MapKit; konum ve hedef Yandex'e gider) ve günde bir güncelleme denetimi (GitHub). "Sorun bildir" paketi yalnız sizin seçtiğiniz kişiye gider; şasi no ve adaptör adresi gizlenir.
 
 ## Sorun bildirme
 

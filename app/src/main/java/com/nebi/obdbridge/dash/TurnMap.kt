@@ -37,8 +37,6 @@ class TurnMapView(ctx: Context, light: Boolean) : FrameLayout(ctx) {
     private var lastCam = 0L
     /** Harita gerçekten görünür mü (görünmezken de [prepare] ile döşemeler iner) */
     var shown = false; private set
-    /** Rota çizebiliyor mu (yalnız Yandex) */
-    val canRoute get() = backend is YandexBackend
 
     init {
         addView(backend.view, LayoutParams(-1, -1))
@@ -79,10 +77,6 @@ class TurnMapView(ctx: Context, light: Boolean) : FrameLayout(ctx) {
 
     /** Rota çizgisi (null: kaldır) */
     fun setRoute(points: List<LatLon>?) = backend.setRoute(points)
-
-    /** Yol tarifi isteği (yalnız Yandex); sonuç ana iş parçacığında, hata/yoksa null */
-    fun requestRoute(from: LatLon, to: LatLon, azimuth: Double?, done: (List<LatLon>?) -> Unit) =
-        (backend as? YandexBackend)?.requestRoute(from, to, azimuth, done) ?: done(null)
 
     private fun camera(animate: Boolean) {
         if (lat.isNaN() || width == 0) return
@@ -161,11 +155,9 @@ private class YandexBackend(ctx: Context, light: Boolean) : MapBackend() {
     private val mv: com.yandex.mapkit.mapview.MapView
     override val view: View get() = mv
     private var line: com.yandex.mapkit.map.PolylineMapObject? = null
-    private var router: com.yandex.mapkit.directions.driving.DrivingRouter? = null
-    private var session: com.yandex.mapkit.directions.driving.DrivingSession? = null
 
     init {
-        initMapKit(ctx)
+        YandexNav.init(ctx)
         mv = android.view.LayoutInflater.from(ctx).inflate(com.nebi.obdbridge.R.layout.yandex_map, FrameLayout(ctx), false) as com.yandex.mapkit.mapview.MapView
         val m = mv.mapWindow.map
         m.isNightModeEnabled = !light
@@ -199,40 +191,10 @@ private class YandexBackend(ctx: Context, light: Boolean) : MapBackend() {
         l.outlineColor = 0xFF0B2A5C.toInt(); l.outlineWidth = 1.5f
     }
 
-    fun requestRoute(from: LatLon, to: LatLon, azimuth: Double?, done: (List<LatLon>?) -> Unit) {
-        val r = router ?: com.yandex.mapkit.directions.DirectionsFactory.getInstance()
-            .createDrivingRouter(com.yandex.mapkit.directions.driving.DrivingRouterType.ONLINE).also { router = it }
-        val pts = listOf(
-            com.yandex.mapkit.RequestPoint(com.yandex.mapkit.geometry.Point(from.lat, from.lon), com.yandex.mapkit.RequestPointType.WAYPOINT, null, null, null),
-            com.yandex.mapkit.RequestPoint(com.yandex.mapkit.geometry.Point(to.lat, to.lon), com.yandex.mapkit.RequestPointType.WAYPOINT, null, null, null))
-        val opts = com.yandex.mapkit.directions.driving.DrivingOptions().setRoutesCount(1).setInitialAzimuth(azimuth)
-        // Oturum tutulmazsa çöp toplayıcı isteği iptal eder
-        session = r.requestRoutes(pts, opts, com.yandex.mapkit.directions.driving.VehicleOptions(),
-            object : com.yandex.mapkit.directions.driving.DrivingSession.DrivingRouteListener {
-                override fun onDrivingRoutes(routes: MutableList<com.yandex.mapkit.directions.driving.DrivingRoute>) {
-                    done(routes.firstOrNull()?.geometry?.points?.map { LatLon(it.latitude, it.longitude) })
-                }
-                override fun onDrivingRoutesError(e: com.yandex.runtime.Error) {
-                    android.util.Log.w(com.nebi.obdbridge.BridgeService.TAG, "Yandex rota hatası: ${e.javaClass.simpleName}")
-                    done(null)
-                }
-            })
-    }
-
     override fun onStart() { com.yandex.mapkit.MapKitFactory.getInstance().onStart(); mv.onStart() }
     override fun onStop() { mv.onStop(); com.yandex.mapkit.MapKitFactory.getInstance().onStop() }
-    override fun onDestroy() { session?.cancel(); session = null }
+    override fun onDestroy() {}
 
-    companion object {
-        private var inited = false
-        fun initMapKit(ctx: Context) {
-            if (inited) return
-            com.yandex.mapkit.MapKitFactory.setApiKey(BuildConfig.YANDEX_MAPKIT_KEY)
-            com.yandex.mapkit.MapKitFactory.setLocale("tr_TR")
-            com.yandex.mapkit.MapKitFactory.initialize(ctx.applicationContext)
-            inited = true
-        }
-    }
 }
 
 /** MapLibre + OpenFreeMap (anahtarsız yedek; rota yok) */

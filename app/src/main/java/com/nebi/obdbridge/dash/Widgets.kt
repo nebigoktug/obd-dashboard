@@ -610,10 +610,10 @@ class RoadView(ctx: Context) : View(ctx) {
     }
 }
 
-/** Navigasyon: sıradaki dönüş oku (navigasyonun kendi çizimi, temaya boyanır), mesafe ve sokak. */
+/** Navigasyon: sıradaki dönüş oku (temaya boyanır), mesafe ve sokak. */
 class NaviView(ctx: Context) : View(ctx) {
     var theme = DashTheme.NIGHT
-    var state: com.nebi.obdbridge.NaviState? = null
+    var state: NaviState? = null
     private val bmpP = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
     private val distP = Paint(Paint.ANTI_ALIAS_FLAG).apply { typeface = Typeface.create("sans-serif-light", Typeface.NORMAL) }
     private val streetP = Paint(Paint.ANTI_ALIAS_FLAG).apply { typeface = Typeface.create("sans-serif-light", Typeface.NORMAL) }

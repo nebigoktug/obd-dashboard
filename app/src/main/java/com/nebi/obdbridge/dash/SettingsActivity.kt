@@ -272,43 +272,23 @@ class SettingsActivity : Activity() {
     }
 
     private fun naviMedia() {
-        header("İzin")
-        add(ui.item("Bildirim erişimi", "Navigasyonun dönüş oku ve çalan müziğin kontrolü için gerekli. Bildirimler telefondan dışarı gönderilmez",
+        header("Navigasyon")
+        if (!YandexNav.available) note("Bu sürümde navigasyon kapalı: Yandex MapKit anahtarıyla derlenmedi.")
+        add(ui.toggle("Sesli yönlendirme", "Dönüşleri Türkçe söyler; konuşurken müzik kısılır. Telefonda Türkçe ses paketi gerekir",
+            { dash.getBoolean("nav_voice", true) }) { dash.edit().putBoolean("nav_voice", it).apply() })
+        header("Hızlı hedefler")
+        for ((k, label) in listOf("home" to "Ev", "work" to "İş")) {
+            add(ui.item("$label adresi", "Ana ekrandaki $label düğmesi buraya rota başlatır",
+                { dash.getString("place_${k}_name", null) ?: dash.getString("place_$k", null) ?: "Girilmedi" }) {
+                PlaceSearchActivity.open(this, k)
+            })
+        }
+        note("Rota, dönüşler ve adres arama Yandex'ten gelir; ayrı bir navigasyon uygulaması gerekmez.")
+        header("Medya")
+        add(ui.item("Bildirim erişimi", "Çalan müziği göstermek ve kontrol etmek için gerekli. Bildirim içeriği okunmaz, telefondan dışarı gönderilmez",
             { if (NaviListener.hasAccess(this)) "Verildi ✓" else "Verilmedi" }) {
             startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
         })
-        header("Navigasyon")
-        val apps = NaviApp.installed(this)
-        add(ui.item("Navigasyon uygulaması", "Ana ekrandaki Harita düğmesi ve Ev/İş rotaları bununla açılır",
-            { NaviApp.current(this)?.label ?: "Yüklü değil" }) {
-            if (apps.isEmpty()) { toast("Yandex Navigator, Google Haritalar ya da Waze yükle"); return@item }
-            choose("Navigasyon uygulaması", apps.map { it.label + when { !it.arrows -> "  (dönüş oku gösterilmez)"; !it.tested -> "  (dönüş oku deneysel)"; else -> "" } },
-                apps.indexOf(NaviApp.current(this))) { dash.edit().putString("navi_app", apps[it].name).apply() }
-        })
-        header("Hızlı hedefler")
-        for ((k, label) in listOf("home" to "Ev", "work" to "İş")) {
-            add(ui.item("$label konumu", "Ana ekrandaki $label düğmesi bu adrese seçili navigasyon uygulamasında rota açar",
-                { dash.getString("place_$k", null) ?: "Girilmedi" }) { askPlace(k, label) })
-        }
-        note("Dönüş oku Yandex Navigator, Yandex Haritalar ve Google Haritalar'ın bildiriminden okunur; Waze'de yalnız açma ve rota.")
-    }
-
-    private fun askPlace(k: String, label: String) {
-        val input = EditText(this).apply { hint = "41.0123, 28.9876 ya da harita bağlantısı"; setText(dash.getString("place_$k", "")) }
-        AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-            .setTitle("$label konumu")
-            .setMessage("Haritada yere uzun basıp koordinatı ya da paylaş bağlantısını kopyalayıp buraya yapıştır.")
-            .setView(input)
-            .setPositiveButton("Kaydet") { _, _ ->
-                val v = NaviCard.parsePlace(input.text.toString())
-                when {
-                    v != null -> dash.edit().putString("place_$k", v).apply()
-                    input.text.isBlank() -> dash.edit().remove("place_$k").apply()
-                    else -> toast("Koordinat bulunamadı")
-                }
-                show(section)
-            }
-            .setNegativeButton("Vazgeç", null).show()
     }
 
     private val ins get() = DashboardActivity.insights
@@ -483,8 +463,9 @@ class SettingsActivity : Activity() {
             "• Uygulama araca yalnız okuma istekleri gönderir. Arıza kodu silme gibi yazma işlemleri yalnız sizin onayınızla yapılır.\n" +
             "• Uygulama olduğu gibi sunulur; kullanımdan doğacak sonuçlardan geliştirici sorumlu değildir.")
         header("Gizlilik")
-        note("Sürüş kayıtları, konumlar ve bildirimler telefondan çıkmaz. Yalnız hava durumu için yaklaşık konum " +
-            "(yaklaşık 100 m) Open-Meteo'ya gönderilir. Reklam ve takip yok. " +
+        note("Sürüş kayıtları ve bildirimler telefondan çıkmaz. Hava durumu için yaklaşık konum (yaklaşık 100 m) " +
+            "Open-Meteo'ya gönderilir. Harita, adres arama ve navigasyon Yandex'ten gelir: harita açıkken ve navigasyon " +
+            "sürerken konumunuz, aradığınız adres ve hedefiniz Yandex'e gider. Reklam ve takip yok. " +
             "Sorun bildirimi yalnız sizin seçtiğiniz uygulamayla, sizin seçtiğiniz kişiye gider. " +
             "Güncelleme denetimi günde bir kez GitHub'a sorar (kapatılabilir).")
         add(ui.item("Kurulum sihirbazını yeniden başlat", null, null) {

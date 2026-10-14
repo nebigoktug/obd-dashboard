@@ -8,7 +8,7 @@
 - Uyarılar: DPF temizlenmesi (dizel), düşük turbo, şarj sorunu, soğuk motorda yüksek devir.
 - Arıza kodları: kayıtlı / bekleyen / kalıcı kodlar, Türkçe açıklama, paylaşma, onaylı silme.
 - Sürüş geçmişi: otomatik kayıt, haftalık özet, yolculuk ayrıntısı.
-- Navigasyon (Yandex Navigator dönüş okları; Google/Yandex Haritalar deneysel) ve medya kontrolü.
+- Kendi navigasyonu: adres arama, Ev/İş hızlı hedefleri, dönüş kartı ve varış saati, Türkçe sesli yönlendirme, dönüşe yaklaşınca yuvarlak harita (Yandex MapKit). Medya kontrolü.
 - Sorun bildir: bağlantı özeti ve son sürüşler tek dosyada (şasi no ve adaptör adresi gizli).
 - Güncelleme denetimi (GitHub, günde bir; kapatılabilir).
 - Deneysel: Bluetooth LE ve Wi-Fi adaptörler.

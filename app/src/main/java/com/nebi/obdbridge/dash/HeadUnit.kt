@@ -25,7 +25,6 @@ import android.os.SystemClock
 import android.view.MotionEvent
 import android.view.View
 import com.nebi.obdbridge.NaviListener
-import com.nebi.obdbridge.NaviState
 import com.nebi.obdbridge.R
 
 // Araç ekranının orta sütunu (dashboard/HEADUNIT.md): nav kartı, medya kartı, alt değer şeridi.
@@ -137,11 +136,11 @@ abstract class TouchCard(ctx: Context) : View(ctx) {
 // ---------------- Navigasyon kartı ----------------
 
 /**
- * Rota varken: Yandex'in oku, mesafe, sokak (NaviListener). Dokununca Yandex açılır.
- * Rota yokken: Ev / İş hızlı hedefleri ve "Harita" (seçili navigasyon uygulaması, [NaviApp]).
+ * Rota varken: sıradaki manevranın oku, mesafe, sokak, varış saati (kendi navigasyonumuz, [Nav]). Dokununca [onRouteTap].
+ * Rota yokken: Ev / İş hızlı hedefleri ve "Ara" (hedef arama). Ev/İş girilmemişse dokununca arama açılır.
  */
 @SuppressLint("ViewConstructor")
-class NaviCard(ctx: Context, private val prefs: android.content.SharedPreferences, private val onNeedPlace: (String) -> Unit) : TouchCard(ctx) {
+class NaviCard(ctx: Context, private val prefs: android.content.SharedPreferences, private val onRouteTap: () -> Unit) : TouchCard(ctx) {
     var state: NaviState? = null
         set(v) { if (field !== v) { field = v; invalidate() } }
 
@@ -176,7 +175,12 @@ class NaviCard(ctx: Context, private val prefs: android.content.SharedPreference
         c.drawText(Glass.ellipsize(st.distance, dist, w - x - pad), x, h * 0.48f, dist)
         val street = Glass.text(pc, "r2", h * 0.16f, Glass.DIM)
         c.drawText(Glass.ellipsize(st.street, street, w - x - pad), x, h * 0.76f, street)
-        hits += rect to ::openNavi
+        st.eta?.let {
+            val eta = Glass.text(pc, "r5", h * 0.12f, Glass.DIM)
+            eta.textAlign = Paint.Align.RIGHT
+            c.drawText(it, w - pad, pad + h * 0.1f, eta)
+        }
+        hits += rect to onRouteTap
     }
 
     private fun drawPlaces(c: Canvas, w: Float, h: Float) {
@@ -186,7 +190,7 @@ class NaviCard(ctx: Context, private val prefs: android.content.SharedPreference
         c.drawText("NEREYE?", pad * 1.2f, pad + h * 0.11f, title)
         val top = pad + h * 0.2f
         val bw = (w - pad * 4) / 3
-        val labels = arrayOf("Ev", "İş", "Harita")
+        val labels = arrayOf("Ev", "İş", "Ara")
         val rad = h * 0.07f
         for (i in 0 until 3) {
             val r = btns[i]
@@ -201,8 +205,13 @@ class NaviCard(ctx: Context, private val prefs: android.content.SharedPreference
             lp.textAlign = Paint.Align.CENTER
             c.drawText(labels[i], r.centerX(), r.bottom - r.height() * 0.16f, lp)
             hits += r to {
-                if (i == 2) openNavi()
-                else prefs.getString("place_$key", null)?.let { NaviApp.routeTo(context, it) } ?: onNeedPlace(key)
+                val ll = prefs.getString("place_$key", null)?.split(',')?.mapNotNull { it.toDoubleOrNull() }?.takeIf { it.size == 2 }
+                when {
+                    i == 2 -> PlaceSearchActivity.open(context, PlaceSearchActivity.MODE_NAV)
+                    ll == null -> PlaceSearchActivity.open(context, key)
+                    !YandexNav.available -> PlaceSearchActivity.open(context, key)   // uyarıyı o gösterir
+                    else -> Nav.start(context, ll[0], ll[1], prefs.getString("place_${key}_name", null) ?: labels[i])
+                }
             }
         }
     }
@@ -210,7 +219,7 @@ class NaviCard(ctx: Context, private val prefs: android.content.SharedPreference
     private val iconP = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeJoin = Paint.Join.ROUND; strokeCap = Paint.Cap.ROUND }
     private val iconPath = Path()
 
-    /** İnce çizgi simgeler: ev, çanta, ok (referansın termometre/akü simgeleriyle aynı dil). */
+    /** İnce çizgi simgeler: ev, çanta, büyüteç (referansın termometre/akü simgeleriyle aynı dil). */
     private fun drawPlaceIcon(c: Canvas, i: Int, cx: Float, cy: Float, s: Float, color: Int) {
         iconP.color = color; iconP.strokeWidth = s * 0.08f
         iconPath.reset()
@@ -229,26 +238,12 @@ class NaviCard(ctx: Context, private val prefs: android.content.SharedPreference
                 iconPath.moveTo(cx - s * 0.55f, cy + s * 0.05f); iconPath.lineTo(cx + s * 0.55f, cy + s * 0.05f)
             }
             else -> {
-                // Navigasyon oku (üçgen imleç)
-                iconPath.moveTo(cx, cy - s * 0.5f); iconPath.lineTo(cx + s * 0.4f, cy + s * 0.45f)
-                iconPath.lineTo(cx, cy + s * 0.22f); iconPath.lineTo(cx - s * 0.4f, cy + s * 0.45f); iconPath.close()
+                // Büyüteç
+                iconPath.addCircle(cx - s * 0.1f, cy - s * 0.1f, s * 0.32f, Path.Direction.CW)
+                iconPath.moveTo(cx + s * 0.13f, cy + s * 0.13f); iconPath.lineTo(cx + s * 0.48f, cy + s * 0.48f)
             }
         }
         c.drawPath(iconPath, iconP)
-    }
-
-    private fun openNavi() {
-        if (!NaviApp.open(context)) android.widget.Toast.makeText(context, "Navigasyon uygulaması bulunamadı", android.widget.Toast.LENGTH_SHORT).show()
-    }
-
-    companion object {
-        /** "41.0123, 28.9876" ya da Google/Yandex harita bağlantısından enlem,boylam çıkarır. */
-        fun parsePlace(s: String): String? {
-            val m = Regex("(-?\\d{1,2}\\.\\d+)\\s*[, ]\\s*(-?\\d{1,3}\\.\\d+)").find(s) ?: return null
-            val lat = m.groupValues[1].toDouble(); val lon = m.groupValues[2].toDouble()
-            if (lat !in -90.0..90.0 || lon !in -180.0..180.0) return null
-            return "$lat,$lon"
-        }
     }
 }
 

@@ -123,6 +123,8 @@ class DashboardActivity : Activity(), SensorEventListener {
         model.trip = trip
         applySpeedFactor()
         loadLayout()
+        Nav.restore(this)
+        voice = NavVoice(this)
         root = FrameLayout(this)
         setContentView(root)
         window.setBackgroundDrawable(null)  // zemin rengini kökten çiziyoruz
@@ -153,7 +155,7 @@ class DashboardActivity : Activity(), SensorEventListener {
 
     override fun onStart() { super.onStart(); turnMaps.forEach { it.onStart() } }
     override fun onStop() { turnMaps.forEach { it.onStop() }; super.onStop() }
-    override fun onDestroy() { turnMaps.forEach { it.onDestroy() }; super.onDestroy() }
+    override fun onDestroy() { turnMaps.forEach { it.onDestroy() }; voice?.shutdown(); voice = null; super.onDestroy() }
     override fun onLowMemory() { super.onLowMemory(); turnMaps.forEach { it.onLowMemory() } }
 
     override fun onResume() {
@@ -165,8 +167,8 @@ class DashboardActivity : Activity(), SensorEventListener {
             && intent.flags and android.content.Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY == 0) {
             intent.removeExtra("turn_demo"); turnDemoT0 = System.currentTimeMillis()
             // Rota denemesi: dönüşten sonra 150° yönünde ~1,5 km ileride bir hedef
-            route.setDest(41.0175 + 555 * 0.5 / 111_195.0 - 1500 * 0.866 / 111_195.0,
-                28.9390 + (555 * 0.866 + 1500 * 0.5) / (111_195.0 * kotlin.math.cos(Math.toRadians(41.0175))))
+            Nav.start(this, 41.0175 + 555 * 0.5 / 111_195.0 - 1500 * 0.866 / 111_195.0,
+                28.9390 + (555 * 0.866 + 1500 * 0.5) / (111_195.0 * kotlin.math.cos(Math.toRadians(41.0175))), "Demo")
         }
         hideSystemBars()
         // Geliştirme: "am start ... --es theme <id>" ile tema önizlemesi (yalnız debug derlemede)
@@ -236,7 +238,7 @@ class DashboardActivity : Activity(), SensorEventListener {
     private fun paceGps() {
         if (gpsInterval == 0L) return
         val live = BridgeService.engineStatus?.state == com.nebi.obdbridge.obd.EngineState.LIVE
-        val want = gpsPacer.intervalMs(live, model.source is DemoSource, gpsSpeed?.value)
+        val want = gpsPacer.intervalMs(live || Nav.active, model.source is DemoSource, gpsSpeed?.value)
         if (want != gpsInterval) startGps(want)
     }
 
@@ -274,7 +276,7 @@ class DashboardActivity : Activity(), SensorEventListener {
         panel.addView(content, FrameLayout.LayoutParams(-1, -1))
         keys = widgets.flatMap { it.keys() }.distinct()
         applyTheme(theme)
-        turnMaps.forEach { it.onStart(); if (resumed) it.onResume(); it.setRoute(route.route) }
+        turnMaps.forEach { it.onStart(); if (resumed) it.onResume(); it.setRoute(Nav.tracker.route) }
     }
 
     /** Devir göstergesi ile harita arasında dikey kaydırmayla geçiş (harita görünmezken de yeri ayrılmış) */
@@ -298,21 +300,58 @@ class DashboardActivity : Activity(), SensorEventListener {
 
     private fun turnMap(light: Boolean) = TurnMapView(this, light).also { turnMaps += it }
 
-    /** [coarse]: ağ/son bilinen konum — yalnız haritayı konumlar, rota istemez (yüzlerce m sapabilir) */
+    /** [coarse]: ağ/son bilinen konum — haritayı konumlar; rota yalnız henüz yoksa (yüzlerce m sapabilir) */
     private fun feedTurnMaps(lat: Double, lon: Double, bearing: Float?, kmh: Double?, coarse: Boolean = false) {
         for (m in turnMaps) m.onLocation(lat, lon, bearing, kmh)
-        if (coarse) return
-        // Rota: hedef varsa ilk konumda ve yoldan çıkınca yeniden (RouteTracker kota için seyreltir)
-        val map = turnMaps.firstOrNull { it.canRoute } ?: return
-        val dest = route.dest
-        if (route.onFix(lat, lon) && dest != null) {
-            route.onRequested()
-            map.requestRoute(RouteTracker.LatLon(lat, lon), dest, bearing?.toDouble()?.takeIf { (kmh ?: 0.0) > 6 }) { pts ->
-                route.onRoute(pts)
-                turnMaps.forEach { it.setRoute(route.route) }
+        val p = RouteTracker.LatLon(lat, lon)
+        if (coarse) {
+            if (Nav.lastFix == null) Nav.lastFix = p
+            if (Nav.active && Nav.guidance == null) navStep(p, null, null)
+            return
+        }
+        Nav.lastFix = p
+        navStep(p, bearing, kmh)
+    }
+
+    /** Navigasyon adımı: izdüşüm, varış, rota isteği (ilk / yoldan çıkınca), sesli uyarı */
+    private fun navStep(p: RouteTracker.LatLon, bearing: Float?, kmh: Double?) {
+        val tr = Nav.tracker
+        val dest = tr.dest
+        Nav.guidance?.onFix(p)
+        val ask = tr.onFix(p.lat, p.lon)
+        if (dest != null && tr.dest == null) {
+            // Hedefe varıldı (ya da süre doldu)
+            if (Nav.guidance != null) speak("Hedefe ulaştınız")
+            Nav.stop(this)
+        } else if (ask && dest != null) {
+            if (tr.route != null) speak("Rota yeniden hesaplanıyor")
+            tr.onRequested()
+            YandexNav.requestRoute(this, p, dest, bearing?.toDouble()?.takeIf { (kmh ?: 0.0) > 6 }) { r ->
+                if (Nav.tracker.dest != dest) return@requestRoute   // bu arada hedef değişti/bitti
+                tr.onRoute(r?.points)
+                if (r != null) { Nav.guidance = Guidance(r).also { g -> Nav.lastFix?.let(g::onFix) }; Nav.voice.reset() }
+                turnMaps.forEach { it.setRoute(tr.route) }
+                shownRoute = tr.route
             }
-        } else if (route.dest == null && shownRoute != null) turnMaps.forEach { it.setRoute(null) }
-        shownRoute = route.route
+        }
+        Nav.guidance?.let { g -> Nav.voice.update(g.nextIndex, g.next, g.nextDistM, kmh)?.let(::speak) }
+        if (tr.dest == null && shownRoute != null) turnMaps.forEach { it.setRoute(null) }
+        shownRoute = tr.route
+    }
+
+    private var voice: NavVoice? = null
+    private fun speak(text: String) { if (prefs.getBoolean("nav_voice", true)) voice?.say(text) }
+
+    /** Navigasyon kartına dokununca: bitir / yeni hedef */
+    private fun navMenu() {
+        val st = Nav.state()
+        AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(Nav.destName.ifEmpty { "Navigasyon" })
+            .setMessage(st?.eta?.let { "Varış $it" } ?: "Rota hesaplanıyor…")
+            .setPositiveButton("Rotayı bitir") { _, _ -> Nav.stop(this); turnMaps.forEach { it.setRoute(null) }; shownRoute = null }
+            .setNeutralButton("Yeni hedef") { _, _ -> PlaceSearchActivity.open(this, PlaceSearchActivity.MODE_NAV) }
+            .setNegativeButton("Vazgeç", null)
+            .show()
     }
     private var shownRoute: List<RouteTracker.LatLon>? = null
 
@@ -347,7 +386,7 @@ class DashboardActivity : Activity(), SensorEventListener {
         lay.place(topBar().also { it.showTempClock = false }, DashImageGeom.TOPBAR)
         lay.place(WeatherView(this, weather), DashImageGeom.WEATHER)
         lay.place(ClockView(this), DashImageGeom.CLOCK)
-        lay.place(NaviCard(this, prefs) { askPlace(it) }.also { naviCards += it }, DashImageGeom.NAV_CARD)
+        lay.place(NaviCard(this, prefs) { navMenu() }.also { naviCards += it }, DashImageGeom.NAV_CARD)
         lay.place(MediaCard(this, media).also { mediaCards += it }, DashImageGeom.MEDIA_CARD)
         val strip = ValueStrip(this, tiles.take(4))
         widgets += strip
@@ -370,26 +409,6 @@ class DashboardActivity : Activity(), SensorEventListener {
     }
 
     /** Ev/İş konumu: "enlem, boylam" ya da harita bağlantısı yapıştırılır. */
-    private fun askPlace(key: String) {
-        val input = android.widget.EditText(this).apply {
-            hint = "41.0123, 28.9876 ya da harita bağlantısı"
-            setText(prefs.getString("place_$key", ""))
-        }
-        AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-            .setTitle(if (key == "home") "Ev konumu" else "İş konumu")
-            .setMessage("Haritada yere uzun basıp koordinatı kopyalayabilirsin.")
-            .setView(input)
-            .setPositiveButton("Kaydet") { _, _ ->
-                val v = NaviCard.parsePlace(input.text.toString())
-                if (v != null) prefs.edit().putString("place_$key", v).apply()
-                else if (input.text.isBlank()) prefs.edit().remove("place_$key").apply()
-                else android.widget.Toast.makeText(this, "Koordinat bulunamadı", android.widget.Toast.LENGTH_SHORT).show()
-                naviCards.forEach { it.invalidate() }
-            }
-            .setNegativeButton("Vazgeç", null)
-            .show()
-    }
-
     private fun portrait(): View {
         val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(12), dp(8), dp(12), dp(12)) }
         col.addView(topBar(), LinearLayout.LayoutParams(-1, dp(40)))
@@ -488,8 +507,8 @@ class DashboardActivity : Activity(), SensorEventListener {
             w.shift = model.shift
             w.invalidate()
         }
-        // Navigasyon: son 30 sn içinde güncellenen manevra varsa göster
-        val ns = com.nebi.obdbridge.NaviListener.state?.takeIf { System.currentTimeMillis() - it.ts < 30_000 }
+        // Navigasyon: sıradaki manevra (rota beklenirken "hesaplanıyor")
+        val ns = Nav.state() ?: if (Nav.active) NaviState("…", "Rota hesaplanıyor", null) else null
         for (n in navis) {
             if (n.state !== ns) { n.state = ns; n.invalidate() }
             n.visibility = if (ns != null) View.VISIBLE else View.INVISIBLE
@@ -514,7 +533,7 @@ class DashboardActivity : Activity(), SensorEventListener {
         if (turnMaps.isEmpty()) return
         val now = System.currentTimeMillis()
         val navi = if (turnDemoT0 != 0L) turnDemo(now)
-            else com.nebi.obdbridge.NaviListener.state?.takeIf { now - it.ts < 10 * 60_000 }?.distance
+            else Nav.guidance?.nextDistM?.let { Guidance.formatDist(it) }
         val kmh = model.raw("speed")?.value ?: gpsSpeed?.value
         turnWatch.update(navi, kmh)
         for (m in turnMaps) m.update(turnWatch.visible, turnWatch.prepare, turnWatch.distanceM)
@@ -527,7 +546,7 @@ class DashboardActivity : Activity(), SensorEventListener {
     private var turnDemoT0 = 0L
     private fun turnDemo(now: Long): String? {
         val t = (now - turnDemoT0) / 1000.0
-        if (t > 70) { turnDemoT0 = 0L; return null }
+        if (t > 70) { turnDemoT0 = 0L; Nav.stop(this); return null }
         val v = 50 / 3.6
         // Başlangıç: İstanbul, Vatan Caddesi doğrultusu (genel bir yer; kişisel konum değil)
         val lat0 = 41.0175; val lon0 = 28.9390
@@ -859,8 +878,6 @@ class DashboardActivity : Activity(), SensorEventListener {
         val insights = Insights()
         /** Hava basıncı (hava servisi / motor durmuşken MAP) */
         val motion = Motion()
-        /** Yuvarlak haritanın rotası: Ev/İş ile başlatılan navigasyonun hedefi (NaviApp.routeTo) */
-        val route = RouteTracker()
         private val demoT0 = System.currentTimeMillis()
         /** Araç ekranı referans görselle açılır (HEADUNIT.md) */
         const val DEFAULT_THEME = "image"
