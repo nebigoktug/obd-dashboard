@@ -89,35 +89,60 @@ class Guidance(val route: NavRoute) {
 }
 
 /**
- * Harita yönü (yön yukarıda). Rotadaysa rotanın doğrultusu (yavaşken/dururken de sağlam); değilse hızlıyken
- * GPS yönü, yavaşken GPS yönü yalnız doğruluğu iyiyse, o da yoksa son [MOVE_M] metrelik yer değiştirmenin yönü.
- * Hiçbiri yoksa son yön kalır (kırmızı ışıkta harita dönmez).
+ * Harita yönü (yön yukarıda), kullanıcı fikri (2026-10-14): GPS'ten bırakılan izin son [MAX_PTS] noktasının
+ * zaman sırasındaki gidişi. Pusula yok (tutucu mıknatıslı, kılıfta metal halka). Her noktada x ve y'nin sıraya
+ * göre eğimi (en küçük kareler) gidiş vektörüdür: tek bir sapık nokta yönü çevirmez.
+ *  - Nokta yalnız konum doğruluğu iyiyse ve öncekinden [STEP_M] uzaksa eklenir (dururken iz birikmez).
+ *  - Hızlıyken dönüşte gecikmesin: yalnız en yeni [SPAN_M] metrelik iz kullanılır.
+ *  - İz kısa ya da zikzaksa (dururken GPS titremesi) yön değişmez; hiç yön yoksa rotanın doğrultusu.
  */
 class HeadingFilter {
     var heading: Double? = null; private set
-    private var anchor: LatLon? = null
+    private val trail = ArrayDeque<LatLon>()
 
-    fun update(p: LatLon, gpsBearing: Float?, bearingAccDeg: Float?, kmh: Double?, accM: Float?, routeBearing: Double?): Double? {
-        val v = kmh ?: 0.0
-        when {
-            routeBearing != null -> { heading = routeBearing; anchor = p }
-            gpsBearing != null && (v > FAST_KMH || v > SLOW_KMH && (bearingAccDeg ?: 99f) <= GOOD_ACC_DEG) -> { heading = gpsBearing.toDouble(); anchor = p }
-            (accM ?: 0f) > MAX_ACC_M -> {}
-            else -> {
-                val a = anchor
-                if (a == null) anchor = p
-                else if (dist(a, p) >= MOVE_M) { heading = bearing(a, p); anchor = p }
-            }
+    fun update(p: LatLon, accM: Float?, routeBearing: Double?): Double? {
+        if ((accM ?: 0f) <= MAX_ACC_M && trail.lastOrNull()?.let { dist(it, p) >= STEP_M } != false) {
+            trail.addLast(p)
+            while (trail.size > MAX_PTS) trail.removeFirst()
         }
+        trend()?.let { heading = it } ?: run { if (heading == null) heading = routeBearing }
         return heading
     }
 
+    /** Son izin yönü; yetersiz ya da zikzaksa null */
+    private fun trend(): Double? {
+        // En yeniden geriye, SPAN_M dolana kadar
+        val pts = ArrayList<LatLon>()
+        var path = 0.0
+        for (i in trail.indices.reversed()) {
+            if (pts.isNotEmpty()) path += dist(trail[i], pts.last())
+            pts += trail[i]
+            if (path >= SPAN_M) break
+        }
+        if (pts.size < MIN_PTS) return null
+        pts.reverse()
+        val net = dist(pts.first(), pts.last())
+        if (net < MIN_NET_M || net / path < MIN_STRAIGHT) return null
+        // x (doğu) ve y (kuzey) metre; sıraya göre eğim
+        val o = pts.first()
+        val kx = 111_320.0 * cos(Math.toRadians(o.lat)); val ky = 110_574.0
+        val n = pts.size; val tm = (n - 1) / 2.0
+        var sx = 0.0; var sy = 0.0; var st = 0.0
+        for ((i, q) in pts.withIndex()) {
+            val t = i - tm
+            sx += t * (q.lon - o.lon) * kx; sy += t * (q.lat - o.lat) * ky; st += t * t
+        }
+        return (Math.toDegrees(kotlin.math.atan2(sx / st, sy / st)) + 360) % 360
+    }
+
     companion object {
-        const val FAST_KMH = 6.0
-        const val SLOW_KMH = 1.5
-        const val GOOD_ACC_DEG = 30f
+        const val MAX_PTS = 10
+        const val MIN_PTS = 3
+        const val STEP_M = 2.0
+        const val SPAN_M = 40.0
+        const val MIN_NET_M = 8.0
+        const val MIN_STRAIGHT = 0.6
         const val MAX_ACC_M = 25f
-        const val MOVE_M = 12.0
 
         /** a'dan b'ye yön (°, kuzey 0, saat yönü) */
         fun bearing(a: LatLon, b: LatLon): Double {

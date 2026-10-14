@@ -73,20 +73,48 @@ class GuidanceTest {
         assertEquals("Caddebostan Sokağı", VoicePlanner.speakStreet("Caddebostan Sok."))
     }
 
-    @Test fun headingFromRouteWhileSlow() {
+    @Test fun routeBearingOnRoute() {
         val g = Guidance(route)
         g.onFix(LatLon(41.0, 29.005))
         assertEquals(90.0, g.routeBearing!!, 0.5)          // doğu
-        val h = HeadingFilter()
-        assertEquals(90.0, h.update(LatLon(41.0, 29.005), 300f, 90f, 2.0, 5f, g.routeBearing)!!, 0.5)
     }
 
-    @Test fun headingFromDisplacementWhenGpsBearingUnreliable() {
+    /** Açı farkı (359° ile 1° arası 2°) */
+    private fun assertAngle(exp: Double, act: Double, tol: Double) =
+        assertEquals(0.0, ((act - exp + 540) % 360) - 180, tol)
+
+    // 41° enlemde 1 m ≈ 0,000009° enlem, 0,0000119° boylam
+    private fun north(m: Double) = LatLon(41.0 + m * 0.000009, 29.0)
+    private fun eastOf(m: Double, base: LatLon) = LatLon(base.lat, base.lon + m * 0.0000119)
+
+    @Test fun headingFromTrail() {
         val h = HeadingFilter()
-        assertNull(h.update(LatLon(41.0, 29.0), 123f, 90f, 3.0, 5f, null))       // yavaş, yön doğruluğu kötü
-        assertNull(h.update(LatLon(41.00005, 29.0), 200f, 90f, 3.0, 5f, null))    // 5,5 m: yetmez
-        assertEquals(0.0, h.update(LatLon(41.00015, 29.0), 200f, 90f, 3.0, 5f, null)!!, 0.5)   // 16 m kuzey
-        assertEquals(0.0, h.update(LatLon(41.00015, 29.0), null, null, 0.0, 5f, null)!!, 0.5)  // durunca kalır
-        assertEquals(270.0, h.update(LatLon(41.00015, 29.0), 270f, 5f, 40.0, 5f, null)!!, 0.5) // hızlı: GPS yönü
+        assertEquals(77.0, h.update(north(0.0), 5f, 77.0)!!, 0.01)      // iz yok: rota doğrultusu
+        h.update(north(3.0), 5f, null)
+        assertAngle(0.0, h.update(north(9.0), 5f, null)!!, 1.0)        // 3 nokta, 9 m kuzey
+        // Bir nokta 3 m yana sapsa da yön kuzey kalır
+        h.update(LatLon(north(12.0).lat, 29.0 + 3 * 0.0000119), 5f, null)
+        assertAngle(0.0, h.update(north(15.0), 5f, null)!!, 12.0)
+    }
+
+    @Test fun turnFollowsWithinSpan() {
+        val h = HeadingFilter()
+        for (m in 0..60 step 5) h.update(north(m.toDouble()), 5f, null)
+        val c = north(60.0)
+        var last = 0.0
+        for (m in 5..45 step 5) last = h.update(eastOf(m.toDouble(), c), 5f, null)!!
+        assertAngle(90.0, last, 2.0)                                     // 45 m sonra tamamen doğu
+    }
+
+    @Test fun standingJitterKeepsHeading() {
+        val h = HeadingFilter()
+        for (m in 0..30 step 5) h.update(north(m.toDouble()), 5f, null)
+        val c = north(30.0)
+        // Dururken GPS 3-4 m zikzak
+        val jitter = listOf(eastOf(3.0, c), c, eastOf(-3.0, c), LatLon(c.lat + 0.00003, c.lon), c, eastOf(3.5, c))
+        var last = 0.0
+        for (q in jitter) last = h.update(q, 8f, null)!!
+        assertAngle(0.0, last, 3.0)
+        assertEquals(last, h.update(eastOf(30.0, c), 60f, null)!!, 0.001)   // kötü doğruluklu nokta alınmaz
     }
 }

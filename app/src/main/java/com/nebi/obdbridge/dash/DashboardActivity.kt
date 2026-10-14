@@ -73,7 +73,7 @@ class DashboardActivity : Activity(), SensorEventListener {
         if (loc.hasSpeed()) gpsSpeed = com.nebi.obdbridge.obd.Sample("speed", (loc.speed * 3.6).let { if (it < 3) 0.0 else it }, System.currentTimeMillis())
         lastGpsFix = System.currentTimeMillis()
         if (turnDemoT0 == 0L) feedTurnMaps(loc.latitude, loc.longitude, if (loc.hasBearing()) loc.bearing else null, if (loc.hasSpeed()) loc.speed * 3.6 else null,
-            bearingAcc = if (loc.hasBearingAccuracy()) loc.bearingAccuracyDegrees else null, accM = if (loc.hasAccuracy()) loc.accuracy else null)
+            accM = if (loc.hasAccuracy()) loc.accuracy else null)
     }
     private var lastGpsFix = 0L
     /** İçeride/garajda GPS bulamazsa harita en azından yaklaşık konumda açılsın (hız için kullanılmaz) */
@@ -302,8 +302,7 @@ class DashboardActivity : Activity(), SensorEventListener {
     private fun turnMap(light: Boolean) = TurnMapView(this, light).also { turnMaps += it }
 
     /** [coarse]: ağ/son bilinen konum — haritayı konumlar; rota yalnız henüz yoksa (yüzlerce m sapabilir) */
-    private fun feedTurnMaps(lat: Double, lon: Double, bearing: Float?, kmh: Double?, coarse: Boolean = false,
-                             bearingAcc: Float? = null, accM: Float? = null) {
+    private fun feedTurnMaps(lat: Double, lon: Double, bearing: Float?, kmh: Double?, coarse: Boolean = false, accM: Float? = null) {
         val p = RouteTracker.LatLon(lat, lon)
         if (coarse) {
             for (m in turnMaps) m.onLocation(lat, lon, null)
@@ -313,7 +312,7 @@ class DashboardActivity : Activity(), SensorEventListener {
         }
         Nav.lastFix = p
         navStep(p, bearing, kmh)
-        val h = heading.update(p, bearing, bearingAcc, kmh, accM, Nav.guidance?.routeBearing)
+        val h = heading.update(p, accM, Nav.guidance?.routeBearing)
         for (m in turnMaps) m.onLocation(lat, lon, h)
     }
     private val heading = HeadingFilter()
