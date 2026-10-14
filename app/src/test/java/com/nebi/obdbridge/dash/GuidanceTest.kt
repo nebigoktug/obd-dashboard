@@ -72,4 +72,21 @@ class GuidanceTest {
         assertEquals("Bağdat Caddesi", VoicePlanner.speakStreet("Bağdat Cad."))
         assertEquals("Caddebostan Sokağı", VoicePlanner.speakStreet("Caddebostan Sok."))
     }
+
+    @Test fun headingFromRouteWhileSlow() {
+        val g = Guidance(route)
+        g.onFix(LatLon(41.0, 29.005))
+        assertEquals(90.0, g.routeBearing!!, 0.5)          // doğu
+        val h = HeadingFilter()
+        assertEquals(90.0, h.update(LatLon(41.0, 29.005), 300f, 90f, 2.0, 5f, g.routeBearing)!!, 0.5)
+    }
+
+    @Test fun headingFromDisplacementWhenGpsBearingUnreliable() {
+        val h = HeadingFilter()
+        assertNull(h.update(LatLon(41.0, 29.0), 123f, 90f, 3.0, 5f, null))       // yavaş, yön doğruluğu kötü
+        assertNull(h.update(LatLon(41.00005, 29.0), 200f, 90f, 3.0, 5f, null))    // 5,5 m: yetmez
+        assertEquals(0.0, h.update(LatLon(41.00015, 29.0), 200f, 90f, 3.0, 5f, null)!!, 0.5)   // 16 m kuzey
+        assertEquals(0.0, h.update(LatLon(41.00015, 29.0), null, null, 0.0, 5f, null)!!, 0.5)  // durunca kalır
+        assertEquals(270.0, h.update(LatLon(41.00015, 29.0), 270f, 5f, 40.0, 5f, null)!!, 0.5) // hızlı: GPS yönü
+    }
 }

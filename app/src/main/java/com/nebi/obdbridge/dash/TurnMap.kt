@@ -51,10 +51,10 @@ class TurnMapView(ctx: Context, light: Boolean) : FrameLayout(ctx) {
         backend.onReady = { camera(animate = false) }
     }
 
-    /** GPS konumu; yön yalnız hareket ederken (dururken GPS yönü rastgele) */
-    fun onLocation(la: Double, lo: Double, bearingDeg: Float?, speedKmh: Double?) {
+    /** Konum; [bearingDeg] süzülmüş yön (HeadingFilter), null ise son yön kalır */
+    fun onLocation(la: Double, lo: Double, bearingDeg: Double?) {
         lat = la; lon = lo
-        if (bearingDeg != null && (speedKmh ?: 0.0) > 6) bearing = bearingDeg.toDouble()
+        if (bearingDeg != null) bearing = bearingDeg
         if (visibility == VISIBLE) camera(animate = true)
     }
 

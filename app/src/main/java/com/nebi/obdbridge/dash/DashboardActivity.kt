@@ -72,7 +72,8 @@ class DashboardActivity : Activity(), SensorEventListener {
         // Dururken GPS 1-2 km/h gürültü verir: 3 km/h altı sıfır
         if (loc.hasSpeed()) gpsSpeed = com.nebi.obdbridge.obd.Sample("speed", (loc.speed * 3.6).let { if (it < 3) 0.0 else it }, System.currentTimeMillis())
         lastGpsFix = System.currentTimeMillis()
-        if (turnDemoT0 == 0L) feedTurnMaps(loc.latitude, loc.longitude, if (loc.hasBearing()) loc.bearing else null, if (loc.hasSpeed()) loc.speed * 3.6 else null)
+        if (turnDemoT0 == 0L) feedTurnMaps(loc.latitude, loc.longitude, if (loc.hasBearing()) loc.bearing else null, if (loc.hasSpeed()) loc.speed * 3.6 else null,
+            bearingAcc = if (loc.hasBearingAccuracy()) loc.bearingAccuracyDegrees else null, accM = if (loc.hasAccuracy()) loc.accuracy else null)
     }
     private var lastGpsFix = 0L
     /** İçeride/garajda GPS bulamazsa harita en azından yaklaşık konumda açılsın (hız için kullanılmaz) */
@@ -301,17 +302,21 @@ class DashboardActivity : Activity(), SensorEventListener {
     private fun turnMap(light: Boolean) = TurnMapView(this, light).also { turnMaps += it }
 
     /** [coarse]: ağ/son bilinen konum — haritayı konumlar; rota yalnız henüz yoksa (yüzlerce m sapabilir) */
-    private fun feedTurnMaps(lat: Double, lon: Double, bearing: Float?, kmh: Double?, coarse: Boolean = false) {
-        for (m in turnMaps) m.onLocation(lat, lon, bearing, kmh)
+    private fun feedTurnMaps(lat: Double, lon: Double, bearing: Float?, kmh: Double?, coarse: Boolean = false,
+                             bearingAcc: Float? = null, accM: Float? = null) {
         val p = RouteTracker.LatLon(lat, lon)
         if (coarse) {
+            for (m in turnMaps) m.onLocation(lat, lon, null)
             if (Nav.lastFix == null) Nav.lastFix = p
             if (Nav.active && Nav.guidance == null) navStep(p, null, null)
             return
         }
         Nav.lastFix = p
         navStep(p, bearing, kmh)
+        val h = heading.update(p, bearing, bearingAcc, kmh, accM, Nav.guidance?.routeBearing)
+        for (m in turnMaps) m.onLocation(lat, lon, h)
     }
+    private val heading = HeadingFilter()
 
     /** Navigasyon adımı: izdüşüm, varış, rota isteği (ilk / yoldan çıkınca), sesli uyarı */
     private fun navStep(p: RouteTracker.LatLon, bearing: Float?, kmh: Double?) {

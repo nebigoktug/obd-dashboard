@@ -41,6 +41,9 @@ class Guidance(val route: NavRoute) {
         alongM = if (along >= alongM || alongM - along > BACK_TOL_M || d > WINDOW_OFF_M) along else alongM
     }
 
+    /** Rotanın bulunulan yerdeki doğrultusu (°, kuzey 0); rotadan uzaksa null */
+    val routeBearing: Double? get() = if (pts.size < 2 || offM > ON_ROUTE_M) null else HeadingFilter.bearing(pts[seg], pts[seg + 1])
+
     /** Sıradaki manevra ([PASS_M] içinde geçilmiş sayılır) */
     val nextIndex get() = route.maneuvers.indexOfFirst { it.atM > alongM + PASS_M }
     val next get() = route.maneuvers.getOrNull(nextIndex)
@@ -70,6 +73,7 @@ class Guidance(val route: NavRoute) {
         const val PASS_M = 8.0
         const val WINDOW_OFF_M = 40.0
         const val BACK_TOL_M = 30.0
+        const val ON_ROUTE_M = 25.0
 
         fun cumulative(pts: List<LatLon>) = DoubleArray(pts.size).also { c ->
             for (i in 1 until pts.size) c[i] = c[i - 1] + dist(pts[i - 1], pts[i])
@@ -80,6 +84,45 @@ class Guidance(val route: NavRoute) {
             m < 1000 -> "${((m / 10).roundToInt() * 10).coerceAtLeast(0)} m"
             m < 10_000 -> "%.1f km".format(java.util.Locale.ROOT, m / 1000).replace('.', ',')
             else -> "${(m / 1000).roundToInt()} km"
+        }
+    }
+}
+
+/**
+ * Harita yönü (yön yukarıda). Rotadaysa rotanın doğrultusu (yavaşken/dururken de sağlam); değilse hızlıyken
+ * GPS yönü, yavaşken GPS yönü yalnız doğruluğu iyiyse, o da yoksa son [MOVE_M] metrelik yer değiştirmenin yönü.
+ * Hiçbiri yoksa son yön kalır (kırmızı ışıkta harita dönmez).
+ */
+class HeadingFilter {
+    var heading: Double? = null; private set
+    private var anchor: LatLon? = null
+
+    fun update(p: LatLon, gpsBearing: Float?, bearingAccDeg: Float?, kmh: Double?, accM: Float?, routeBearing: Double?): Double? {
+        val v = kmh ?: 0.0
+        when {
+            routeBearing != null -> { heading = routeBearing; anchor = p }
+            gpsBearing != null && (v > FAST_KMH || v > SLOW_KMH && (bearingAccDeg ?: 99f) <= GOOD_ACC_DEG) -> { heading = gpsBearing.toDouble(); anchor = p }
+            (accM ?: 0f) > MAX_ACC_M -> {}
+            else -> {
+                val a = anchor
+                if (a == null) anchor = p
+                else if (dist(a, p) >= MOVE_M) { heading = bearing(a, p); anchor = p }
+            }
+        }
+        return heading
+    }
+
+    companion object {
+        const val FAST_KMH = 6.0
+        const val SLOW_KMH = 1.5
+        const val GOOD_ACC_DEG = 30f
+        const val MAX_ACC_M = 25f
+        const val MOVE_M = 12.0
+
+        /** a'dan b'ye yön (°, kuzey 0, saat yönü) */
+        fun bearing(a: LatLon, b: LatLon): Double {
+            val dx = (b.lon - a.lon) * cos(Math.toRadians((a.lat + b.lat) / 2)); val dy = b.lat - a.lat
+            return (Math.toDegrees(kotlin.math.atan2(dx, dy)) + 360) % 360
         }
     }
 }
