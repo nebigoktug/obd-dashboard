@@ -6,14 +6,17 @@
 //
 // Port 35000: ELM327 komutları (uygulamanın kullandığı AT komutları, OBD istekleri ISO-TP ile, ATMA).
 // Port 35001: ham kayıt akışı — hattaki her çerçeve bir satır: "ms kimlik veri" (ondalık ms, onaltılık).
+// Konfor hattı (MCP2515, OBD pin 3/11) satırlarının sonunda " m" etiketi var; motor hattı satırları etiketsiz.
 //
 // GÜVENLİK: TWAI dinleme kipinde başlar (hatta hiçbir şey göndermez, ACK bile vermez). Yalnız uygulama bir
 // OBD isteği gönderdiğinde ve hat hızı kesin bilindiğinde normal kipe geçer. Yanlış hızda asla gönderilmez.
+// MCP2515 (konfor hattı) her zaman dinleme kipinde kalır: bu yazılım o hatta hiçbir şey göndermez.
 //
 // Wi-Fi bilgileri secrets.h'de (depoda yok): make_secrets.sh ~/.config/obd-dashboard/esp32-wifi.txt'den üretir.
 #include "driver/twai.h"
 #include <WiFi.h>
 #include <ESPmDNS.h>
+#include <SPI.h>
 #include "secrets.h"
 
 static const gpio_num_t CAN_TX = GPIO_NUM_5;
@@ -23,7 +26,7 @@ static const char *ID_TEXT = "ELM327 v1.5";
 static const char *DESC_TEXT = "OBD Dashboard ESP32";
 
 // ---------- CAN ----------
-struct Frame { uint32_t ms; uint32_t id; uint8_t ext; uint8_t dlc; uint8_t d[8]; };
+struct Frame { uint32_t ms; uint32_t id; uint8_t ext; uint8_t dlc; uint8_t d[8]; uint8_t bus; };   // bus 0 motor, 1 konfor
 static QueueHandle_t rawQ;        // ham akış (35001)
 static QueueHandle_t elmQ;        // istek cevapları ve ATMA
 static volatile int elmListen = 0;        // elmQ'ya: 0 hiçbir şey, 1 yalnız cevap adayları (istek beklerken), 2 hepsi (ATMA)
@@ -63,7 +66,7 @@ static void canTask(void *) {
     xSemaphoreGive(canLock);
     if (r == ESP_OK) {
       if (!bitrate) bitrate = RATES[idx];
-      Frame f; f.ms = millis(); f.id = m.identifier; f.ext = m.extd; f.dlc = m.data_length_code;
+      Frame f; f.ms = millis(); f.id = m.identifier; f.ext = m.extd; f.dlc = m.data_length_code; f.bus = 0;
       memcpy(f.d, m.data, 8);
       if (m.extd) seenExt = true; else seenStd = true;
       lastFrameMs = f.ms;
@@ -97,6 +100,91 @@ static bool ensureNormal() {
   return ok;
 }
 
+// ---------- Konfor hattı: MCP2515 (SPI, seviye dönüştürücü üzerinden; INT bağlı değil, yoklama) ----------
+static const int MCP_CS = 27;
+static SPISettings mcpSpi(500000, MSBFIRST, SPI_MODE0);   // BSS138 dönüştürücüler yavaş, masa testi bu hızda geçti
+static volatile int msBitrate = 0;        // konfor hattı hızı, 0 = henüz yok
+static volatile bool mcpOk = false;
+static volatile uint32_t msFrames = 0, msOverflow = 0;
+
+static uint8_t mcpRd(uint8_t a) {
+  SPI.beginTransaction(mcpSpi); digitalWrite(MCP_CS, LOW);
+  SPI.transfer(0x03); SPI.transfer(a); uint8_t v = SPI.transfer(0);
+  digitalWrite(MCP_CS, HIGH); SPI.endTransaction();
+  return v;
+}
+static void mcpWr(uint8_t a, uint8_t v) {
+  SPI.beginTransaction(mcpSpi); digitalWrite(MCP_CS, LOW);
+  SPI.transfer(0x02); SPI.transfer(a); SPI.transfer(v);
+  digitalWrite(MCP_CS, HIGH); SPI.endTransaction();
+}
+static uint8_t mcpCmd(uint8_t c) {        // tek baytlık komut; READ STATUS (0xA0) için cevabı döndürür
+  SPI.beginTransaction(mcpSpi); digitalWrite(MCP_CS, LOW);
+  SPI.transfer(c); uint8_t v = SPI.transfer(0);
+  digitalWrite(MCP_CS, HIGH); SPI.endTransaction();
+  return v;
+}
+static bool mcpMode(uint8_t mode) {
+  mcpWr(0x0F, mode);
+  for (int i = 0; i < 50; i++) { if ((mcpRd(0x0E) & 0xE0) == mode) return true; vTaskDelay(1); }
+  return false;
+}
+/** 8 MHz kristal. Yapılandırma kipinde ayarla, sonra DİNLEME kipine geç (0x60: ACK yok, gönderim yok). */
+static bool mcpSetup(int kbps) {
+  if (!mcpMode(0x80)) return false;
+  uint8_t c1 = kbps == 125 ? 0x01 : 0x00, c2 = kbps == 500 ? 0x90 : 0xB1, c3 = kbps == 500 ? 0x02 : 0x05;
+  mcpWr(0x2A, c1); mcpWr(0x29, c2); mcpWr(0x28, c3);
+  mcpWr(0x60, 0x64);                      // RXB0: filtre yok, dolunca RXB1'e taşsın
+  mcpWr(0x70, 0x60);                      // RXB1: filtre yok
+  mcpWr(0x2B, 0x00); mcpWr(0x2C, 0x00); mcpWr(0x2D, 0x00);   // kesme yok, bayraklar ve taşma temiz
+  return mcpMode(0x60);
+}
+static void mcpReadBuf(uint8_t instr) {    // 0x90 RXB0, 0x94 RXB1; CS kalkınca bayrak kendiliğinden silinir
+  uint8_t r[13];
+  SPI.beginTransaction(mcpSpi); digitalWrite(MCP_CS, LOW);
+  SPI.transfer(instr);
+  for (int i = 0; i < 13; i++) r[i] = SPI.transfer(0);
+  digitalWrite(MCP_CS, HIGH); SPI.endTransaction();
+  Frame f; f.ms = millis(); f.bus = 1;
+  f.ext = (r[1] & 0x08) ? 1 : 0;
+  f.id = f.ext ? ((uint32_t)r[0] << 21) | ((uint32_t)(r[1] & 0xE0) << 13) | ((uint32_t)(r[1] & 0x03) << 16) | (r[2] << 8) | r[3]
+               : ((uint32_t)r[0] << 3) | (r[1] >> 5);
+  f.dlc = r[4] & 0x0F; if (f.dlc > 8) f.dlc = 8;
+  memcpy(f.d, r + 5, 8);
+  msFrames++;
+  if (xQueueSend(rawQ, &f, 0) != pdTRUE) rawDropped++;
+}
+
+/** Konfor hattı: hız arama (125 → 250 → 500, dinleme kipinde) ve alım. Kart yoksa görev biter. */
+static void mcpTask(void *) {
+  pinMode(MCP_CS, OUTPUT); digitalWrite(MCP_CS, HIGH);
+  SPI.begin(18, 19, 23, MCP_CS);
+  mcpCmd(0xC0); vTaskDelay(pdMS_TO_TICKS(10));   // RESET
+  if ((mcpRd(0x0E) & 0xE0) != 0x80) { Serial.println("MCP2515 yok, konfor hattı kapalı"); vTaskDelete(nullptr); }
+  static const int RATES[] = {125, 250, 500};
+  int idx = 0;
+  mcpOk = mcpSetup(RATES[idx]);
+  uint32_t tryStart = millis();
+  for (;;) {
+    uint8_t st = mcpCmd(0xA0);
+    if (st & 0x03) {
+      if (!msBitrate) msBitrate = RATES[idx];
+      if (st & 0x01) mcpReadBuf(0x90);
+      if (st & 0x02) mcpReadBuf(0x94);
+      continue;
+    }
+    // 1 ms uyku: 125 kbit/s'de en fazla ~1 çerçeve gelir, iki alım tamponu yeter
+    uint8_t ef = mcpRd(0x2D);
+    if (ef & 0xC0) { msOverflow++; mcpWr(0x2D, 0x00); }
+    if (!msBitrate && millis() - tryStart > 4000) {
+      idx = (idx + 1) % 3;
+      mcpOk = mcpSetup(RATES[idx]);
+      tryStart = millis();
+    }
+    vTaskDelay(1);
+  }
+}
+
 #ifdef SIM
 static void simEcu(uint32_t id, bool ext, const uint8_t *d, uint8_t dlc);
 #endif
@@ -123,7 +211,7 @@ static void pumpRaw() {
     if (rawClient) rawClient.stop();
     rawClient = c; rawClient.setNoDelay(false);
     xQueueReset(rawQ);
-    rawClient.printf("# obd-esp32 ham akis, hiz %d kbit/s\n", bitrate);
+    rawClient.printf("# obd-esp32 ham akis, hiz %d kbit/s, konfor %d kbit/s (m)\n", bitrate, msBitrate);
   }
   if (!rawClient || !rawClient.connected()) { xQueueReset(rawQ); return; }
   static char buf[1400];
@@ -132,6 +220,7 @@ static void pumpRaw() {
   while (n < (int)sizeof buf - 40 && xQueueReceive(rawQ, &f, 0) == pdTRUE) {
     n += snprintf(buf + n, sizeof buf - n, f.ext ? "%lu %08lX " : "%lu %03lX ", (unsigned long)f.ms, (unsigned long)f.id);
     for (int i = 0; i < f.dlc && i < 8; i++) n += snprintf(buf + n, sizeof buf - n, "%02X", f.d[i]);
+    if (f.bus) { buf[n++] = ' '; buf[n++] = 'm'; }
     buf[n++] = '\n';
   }
   if (n) rawClient.write((const uint8_t *)buf, n);
@@ -417,7 +506,7 @@ static void pumpElm() {
 // Mode 01: 00 (destek maskesi), 05 su, 0C devir, 0D hız (çoklu PID dahil); 09 02: VIN (çok çerçeveli, FC bekler).
 static uint8_t simPend[64]; static int simPendLen = 0, simPendPos = 0, simSeq = 1;
 static void simPush(const uint8_t *d) {
-  Frame f; f.ms = millis(); f.id = 0x18DAF110; f.ext = 1; f.dlc = 8; memcpy(f.d, d, 8);
+  Frame f; f.ms = millis(); f.id = 0x18DAF110; f.ext = 1; f.dlc = 8; f.bus = 0; memcpy(f.d, d, 8);
   if (elmListen == 2 || (elmListen == 1 && isResponse(f, reqExt))) xQueueSend(elmQ, &f, 0);
 }
 static void simEcu(uint32_t id, bool ext, const uint8_t *d, uint8_t dlc) {
@@ -478,6 +567,7 @@ void setup() {
   bitrate = 500; seenExt = true; normalMode = true;
 #else
   xTaskCreatePinnedToCore(canTask, "can", 4096, nullptr, 5, nullptr, 1);
+  xTaskCreatePinnedToCore(mcpTask, "mcp", 4096, nullptr, 4, nullptr, 1);
 #endif
 #ifndef SIM
   Serial.println("\n== obd-esp32 ELM327 köprüsü ==");
@@ -501,8 +591,9 @@ void loop() {
 #endif
   if (millis() - lastLog > 10000) {
     lastLog = millis();
-    Serial.printf("hiz %d, kip %s, sta %s %s, ap istemci %d, elm %d, ham %d, dusen %lu\n", bitrate,
-                  normalMode ? "normal" : "dinleme", WiFi.status() == WL_CONNECTED ? "bagli" : "yok",
+    Serial.printf("hiz %d, kip %s, konfor %d (%s, %lu cerceve, tasma %lu), sta %s %s, ap istemci %d, elm %d, ham %d, dusen %lu\n", bitrate,
+                  normalMode ? "normal" : "dinleme", msBitrate, mcpOk ? "dinleme" : "yok", (unsigned long)msFrames,
+                  (unsigned long)msOverflow, WiFi.status() == WL_CONNECTED ? "bagli" : "yok",
                   WiFi.localIP().toString().c_str(), WiFi.softAPgetStationNum(), (int)elmClient.connected(),
                   (int)rawClient.connected(), (unsigned long)rawDropped);
   }
