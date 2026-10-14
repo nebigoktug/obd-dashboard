@@ -20,13 +20,17 @@ static const int KEEP_SESSIONS = 2;      // boş olmayan oturum sayısı
 struct Seen { uint32_t n; uint8_t dlc; uint8_t data[8]; uint32_t firstMs; };
 static std::map<uint32_t, Seen> seen;
 static uint32_t frames = 0, rxErrMax = 0, busErr = 0;
-static int bitrate = 0;
+static int bitrate = 0, session = 0;
 static char path[16];
 static File raw;
 static uint32_t rawCount = 0;
 static const uint32_t RAW_MAX = 500;    // ilk 500 çerçeve ham olarak da yazılır
 static const size_t TRACE_MAX = 1200 * 1024;   // ~28 dk (1 Hz, 27 kimlik ≈ 720 bayt/sn)
 static File trace;
+// Değişim kaydı /cN.csv: yavaş hatlarda (≤250 kbit/s, konfor ağı) bir kimliğin verisi değiştiği an yazılır
+// → düğmeye basınca hangi baytın değiştiği görülür. HS'de sayaçlar sürekli değiştiği için kapalı.
+static File chg;
+static const size_t CHG_MAX = 1200 * 1024;
 // Çözülenler (2. sürüş kaydıyla doğrulandı): hız 02104136 b6-7 ×0,01 km/h, devir 0090411E b2-3 & 0x1FFF
 static const uint32_t ID_SPEED = 0x02104136, ID_RPM = 0x0090411E;
 
@@ -62,6 +66,7 @@ static void dump() {
   Serial.printf("\n#dump %d\n", ++calls);
   if (raw) raw.flush();
   if (trace) trace.flush();
+  if (chg) chg.flush();
   auto names = listFiles();
   Serial.printf("#dosya %u\n", (unsigned)names.size());
   for (auto &p : names) {
@@ -104,6 +109,7 @@ static void removeSession(int k) {
   snprintf(p, sizeof p, "/s%d.txt", k); LittleFS.remove(p);
   snprintf(p, sizeof p, "/r%d.csv", k); LittleFS.remove(p);
   snprintf(p, sizeof p, "/t%d.csv", k); LittleFS.remove(p);
+  snprintf(p, sizeof p, "/c%d.csv", k); LittleFS.remove(p);
 }
 
 /** Boş oturumları (bilgisayara takınca oluşanlar) sil; doluların en yeni KEEP_SESSIONS'ını tut */
@@ -122,6 +128,7 @@ void setup() {
   if (!LittleFS.begin(true)) Serial.println("HATA: dosya sistemi");
   Preferences pr; pr.begin("log", false);
   int n = pr.getInt("boot", 0) + 1; pr.putInt("boot", n); pr.end();
+  session = n;
   snprintf(path, sizeof path, "/s%d.txt", n);
   char rp[16]; snprintf(rp, sizeof rp, "/r%d.csv", n);
   pruneOld(n);
@@ -147,6 +154,15 @@ void loop() {
     frames++; lastFrameMs = millis(); locked = true;
     Seen &s = seen[m.identifier];
     if (s.n == 0) s.firstMs = millis();
+    if (bitrate < 500 && (s.n == 0 || s.dlc != m.data_length_code || memcmp(s.data, m.data, m.data_length_code))) {
+      if (!chg) { char cp[16]; snprintf(cp, sizeof cp, "/c%d.csv", session); chg = LittleFS.open(cp, "w");
+                  if (chg) chg.println("ms,kimlik,veri"); }
+      if (chg && chg.size() < CHG_MAX) {
+        chg.printf("%lu,%lX,", millis(), (unsigned long)m.identifier);
+        for (int i = 0; i < m.data_length_code && i < 8; i++) chg.printf("%02X", m.data[i]);
+        chg.println();
+      }
+    }
     s.n++; s.dlc = m.data_length_code; memcpy(s.data, m.data, 8);
     if (raw && rawCount < RAW_MAX) {
       raw.printf("%lu,%03lX,%u,", millis(), (unsigned long)m.identifier, m.data_length_code);
@@ -201,6 +217,7 @@ void loop() {
     writeSummary();
     if (raw && rawCount < RAW_MAX) raw.flush();
     if (trace) trace.flush();
+    if (chg) chg.flush();
     Serial.printf("hiz %d, cerceve %lu, kimlik %u, rx_hata_max %lu\n", bitrate, (unsigned long)frames,
                   (unsigned)seen.size(), (unsigned long)rxErrMax);
   }
@@ -211,6 +228,7 @@ void loop() {
     if (c == 'x') {
       if (raw) raw.close();
       if (trace) trace.close();
+      if (chg) chg.close();
       for (auto &p : listFiles()) LittleFS.remove(p);
       Serial.println("silindi");
     }
