@@ -9,3 +9,6 @@ probe-reports/
 *.apk
 NOTES.md
 forum-yazisi.md
+
+# ESP32 Wi-Fi bilgileri (derlemede ~/.config/obd-dashboard/esp32-wifi.txt dosyasından üretilir)
+firmware/*/secrets.h
