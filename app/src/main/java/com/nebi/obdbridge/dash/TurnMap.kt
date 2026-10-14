@@ -137,6 +137,9 @@ class TurnMapView(ctx: Context, light: Boolean) : FrameLayout(ctx) {
 
 }
 
+/** Kamera eğimi (°): sürücü bakışı gibi önü uzak, yakını büyük; 0 = tepeden */
+private const val TILT = 45f
+
 /** Harita motoru: kamera, rota çizgisi, yaşam döngüsü. [zoom] MapLibre ölçeğinde (512'lik döşeme). */
 private abstract class MapBackend {
     abstract val view: View
@@ -181,7 +184,7 @@ private class YandexBackend(ctx: Context, light: Boolean) : MapBackend() {
         val ww = win.width(); val wh = win.height()
         if (ww > 0 && wh > 0) runCatching { win.focusPoint = com.yandex.mapkit.ScreenPoint(ww / 2f, wh * 0.72f) }
         // Yandex 256'lık döşeme ölçeği: MapLibre yakınlığı + 1
-        val pos = com.yandex.mapkit.map.CameraPosition(com.yandex.mapkit.geometry.Point(lat, lon), (zoom + 1).toFloat(), bearing.toFloat(), 0f)
+        val pos = com.yandex.mapkit.map.CameraPosition(com.yandex.mapkit.geometry.Point(lat, lon), (zoom + 1).toFloat(), bearing.toFloat(), TILT)
         if (animate) win.map.move(pos, com.yandex.mapkit.Animation(com.yandex.mapkit.Animation.Type.SMOOTH, 0.9f), null)
         else win.map.move(pos)
     }
@@ -256,7 +259,7 @@ private class LibreBackend(ctx: Context, light: Boolean) : MapBackend() {
     override fun camera(lat: Double, lon: Double, bearing: Double, zoom: Double, animate: Boolean, w: Int, h: Int) {
         val m = mlMap ?: return
         // Araç %72'de: üst dolgu P ile görüş merkezi (h+P)/2'ye iner
-        val pos = org.maplibre.android.camera.CameraPosition.Builder().target(LatLng(lat, lon)).bearing(bearing).tilt(0.0)
+        val pos = org.maplibre.android.camera.CameraPosition.Builder().target(LatLng(lat, lon)).bearing(bearing).tilt(TILT.toDouble())
             .zoom(zoom).padding(0.0, h * 0.44, 0.0, 0.0).build()
         if (animate) m.easeCamera(CameraUpdateFactory.newCameraPosition(pos), 900)
         else m.moveCamera(CameraUpdateFactory.newCameraPosition(pos))
