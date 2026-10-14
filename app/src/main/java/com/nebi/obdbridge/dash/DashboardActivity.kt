@@ -71,7 +71,13 @@ class DashboardActivity : Activity(), SensorEventListener {
     private val gpsListener = android.location.LocationListener { loc ->
         // Dururken GPS 1-2 km/h gürültü verir: 3 km/h altı sıfır
         if (loc.hasSpeed()) gpsSpeed = com.nebi.obdbridge.obd.Sample("speed", (loc.speed * 3.6).let { if (it < 3) 0.0 else it }, System.currentTimeMillis())
+        lastGpsFix = System.currentTimeMillis()
         if (turnDemoT0 == 0L) feedTurnMaps(loc.latitude, loc.longitude, if (loc.hasBearing()) loc.bearing else null, if (loc.hasSpeed()) loc.speed * 3.6 else null)
+    }
+    private var lastGpsFix = 0L
+    /** İçeride/garajda GPS bulamazsa harita en azından yaklaşık konumda açılsın (hız için kullanılmaz) */
+    private val netListener = android.location.LocationListener { loc ->
+        if (turnDemoT0 == 0L && System.currentTimeMillis() - lastGpsFix > 15_000) feedTurnMaps(loc.latitude, loc.longitude, null, null, coarse = true)
     }
     private val media by lazy { MediaHub(this).apply { onChange = { mediaCards.forEach { it.postInvalidate() } } } }
     private lateinit var panel: PanelLayout
@@ -213,6 +219,13 @@ class DashboardActivity : Activity(), SensorEventListener {
         try {
             lm.removeUpdates(gpsListener)
             lm.requestLocationUpdates(android.location.LocationManager.GPS_PROVIDER, interval, 0f, gpsListener, mainLooper)
+            if (gpsInterval == 0L) {
+                // İlk açılış: son bilinen konumla başla, GPS gelene kadar ağ konumu
+                if (turnDemoT0 == 0L) lm.getProviders(true).mapNotNull { runCatching { lm.getLastKnownLocation(it) }.getOrNull() }
+                    .maxByOrNull { it.time }?.let { feedTurnMaps(it.latitude, it.longitude, null, null, coarse = true) }
+                if (lm.isProviderEnabled(android.location.LocationManager.NETWORK_PROVIDER))
+                    lm.requestLocationUpdates(android.location.LocationManager.NETWORK_PROVIDER, 10_000L, 0f, netListener, mainLooper)
+            }
             gpsInterval = interval
         } catch (_: Exception) {}
     }
@@ -227,7 +240,7 @@ class DashboardActivity : Activity(), SensorEventListener {
 
     private fun stopGps() {
         gpsInterval = 0L
-        (getSystemService(LOCATION_SERVICE) as android.location.LocationManager).removeUpdates(gpsListener)
+        (getSystemService(LOCATION_SERVICE) as android.location.LocationManager).run { removeUpdates(gpsListener); removeUpdates(netListener) }
         gpsSpeed = null
     }
 
@@ -283,8 +296,10 @@ class DashboardActivity : Activity(), SensorEventListener {
 
     private fun turnMap(light: Boolean) = TurnMapView(this, light).also { turnMaps += it }
 
-    private fun feedTurnMaps(lat: Double, lon: Double, bearing: Float?, kmh: Double?) {
+    /** [coarse]: ağ/son bilinen konum — yalnız haritayı konumlar, rota istemez (yüzlerce m sapabilir) */
+    private fun feedTurnMaps(lat: Double, lon: Double, bearing: Float?, kmh: Double?, coarse: Boolean = false) {
         for (m in turnMaps) m.onLocation(lat, lon, bearing, kmh)
+        if (coarse) return
         // Rota: hedef varsa ilk konumda ve yoldan çıkınca yeniden (RouteTracker kota için seyreltir)
         val map = turnMaps.firstOrNull { it.canRoute } ?: return
         val dest = route.dest

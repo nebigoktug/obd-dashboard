@@ -61,8 +61,10 @@ class TurnMapView(ctx: Context, light: Boolean) : FrameLayout(ctx) {
     }
 
     /** [prepare]: görünmeden yüklensin; [show]: belirsin; [distance] dönüşe kalan (m) */
-    fun update(show: Boolean, prepare: Boolean, distance: Double?) {
+    fun update(showWanted: Boolean, prepare: Boolean, distance: Double?) {
         distance?.let { distM = it }
+        // Konum yokken harita dünya görünümünde kalır → devir saati kalsın
+        val show = showWanted && !lat.isNaN()
         if (prepare && visibility != VISIBLE) { visibility = VISIBLE; camera(animate = false) }
         if (show != shown) {
             shown = show
