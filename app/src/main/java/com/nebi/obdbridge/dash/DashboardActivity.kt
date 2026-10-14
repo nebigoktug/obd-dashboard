@@ -160,7 +160,9 @@ class DashboardActivity : Activity(), SensorEventListener {
         super.onResume()
         resumed = true
         turnMaps.forEach { it.onResume() }
-        if (com.nebi.obdbridge.BuildConfig.DEBUG && intent.getBooleanExtra("turn_demo", false)) {
+        // Son kullanılanlardan açılış aynı intent'i yeniden verir → demo yeniden başlamasın
+        if (com.nebi.obdbridge.BuildConfig.DEBUG && intent.getBooleanExtra("turn_demo", false)
+            && intent.flags and android.content.Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY == 0) {
             intent.removeExtra("turn_demo"); turnDemoT0 = System.currentTimeMillis()
             // Rota denemesi: dönüşten sonra 150° yönünde ~1,5 km ileride bir hedef
             route.setDest(41.0175 + 555 * 0.5 / 111_195.0 - 1500 * 0.866 / 111_195.0,
