@@ -174,7 +174,10 @@ private class YandexBackend(ctx: Context, light: Boolean) : MapBackend() {
 
     override fun camera(lat: Double, lon: Double, bearing: Double, zoom: Double, animate: Boolean, w: Int, h: Int) {
         val win = mv.mapWindow
-        win.focusPoint = com.yandex.mapkit.ScreenPoint(w / 2f, h * 0.72f)
+        // MapKit kendi yüzey boyutunu yerleşimden sonra öğrenir; o boyutun dışındaki odak noktası
+        // yerel kodda çöker → odağı haritanın bildiği boyuta göre ver, boyut yoksa sonraki kareye bırak.
+        val ww = win.width(); val wh = win.height()
+        if (ww > 0 && wh > 0) runCatching { win.focusPoint = com.yandex.mapkit.ScreenPoint(ww / 2f, wh * 0.72f) }
         // Yandex 256'lık döşeme ölçeği: MapLibre yakınlığı + 1
         val pos = com.yandex.mapkit.map.CameraPosition(com.yandex.mapkit.geometry.Point(lat, lon), (zoom + 1).toFloat(), bearing.toFloat(), 0f)
         if (animate) win.map.move(pos, com.yandex.mapkit.Animation(com.yandex.mapkit.Animation.Type.SMOOTH, 0.9f), null)
