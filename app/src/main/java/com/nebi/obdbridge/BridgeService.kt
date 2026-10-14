@@ -36,6 +36,7 @@ import com.nebi.obdbridge.link.Link
 import com.nebi.obdbridge.link.LinkType
 import com.nebi.obdbridge.link.SppLink
 import com.nebi.obdbridge.link.TcpLink
+import com.nebi.obdbridge.obd.CanRecorder
 
 /**
  * Bluetooth SPP (ELM327) <-> 127.0.0.1:35000 TCP ham bayt köprüsü.
@@ -208,6 +209,7 @@ class BridgeService : Service() {
         stopBlockLog()
         logThread?.interrupt()
         engine?.stop()
+        CanRecorder.stop()
         closeQuietly(bt)       // read() bloğunu açar
         btThread?.interrupt()  // yeniden deneme beklemesini keser
         wakeLock?.let { if (it.isHeld) it.release() }
@@ -290,6 +292,8 @@ class BridgeService : Service() {
                 bt = link
                 if (!active) break
                 setStatus("$what bağlı")
+                // Kendi ESP32 adaptörümüz: hattın tamamını ayrı soketten telefona kaydet
+                TcpLink.espHost?.takeIf { spec.type == LinkType.WIFI }?.let { CanRecorder.start(this, it) }
                 val eng = startEngine(link, spec.key)
                 while (active) {
                     val n = link.read(buf)
@@ -309,6 +313,7 @@ class BridgeService : Service() {
             }
             // Bağlantı koptu: motoru durdur, istemciyi de kapat ki karşı taraf durumu anlasın
             engine?.stop(); engine = null; current = null
+            CanRecorder.stop()
             closeQuietly(bt); bt = null
             client?.let { dropClient(it) }
             if (!active) break

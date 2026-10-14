@@ -10,6 +10,8 @@ import android.bluetooth.BluetoothProfile
 import android.bluetooth.BluetoothSocket
 import android.content.Context
 import android.net.ConnectivityManager
+import android.net.nsd.NsdManager
+import android.net.nsd.NsdServiceInfo
 import android.net.NetworkCapabilities
 import android.os.Build
 import android.util.Log
@@ -57,13 +59,87 @@ class TcpLink(private val sock: Socket) : Link {
 
     companion object {
         const val DEFAULT = "192.168.0.10:35000"   // ELM327 Wi-Fi klonlarının çoğu
+        /** Kendi ESP32 adaptörümüz (firmware/elm_bridge): adres ağda mDNS ile aranır */
+        const val ESP32 = "obd-esp32:35000"
+        const val ESP32_HOST = "obd-esp32"
+        private const val ESP32_AP = "192.168.0.10"
+
+        /** Son bağlanılan ESP32'nin IP'si (ham kayıt akışı aynı adrese, 35001'e bağlanır) */
+        @Volatile var espHost: String? = null
+            private set
+
+        /**
+         * ESP32 telefonun erişim noktasına bağlıysa adresi her seferinde değişir: _elm327._tcp servisini arar.
+         * Bulamazsa ESP32'nin kendi ağındaki sabit adres (telefon OBD-ESP32 ağına bağlıysa).
+         */
+        fun findEsp32(ctx: Context, timeoutMs: Long = 4000): String {
+            val nsd = ctx.getSystemService(NsdManager::class.java) ?: return ESP32_AP
+            val found = LinkedBlockingQueue<String>()
+            val resolving = java.util.concurrent.atomic.AtomicBoolean(false)
+            val disc = object : NsdManager.DiscoveryListener {
+                override fun onServiceFound(info: NsdServiceInfo) {
+                    if (!info.serviceName.startsWith(ESP32_HOST) || !resolving.compareAndSet(false, true)) return
+                    @Suppress("DEPRECATION")  // resolveService: API 34'te yerine geçen çağrı minSdk 26'da yok
+                    nsd.resolveService(info, object : NsdManager.ResolveListener {
+                        override fun onServiceResolved(r: NsdServiceInfo) {
+                            @Suppress("DEPRECATION") r.host?.hostAddress?.let { found.offer(it) }
+                        }
+                        override fun onResolveFailed(r: NsdServiceInfo, code: Int) { resolving.set(false) }
+                    })
+                }
+                override fun onServiceLost(info: NsdServiceInfo) {}
+                override fun onDiscoveryStarted(type: String) {}
+                override fun onDiscoveryStopped(type: String) {}
+                override fun onStartDiscoveryFailed(type: String, code: Int) { found.offer("") }
+                override fun onStopDiscoveryFailed(type: String, code: Int) {}
+            }
+            val viaNsd = try {
+                nsd.discoverServices("_elm327._tcp.", NsdManager.PROTOCOL_DNS_SD, disc)
+                found.poll(timeoutMs, TimeUnit.MILLISECONDS)?.takeIf { it.isNotEmpty() }
+            } catch (e: Exception) {
+                null
+            } finally {
+                try { nsd.stopServiceDiscovery(disc) } catch (_: Exception) {}
+            }
+            return viaNsd ?: scanLocal() ?: ESP32_AP
+        }
+
+        /**
+         * mDNS erişim noktası arayüzünde her telefonda çalışmıyor: telefonun özel IPv4 ağlarında (/24) 35000 portu
+         * açık cihazı arar. Erişim noktasında birkaç cihaz olur, 254 adres paralel ~1 sn.
+         */
+        private fun scanLocal(): String? {
+            val subnets = try {
+                java.net.NetworkInterface.getNetworkInterfaces().toList()
+                    .filter { it.isUp && !it.isLoopback && !it.name.startsWith("rmnet") && !it.name.startsWith("tun") }
+                    .flatMap { it.inetAddresses.toList() }
+                    .filterIsInstance<java.net.Inet4Address>()
+                    .filter { it.isSiteLocalAddress }
+                    .map { it.address }
+            } catch (e: Exception) { emptyList() }
+            if (subnets.isEmpty()) return null
+            val pool = java.util.concurrent.Executors.newFixedThreadPool(48)
+            val hit = LinkedBlockingQueue<String>()
+            try {
+                for (me in subnets) for (last in 1..254) {
+                    if (last == (me[3].toInt() and 0xFF)) continue
+                    val ip = "${me[0].toInt() and 0xFF}.${me[1].toInt() and 0xFF}.${me[2].toInt() and 0xFF}.$last"
+                    pool.execute {
+                        try { Socket().use { it.connect(InetSocketAddress(ip, 35001), 400); hit.offer(ip) } } catch (_: IOException) {}
+                    }
+                }
+                return hit.poll(3, TimeUnit.SECONDS)
+            } finally { pool.shutdownNow() }
+        }
 
         /**
          * Adaptörün Wi-Fi ağı internetsiz olduğu için Android trafiği mobil veriye yollayabilir: soket Wi-Fi ağına
          * bağlanarak açılır. Wi-Fi ağı yoksa varsayılan ağ denenir (ör. adaptör ev ağına bağlı test kurulumu).
          */
         fun connect(ctx: Context, hostPort: String, timeoutMs: Int = 6000, track: (Closeable?) -> Unit): TcpLink {
-            val host = hostPort.substringBeforeLast(':').trim()
+            val named = hostPort.substringBeforeLast(':').trim()
+            val esp = named.equals(ESP32_HOST, ignoreCase = true)
+            val host = if (esp) findEsp32(ctx) else named
             val port = hostPort.substringAfterLast(':', "35000").trim().toIntOrNull() ?: 35000
             val cm = ctx.getSystemService(ConnectivityManager::class.java)
             @Suppress("DEPRECATION")  // allNetworks: callback'siz tek seferlik arama için yeterli
@@ -75,8 +151,9 @@ class TcpLink(private val sock: Socket) : Link {
                 s.connect(InetSocketAddress(host, port), timeoutMs)
             } catch (e: IOException) {
                 try { s.close() } catch (_: IOException) {}
-                throw IOException(if (wifi == null) "Wi-Fi'a bağlı değil" else "$host:$port cevap vermedi", e)
+                throw IOException(if (wifi == null && !esp) "Wi-Fi'a bağlı değil" else "$host:$port cevap vermedi", e)
             } finally { track(null) }
+            espHost = if (esp) host else null
             return TcpLink(s)
         }
     }

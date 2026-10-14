@@ -85,7 +85,8 @@ class AdapterPicker(private val a: Activity, private val askPerms: (Array<String
             13f, Pal.AMBER).apply { setPadding(0, 0, 0, ui.dp(8)) })
         body.addView(ui.text("1. Telefonu adaptörün Wi-Fi ağına bağla (ör. \"WiFi_OBDII\", \"V-LINK\").\n" +
             "2. \"İnternet yok\" uyarısı çıkarsa \"Bağlı kal\"ı seç.\n" +
-            "3. Adres genelde 192.168.0.10:35000; adaptörün kutusunda farklı yazıyorsa onu gir.", 14f, Pal.DIM))
+            "3. Adres genelde 192.168.0.10:35000; adaptörün kutusunda farklı yazıyorsa onu gir.\n" +
+            "Kendi ESP32 adaptörün: \"ESP32\" düğmesi. Telefonun erişim noktasında ya da OBD-ESP32 ağında kendiliğinden bulunur.", 14f, Pal.DIM))
         val input = EditText(a).apply {
             setText(Conn.wifiHost(a)); setTextColor(Pal.TEXT); textSize = 18f; isSingleLine = true
             gravity = Gravity.CENTER_VERTICAL
@@ -93,6 +94,7 @@ class AdapterPicker(private val a: Activity, private val askPerms: (Array<String
         body.addView(input, LinearLayout.LayoutParams(-1, -2).apply { topMargin = ui.dp(10) })
         val row = ui.row()
         row.addView(ui.button("Varsayılan") { input.setText(TcpLink.DEFAULT) }, LinearLayout.LayoutParams(-2, -2).apply { marginEnd = ui.dp(8) })
+        row.addView(ui.button("ESP32") { input.setText(TcpLink.ESP32) }, LinearLayout.LayoutParams(-2, -2).apply { marginEnd = ui.dp(8) })
         row.addView(ui.button("Kaydet", primary = true) {
             val v = input.text.toString().trim()
             if (!Regex("^[\\w.-]+(:\\d{1,5})?$").matches(v)) { input.error = "ör. 192.168.0.10:35000"; return@button }
