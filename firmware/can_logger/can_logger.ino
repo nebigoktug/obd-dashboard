@@ -3,8 +3,9 @@
 // her açılışta yeni bir oturum dosyasına (/sN.txt) yazar. Eve dönünce bilgisayara takılıp
 // seri porttan "d" gönderilince bütün oturumlar dökülür ("x": hepsini sil).
 // Mavi ışık: hızlı yanıp sönme = mesaj geliyor, yavaş = mesaj yok (hız aranıyor).
-// İzleme dosyası /tN.csv: saniyede 4 kez çözülmüş devir ve hız + incelenecek mesajların ham baytları
-// (kimlikler web araştırmasından, NOTES.md "HS-CAN çözümleri").
+// İzleme dosyası /tN.csv: saniyede 1 kez çözülmüş devir ve hız + görülen bütün kimliklerin son ham verisi
+// ("kimlik=veri" boşlukla ayrılmış). Çözümler NOTES.md "HS-CAN çözümleri".
+// Yükleme: PartitionScheme=noota_3g (3 MB dosya alanı).
 #include "driver/twai.h"
 #include <LittleFS.h>
 #include <Preferences.h>
@@ -14,7 +15,7 @@
 static const gpio_num_t CAN_TX = GPIO_NUM_5;
 static const gpio_num_t CAN_RX = GPIO_NUM_4;
 static const int LED = 2;
-static const int KEEP_SESSIONS = 4;      // boş olmayan oturum sayısı
+static const int KEEP_SESSIONS = 2;      // boş olmayan oturum sayısı
 
 struct Seen { uint32_t n; uint8_t dlc; uint8_t data[8]; uint32_t firstMs; };
 static std::map<uint32_t, Seen> seen;
@@ -24,16 +25,10 @@ static char path[16];
 static File raw;
 static uint32_t rawCount = 0;
 static const uint32_t RAW_MAX = 500;    // ilk 500 çerçeve ham olarak da yazılır
-static const size_t TRACE_MAX = 1000 * 1024;   // ~19 dk (4 Hz, 9 kimlik)
+static const size_t TRACE_MAX = 1200 * 1024;   // ~28 dk (1 Hz, 27 kimlik ≈ 720 bayt/sn)
 static File trace;
-// İzlenen kimlikler: son veri saklanır, izleme satırına ham yazılır
-// İlk ikisi çözüldü (devir, hız); sonrakiler incelenecek. 800006/90411E/3800006/1B600002 = ECM'nin yayınları
-// (V50 ecm_msgs_full.ftl), motor suyu sıcaklığı büyük olasılıkla bunlardan birinde.
-static const uint32_t WATCH[] = {0x02804026, 0x02104136, 0x0300410E, 0x0110483C, 0x1B700030,
-                                 0x00800006, 0x0090411E, 0x03800006, 0x1B600002};
-static const int NW = sizeof(WATCH) / sizeof(WATCH[0]);
-static uint8_t last[NW][8];
-static bool have[NW];
+// Çözülenler (2. sürüş kaydıyla doğrulandı): hız 02104136 b6-7 ×0,01 km/h, devir 0090411E b2-3 & 0x1FFF
+static const uint32_t ID_SPEED = 0x02104136, ID_RPM = 0x0090411E;
 
 static bool startCan(int kbps) {
   twai_stop(); twai_driver_uninstall();
@@ -135,9 +130,7 @@ void setup() {
   char tp[16]; snprintf(tp, sizeof tp, "/t%d.csv", n);
   trace = LittleFS.open(tp, "w");
   if (trace) {
-    trace.print("ms,devir,hiz_kmh");
-    for (int i = 0; i < NW; i++) trace.printf(",%08lX", (unsigned long)WATCH[i]);
-    trace.println();
+    trace.println("ms,devir,hiz_kmh,kimlik=veri ...");
   }
   Serial.printf("\n== CAN dinleme kaydi, oturum %d ==\n'd' = kayitlari dok, 'x' = hepsini sil\n", n);
   startCan(500);
@@ -152,7 +145,6 @@ void loop() {
   twai_message_t m;
   while (twai_receive(&m, pdMS_TO_TICKS(5)) == ESP_OK) {
     frames++; lastFrameMs = millis(); locked = true;
-    for (int i = 0; i < NW; i++) if (WATCH[i] == m.identifier) { memcpy(last[i], m.data, 8); have[i] = true; }
     Seen &s = seen[m.identifier];
     if (s.n == 0) s.firstMs = millis();
     s.n++; s.dlc = m.data_length_code; memcpy(s.data, m.data, 8);
@@ -181,20 +173,25 @@ void loop() {
   uint32_t period = (millis() - lastFrameMs < 500 && lastFrameMs) ? 100 : 1000;
   if (millis() - lastLed > period / 2) { lastLed = millis(); digitalWrite(LED, !digitalRead(LED)); }
 
-  // İzleme satırı: saniyede 4
+  // İzleme satırı: saniyede 1
   static uint32_t lastTrace = 0;
-  if (trace && locked && millis() - lastTrace >= 250) {
+  if (trace && locked && millis() - lastTrace >= 1000) {
     lastTrace = millis();
     if (trace.size() > TRACE_MAX) { trace.close(); }
     else {
-      int rpm = have[0] ? ((last[0][5] << 8 | last[0][6]) & 0x0FFF) : -1;
-      float kmh = have[1] ? (last[1][6] << 8 | last[1][7]) / 100.0f : -1;
-      trace.printf("%lu,%d,%.2f", millis(), rpm, kmh);
-      for (int i = 0; i < NW; i++) {
-        trace.print(',');
-        if (have[i]) for (int b = 0; b < 8; b++) trace.printf("%02X", last[i][b]);
+      auto r = seen.find(ID_RPM), v = seen.find(ID_SPEED);
+      int rpm = r != seen.end() ? ((r->second.data[2] << 8 | r->second.data[3]) & 0x1FFF) : -1;
+      float kmh = v != seen.end() ? (v->second.data[6] << 8 | v->second.data[7]) / 100.0f : -1;
+      static char line[1024];
+      int n = snprintf(line, sizeof line, "%lu,%d,%.2f,", millis(), rpm, kmh);
+      for (auto &kv : seen) {
+        if (n > (int)sizeof line - 30) break;
+        n += snprintf(line + n, sizeof line - n, "%lX=", (unsigned long)kv.first);
+        for (int b = 0; b < kv.second.dlc && b < 8; b++) n += snprintf(line + n, sizeof line - n, "%02X", kv.second.data[b]);
+        line[n++] = ' ';
       }
-      trace.println();
+      line[n - 1] = '\n';
+      trace.write((const uint8_t *)line, n);
     }
   }
 
