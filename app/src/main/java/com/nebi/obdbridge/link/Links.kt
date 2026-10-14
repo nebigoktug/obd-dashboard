@@ -144,15 +144,26 @@ class TcpLink(private val sock: Socket) : Link {
             val cm = ctx.getSystemService(ConnectivityManager::class.java)
             @Suppress("DEPRECATION")  // allNetworks: callback'siz tek seferlik arama için yeterli
             val wifi = cm.allNetworks.firstOrNull { cm.getNetworkCapabilities(it)?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true }
-            val s = wifi?.socketFactory?.createSocket() ?: Socket()
-            track(s)
-            try {
-                s.tcpNoDelay = true
-                s.connect(InetSocketAddress(host, port), timeoutMs)
-            } catch (e: IOException) {
-                try { s.close() } catch (_: IOException) {}
-                throw IOException(if (wifi == null && !esp) "Wi-Fi'a bağlı değil" else "$host:$port cevap vermedi", e)
-            } finally { track(null) }
+            // Wi-Fi ağına bağlı soket: internetsiz adaptör ağında şart. Ama VPN (ör. Tailscale) açıkken Android buna izin
+            // vermiyor (EPERM); telefonun erişim noktasındaki ESP32'ye de düz soket gider. Sırayla ikisi de denenir.
+            val bound = { wifi?.socketFactory?.createSocket() }
+            val plain = { Socket() }
+            val order = if (esp) listOf(plain, bound) else listOf(bound, plain)
+            var last: IOException? = null
+            var s: Socket? = null
+            for (make in order) {
+                val c = try { make() } catch (e: IOException) { last = e; null } ?: continue
+                track(c)
+                try {
+                    c.tcpNoDelay = true
+                    c.connect(InetSocketAddress(host, port), timeoutMs)
+                    s = c; break
+                } catch (e: IOException) {
+                    last = e
+                    try { c.close() } catch (_: IOException) {}
+                } finally { track(null) }
+            }
+            if (s == null) throw IOException(if (wifi == null && !esp) "Wi-Fi'a bağlı değil" else "$host:$port cevap vermedi", last)
             espHost = if (esp) host else null
             return TcpLink(s)
         }

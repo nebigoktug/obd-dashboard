@@ -58,9 +58,13 @@ object CanRecorder {
     }
 
     private fun record(ctx: Context, host: String) {
-        val s = openSocket(ctx)
-        sock = s
-        s.connect(InetSocketAddress(host, PORT), 4000)
+        // Önce düz soket (telefonun erişim noktası, VPN açıkken de çalışır), olmazsa Wi-Fi'a bağlı soket (ESP32'nin ağı)
+        val s = try {
+            Socket().apply { sock = this; connect(InetSocketAddress(host, PORT), 4000) }
+        } catch (e: IOException) {
+            try { sock?.close() } catch (_: IOException) {}
+            openSocket(ctx).apply { sock = this; connect(InetSocketAddress(host, PORT), 4000) }
+        }
         s.soTimeout = 15_000                     // hat sustu (kontak kapandı) → dosyayı kapat
         val d = dir(ctx).apply { mkdirs() }
         prune(d)
@@ -81,7 +85,7 @@ object CanRecorder {
         } finally {
             try { s.close() } catch (_: IOException) {}
             sock = null
-            if (got == 0L) f.delete()            // yalnız başlık bile gelmediyse boş dosya kalmasın
+            if (got < 200) f.delete()            // yalnız başlık satırı geldiyse (hat sessiz) dosya kalmasın
             Log.i(TAG, "$name: ${got / 1024} KB ham")
         }
     }
