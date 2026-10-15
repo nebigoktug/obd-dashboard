@@ -122,6 +122,7 @@ class DashboardActivity : Activity(), SensorEventListener {
         applyVehicle()
         model = DashModel(pickSource(), liveGears)
         model.insights = insights.apply { load(prefs.getString("insights", null)) }
+        maintenance.load(prefs.getString(Maintenance.PREF, null))
         model.motion = motion
         model.trip = trip
         applySpeedFactor()
@@ -181,6 +182,7 @@ class DashboardActivity : Activity(), SensorEventListener {
         if (applyVehicle()) { model.gears = liveGears; build() }
         if (prefs.getBoolean("gears_reset", false)) { liveGears.reset(); prefs.edit().putBoolean("gears_reset", false).apply() }
         model.insights = insights.apply { load(prefs.getString("insights", null)) }
+        maintenance.load(prefs.getString(Maintenance.PREF, null))
         applySpeedFactor()
         if (prefs.getBoolean("open_strip", false)) { prefs.edit().remove("open_strip").apply(); root.post { chooseStripSlot() } }
         if (prefs.getBoolean("autoconnect", false) && !BridgeService.running && !prefs.getBoolean("demo", false)) Conn.start(this)
@@ -204,7 +206,7 @@ class DashboardActivity : Activity(), SensorEventListener {
         stopGps()
         (getSystemService(SENSOR_SERVICE) as SensorManager).unregisterListener(this)
         saveGears()
-        prefs.edit().putString("insights", insights.save()).apply()
+        prefs.edit().putString("insights", insights.save()).putString(Maintenance.PREF, maintenance.save()).apply()
         super.onPause()
     }
 
@@ -436,7 +438,7 @@ class DashboardActivity : Activity(), SensorEventListener {
         col.addView(topBar(), LinearLayout.LayoutParams(-1, dp(36)))
         val list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         val cards = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        for ((t, rows) in listOf("YOLCULUK" to ::tripRows, "PERFORMANS" to ::perfRows, "SAĞLIK" to ::healthRows)) {
+        for ((t, rows) in listOf("YOLCULUK" to ::tripRows, "PERFORMANS" to ::perfRows, "SAĞLIK" to ::healthRows, "BAKIM" to ::maintRows)) {
             cards.addView(InfoCard(this, t, rows), LinearLayout.LayoutParams(0, dp(250), 1f).apply { setMargins(dp(6), dp(6), dp(6), dp(6)) })
         }
         list.addView(cards)
@@ -620,6 +622,11 @@ class DashboardActivity : Activity(), SensorEventListener {
         if (moving && st.handbrake == true && com.nebi.obdbridge.obd.VolvoCan.fresh(st.handbrakeTs, now))
             out += Alert(AlertKind.HANDBRAKE, "El freni çekili", Level.CRIT, 99)
         com.nebi.obdbridge.obd.VolvoCan.climateText(now)?.let { out += Alert(AlertKind.CLIMATE, it, Level.NORMAL, 50) }
+        // Bakım: km aracın sayacından; yalnız dururken hatırlat (sürüşte dikkat dağıtmasın)
+        if (st.odoKm > 0 && com.nebi.obdbridge.obd.VolvoCan.fresh(st.odoTs, now)) maintenance.odoKm = st.odoKm
+        if (!moving) maintenance.due().firstOrNull()?.let { (i, r) ->
+            out += Alert(AlertKind.MAINTENANCE, "${i.name}: ${Maintenance.remainingText(r)}", if (r < 0) Level.CRIT else Level.WARN, 10)
+        }
         return out
     }
 
@@ -801,6 +808,14 @@ class DashboardActivity : Activity(), SensorEventListener {
         return (parts.ifEmpty { listOf("okumak için dokun") }.joinToString(" · ")) to (mil != null && mil != 0.0)
     }
 
+    private fun maintRows(): List<Pair<String, String>> {
+        val m = maintenance
+        val odo = m.odoKm ?: return listOf("Kilometre" to "ESP32 kutusu gerekli", "Ayar" to "Ayarlar > Bakım")
+        return listOf("Kilometre" to Maintenance.km(odo)) + m.items.map { i ->
+            i.name to (i.remaining(odo)?.let(Maintenance::remainingText) ?: "girilmedi")
+        }
+    }
+
     private fun healthRows(): List<Pair<String, String>> {
         val h = insights.health
         val v = Vehicle.current
@@ -902,6 +917,8 @@ class DashboardActivity : Activity(), SensorEventListener {
         /** Süreç boyunca tek yolculuk (sekme/yön değişince sıfırlanmasın) */
         val trip = Trip()
         val insights = Insights()
+        /** Bakım hatırlatıcı (km aracın sayacından, ESP32 kutusu) */
+        val maintenance = Maintenance()
         /** Hava basıncı (hava servisi / motor durmuşken MAP) */
         val motion = Motion()
         private val demoT0 = System.currentTimeMillis()

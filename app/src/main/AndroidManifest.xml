@@ -39,7 +39,7 @@
     </queries>
 
     <application
-        android:label="OBD Dashboard"
+        android:label="OBD Dashboard ESP32"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:theme="@android:style/Theme.DeviceDefault.Light.DarkActionBar">

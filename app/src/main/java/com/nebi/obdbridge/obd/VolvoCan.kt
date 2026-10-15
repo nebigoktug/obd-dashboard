@@ -24,6 +24,9 @@ object VolvoCan {
         @Volatile var climFan = -1
         @Volatile var climAir = -1
         @Volatile var climTs = 0L
+        /** Aracın kilometre sayacı */
+        @Volatile var odoKm = -1
+        @Volatile var odoTs = 0L
         /** Kullanıcı klimayı en son ne zaman değiştirdi (ilk okuma sayılmaz) */
         @Volatile var climChangedAt = 0L
     }
@@ -74,6 +77,10 @@ object VolvoCan {
             "19E00006" -> b(4).takeIf { it >= 0 }?.let { val x = Sample("coolant", it - 60.0, now); st.coolant = x; onCoolant?.invoke(x) }
             "021204B8" -> b(1).takeIf { it >= 0 }?.let {
                 st.blinkLeft = it and 0x08 != 0; st.blinkRight = it and 0x10 != 0; st.blinkTs = now
+            }
+            "0C505226" -> {
+                val a = b(4); val c = b(5); val e = b(6)
+                if (a >= 0 && c >= 0 && e >= 0) { st.odoKm = (a shl 16) or (c shl 8) or e; st.odoTs = now }
             }
             "13F041BA" -> b(1).takeIf { it >= 0 }?.let { st.doorOpen = it and 0x20 != 0; st.doorTs = now }
             "1760E008" -> b(2).takeIf { it >= 0 }?.let { st.handbrake = it and 0x08 != 0; st.handbrakeTs = now }

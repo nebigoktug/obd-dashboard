@@ -41,6 +41,7 @@ class SettingsActivity : Activity() {
             Section("Ekran", ::display),
             Section("Navigasyon ve medya", ::naviMedia),
             Section("Yakıt", ::fuel),
+            Section("Bakım", ::maintenance),
             Section("Uyarılar", ::alerts),
             Section("Kayıtlar", ::logs),
             Section("Hakkında", ::about),
@@ -309,6 +310,58 @@ class SettingsActivity : Activity() {
         note("Ana ekranda yakıtı görmek için alt şeride uzun basıp \"Tüketim\" ya da \"Ort. tüketim\" seç.")
     }
 
+    private val maint get() = DashboardActivity.maintenance
+    private fun saveMaint() = dash.edit().putString(Maintenance.PREF, maint.save()).apply()
+
+    private fun maintenance() {
+        val odo = maint.odoKm
+        note("Kilometre aracın kendi sayacından okunur (ESP32 kutusu, Volvo). Aralıklar örnektir; araç kitapçığına ya da " +
+            "ustanın önerisine göre değiştir. Bir bakımı yaptırınca üstüne dokunup \"Bugün yapıldı\" de.")
+        add(ui.item("Aracın kilometresi", if (odo == null) "Kutu bağlanınca okunur" else "Son okunan", {
+            odo?.let { Maintenance.km(it) + " km" } ?: "Bilinmiyor" }, onClick = null))
+        header("Bakımlar")
+        for (i in maint.items) {
+            add(ui.item(i.name, "Her ${Maintenance.km(i.intervalKm)} km", {
+                val r = odo?.let { i.remaining(it) }
+                when { i.lastKm == null -> "Girilmedi"; r == null -> "Son: ${Maintenance.km(i.lastKm!!)} km"; else -> Maintenance.remainingText(r) }
+            }) { editMaint(i) })
+        }
+    }
+
+    private fun editMaint(i: Maintenance.Item) {
+        val odo = maint.odoKm
+        val opts = buildList {
+            if (odo != null) add("Bugün yapıldı (${Maintenance.km(odo)} km)")
+            add("Son yapıldığı km'yi gir")
+            add("Aralığı değiştir (şu an ${Maintenance.km(i.intervalKm)} km)")
+            if (i.lastKm != null) add("Kaydı sil")
+        }
+        AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(i.name)
+            .setItems(opts.toTypedArray()) { _, w ->
+                when {
+                    opts[w].startsWith("Bugün") -> { i.lastKm = odo; saveMaint(); show(section) }
+                    opts[w].startsWith("Son") -> askKm("Son yapıldığı km", i.lastKm ?: odo) { i.lastKm = it; saveMaint() }
+                    opts[w].startsWith("Aralığı") -> askKm("Kaç km'de bir", i.intervalKm) { if (it > 0) { i.intervalKm = it; saveMaint() } }
+                    else -> { i.lastKm = null; saveMaint(); show(section) }
+                }
+            }
+            .setNegativeButton("Vazgeç", null).show()
+    }
+
+    private fun askKm(title: String, cur: Int?, done: (Int) -> Unit) {
+        val input = EditText(this).apply {
+            hint = "km"; inputType = android.text.InputType.TYPE_CLASS_NUMBER
+            cur?.let { setText(it.toString()) }
+        }
+        AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(title).setView(input)
+            .setPositiveButton("Kaydet") { _, _ ->
+                input.text.toString().filter(Char::isDigit).toIntOrNull()?.let(done); show(section)
+            }
+            .setNegativeButton("Vazgeç", null).show()
+    }
+
     private fun askFill() {
         val input = EditText(this).apply {
             hint = "Litre (ör. 42,5)"
@@ -343,6 +396,7 @@ class SettingsActivity : Activity() {
         // Yalnız ESP32 kutusuyla (Volvo P1 hattı dinlenirken) çalışırlar
         t(AlertKind.DOOR_OPEN, "Kapı açık", "Araç giderken sürücü kapısı açıksa (ESP32 kutusu, Volvo)")
         t(AlertKind.HANDBRAKE, "El freni çekili", "Araç giderken el freni çekiliyse (ESP32 kutusu, Volvo)")
+        t(AlertKind.MAINTENANCE, "Bakım yaklaştı", "Bir bakıma 1.000 km'den az kalınca, araç dururken (ESP32 kutusu, Volvo)")
         t(AlertKind.CLIMATE, "Klima bilgisi", "Isı, fan ya da hava yönü değişince kısa süre gösterir (ESP32 kutusu, Volvo)")
         add(ui.toggle("Yakıt kesik / boşta notu", "Devir göstergesinde küçük not (dizelde motor freni = sıfır yakıt)",
             { dash.getBoolean("note_fuelcut", true) }) { dash.edit().putBoolean("note_fuelcut", it).apply() })

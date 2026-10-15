@@ -9,7 +9,7 @@ android {
 
     defaultConfig {
         // Forum sürümü kimliği (2026-10-11). Kod paketi (namespace) com.nebi.obdbridge kalır.
-        applicationId = "com.obddashboard.app"
+        applicationId = "com.obddashboard.app.esp32"   // esp32 dalı: genel uygulamanın yanına ayrı kurulur
         minSdk = 26
         targetSdk = 34
         versionCode = 1
