@@ -40,6 +40,8 @@ class ObdEngine(
     private val trace: ((String, String, Long) -> Unit)? = null,
 ) {
     @Volatile private var running = true
+    /** Başka kaynaktan gelen değerler sorulmaz (ör. hararet ESP32 kutusundan hattan okunuyorsa) */
+    @Volatile var skip: (String) -> Boolean = { false }
     @Volatile private var pauseWanted = false
     @Volatile private var paused = false
     @Volatile private var probeWanted: ((String) -> Unit)? = null
@@ -500,7 +502,7 @@ class ObdEngine(
      * tek PID modunda her 3 istekten biri, çoklu modda paketin bir yeri.
      */
     private fun pickBatch(now: Long): List<PidDef> {
-        val live = pids.filter { (suspendedUntil[it.key] ?: 0) <= now }
+        val live = pids.filter { (suspendedUntil[it.key] ?: 0) <= now && !skip(it.key) }
         if (live.isEmpty()) return emptyList()
         fun ratio(p: PidDef) = (now - (lastReq[p.key] ?: 0)).toDouble() / p.tier.periodMs
         val a = live.filter { it.tier == Tier.A }.sortedByDescending(::ratio)

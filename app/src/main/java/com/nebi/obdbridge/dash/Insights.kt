@@ -9,7 +9,8 @@ import kotlin.math.max
 // ilk sürüş kayıtlarıyla (blok kaydı CSV'si: rpm/speed/load/map/rail/coolant/battery) ayarlanacak.
 // Ölçüm 2026-10-09: rölantide 802 rpm, yük %47, MAP 103 kPa, soğutucu 62 °C.
 
-enum class AlertKind { DPF, COLD, CHARGE_LOW, CHARGE_HIGH, BATTERY_WEAK, TURBO_LOW }
+// Sıra numarası sürüş kaydında bit maskesi: yeni türler sona eklenir
+enum class AlertKind { DPF, COLD, CHARGE_LOW, CHARGE_HIGH, BATTERY_WEAK, TURBO_LOW, DOOR_OPEN, HANDBRAKE, CLIMATE }
 
 data class Alert(val kind: AlertKind, val text: String, val level: Level, val priority: Int)
 

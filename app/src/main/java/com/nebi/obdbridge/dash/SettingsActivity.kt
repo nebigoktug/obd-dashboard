@@ -340,6 +340,10 @@ class SettingsActivity : Activity() {
         t(AlertKind.CHARGE_HIGH, "Şarj voltajı yüksek", "14,9 V üstü (voltaj regülatörü)")
         t(AlertKind.BATTERY_WEAK, "Akü zayıf", "Kontak açık, motor kapalıyken 12,2 V altı")
         t(AlertKind.COLD, "Motor soğuk", "Motor ısınmadan yüksek devire çıkınca uyarır")
+        // Yalnız ESP32 kutusuyla (Volvo P1 hattı dinlenirken) çalışırlar
+        t(AlertKind.DOOR_OPEN, "Kapı açık", "Araç giderken sürücü kapısı açıksa (ESP32 kutusu, Volvo)")
+        t(AlertKind.HANDBRAKE, "El freni çekili", "Araç giderken el freni çekiliyse (ESP32 kutusu, Volvo)")
+        t(AlertKind.CLIMATE, "Klima bilgisi", "Isı, fan ya da hava yönü değişince kısa süre gösterir (ESP32 kutusu, Volvo)")
         add(ui.toggle("Yakıt kesik / boşta notu", "Devir göstergesinde küçük not (dizelde motor freni = sıfır yakıt)",
             { dash.getBoolean("note_fuelcut", true) }) { dash.edit().putBoolean("note_fuelcut", it).apply() })
     }

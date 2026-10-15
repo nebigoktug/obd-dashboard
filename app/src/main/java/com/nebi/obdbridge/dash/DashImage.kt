@@ -54,6 +54,10 @@ object DashImageGeom {
     val STRIP = RectF(780f, 855f, 1620f, 990f)
     /** Uyarı hapı: ekran yazısının üstü (yazı x≈1080..1330, y≈135..170) */
     val PILL = RectF(860f, 118f, 1540f, 188f)
+    /** Sinyal okları (ESP32 kutusu, Volvo): hava/saat yazılarının altı, halkaların üstündeki boşluk */
+    val BLINK_L = floatArrayOf(780f, 168f)
+    val BLINK_R = floatArrayOf(1620f, 168f)
+    const val BLINK_SIZE = 50f
     /** Devir halkasında rpm yazısının altındaki kısa not ("yakıt kesik") */
     const val NOTE_BASE = 742f
     const val START = 135f
@@ -103,6 +107,10 @@ class DashImageLayout(ctx: Context, private val dials: DashImageDials) : FrameLa
 class DashImageDials(ctx: Context, spec: WidgetSpec, private val th: ImageTheme = ImageTheme.ALL[0]) : DashWidget(ctx, spec) {
     /** Devir halkasında rpm altında kısa not (yakıt kesik / boşta); null = yok */
     var note: String? = null
+    /** Aracın sinyal lambaları: bit0 sol, bit1 sağ (yanıp sönmeyi araç yapar, burada yalnız yansıtılır) */
+    var blink = 0
+    private val blinkP = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFF3DDC6E.toInt() }
+    private val arrowPath = Path()
     private val base: Bitmap = load(ctx, th.base)
     private val lit: Bitmap = load(ctx, th.lit)
     /** Resmin kenar rengi: ekran oranı farklıysa kalan şerit bununla boyanır */
@@ -172,6 +180,9 @@ class DashImageDials(ctx: Context, spec: WidgetSpec, private val th: ImageTheme 
         labels(c, DashImageGeom.SPEED_C, (0..sMax step sStep).map { n -> n.toString() }, frame["speed"], th.speedLitLabel ?: th.litLabel)
         labels(c, DashImageGeom.RPM_C, (0..v.rpmMax / 1000).map { n -> n.toString() }, frame["rpm"], th.litLabel)
 
+        if (blink and 1 != 0) arrow(c, DashImageGeom.BLINK_L, left = true)
+        if (blink and 2 != 0) arrow(c, DashImageGeom.BLINK_R, left = false)
+
         // Devir kadranının altındaki ince çubuk (varsayılan: motor sıcaklığı)
         frame[spec.bar ?: "coolant"]?.let { bd ->
             val (x0, y, x1) = DashImageGeom.RPM_BAR
@@ -185,6 +196,24 @@ class DashImageDials(ctx: Context, spec: WidgetSpec, private val th: ImageTheme 
                 c.drawLine(ax0, ay, ax0 + (ax1 - ax0) * f, ay, barP)
             }
         }
+    }
+
+    /** Gösterge panelindeki gibi dolu yeşil ok: sap + üçgen uç */
+    private fun arrow(c: Canvas, at: FloatArray, left: Boolean) {
+        val z = DashImageGeom.BLINK_SIZE * s
+        val cx = ox + at[0] * s; val cy = oy + at[1] * s
+        val d = if (left) -1f else 1f
+        arrowPath.reset()
+        arrowPath.moveTo(cx + d * z * 0.5f, cy)                 // uç
+        arrowPath.lineTo(cx, cy - z * 0.45f)
+        arrowPath.lineTo(cx, cy - z * 0.18f)
+        arrowPath.lineTo(cx - d * z * 0.5f, cy - z * 0.18f)
+        arrowPath.lineTo(cx - d * z * 0.5f, cy + z * 0.18f)
+        arrowPath.lineTo(cx, cy + z * 0.18f)
+        arrowPath.lineTo(cx, cy + z * 0.45f)
+        arrowPath.close()
+        blinkP.setShadowLayer(z * 0.25f, 0f, 0f, 0x803DDC6E)
+        c.drawPath(arrowPath, blinkP)
     }
 
     /** [n] aralıklı çentik; her [majorEvery]'de bir büyük. Işıklı dilimin üstündekiler temanın çentik rengiyle. */

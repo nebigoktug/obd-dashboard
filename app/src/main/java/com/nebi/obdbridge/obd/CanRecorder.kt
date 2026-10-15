@@ -40,6 +40,7 @@ object CanRecorder {
         if (thread?.isAlive == true) return
         val app = ctx.applicationContext
         LiveRelay.ensureStarted()
+        VolvoCan.reset()
         thread = Thread({ run(app, host) }, "can-rec").apply { isDaemon = true; start() }
     }
 
@@ -86,6 +87,7 @@ object CanRecorder {
                     if (n < 0) break
                     out.write(buf, 0, n)
                     LiveRelay.feed(buf, n)
+                    VolvoCan.feed(buf, n)
                     got += n; bytes += n
                 }
             }

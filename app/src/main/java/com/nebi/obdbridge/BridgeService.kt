@@ -336,6 +336,9 @@ class BridgeService : Service() {
             }
         })
         engine = eng
+        // ESP32 kutusu Volvo hattından hararet okuyorsa OBD sorgusu boşa gitmesin
+        com.nebi.obdbridge.obd.VolvoCan.onCoolant = { latest[it.key] = it }
+        eng.skip = { it == "coolant" && com.nebi.obdbridge.obd.VolvoCan.coolantFresh() }
         current = eng
         if (blockOut != null) attachBlockLog(eng)
         Thread({

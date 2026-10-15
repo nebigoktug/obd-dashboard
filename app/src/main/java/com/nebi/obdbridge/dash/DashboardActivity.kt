@@ -522,6 +522,10 @@ class DashboardActivity : Activity(), SensorEventListener {
         trip.update(model.raw("speed"))
         if (trip.startTs != tripStart) { tripStart = trip.startTs; insights.stats.reset() }
         updateInsights()
+        val vs = com.nebi.obdbridge.obd.VolvoCan.state
+        val blink = if (!com.nebi.obdbridge.obd.VolvoCan.fresh(vs.blinkTs)) 0
+            else (if (vs.blinkLeft) 1 else 0) or (if (vs.blinkRight) 2 else 0)
+        for (d in dialsList) if (d.blink != blink) d.blink = blink
         weather.refreshIfStale()
         val temp = weather.tempC
         for (t in topBars) {
@@ -579,7 +583,8 @@ class DashboardActivity : Activity(), SensorEventListener {
         insights.update(Inputs(System.currentTimeMillis(), v("rpm"), v("speed"), v("load"), v("map"), v("coolant"),
             v("battery"), v("rail"), model.raw("gear")?.value?.toInt(),
             gpsSpeed?.takeIf { System.currentTimeMillis() - it.ts < 3000 }?.value, obd, v("maf"), v("fuel_rate")))
-        val shown = insights.alerts.filter { prefs.getBoolean("alert_${it.kind.name}", true) }
+        val shown = (carAlerts(v("speed") ?: gpsSpeed?.takeIf { System.currentTimeMillis() - it.ts < 3000 }?.value) + insights.alerts)
+            .filter { prefs.getBoolean("alert_${it.kind.name}", true) }
         // Sürüş kaydı için ekranın gösterdikleri (servis 2 Hz'de kaydeder)
         val now = System.currentTimeMillis()
         val d = BridgeService.derived
@@ -599,6 +604,20 @@ class DashboardActivity : Activity(), SensorEventListener {
         val note = if (!prefs.getBoolean("note_fuelcut", true)) null
             else when { insights.fuelCut -> "yakıt kesik"; insights.coasting && Vehicle.current.manual -> "boşta"; else -> null }
         for (d in dialsList) d.note = note
+    }
+
+    /** ESP32 kutusunun Volvo hattından: hareket halinde kapı/el freni, klima değişince kısa bilgi */
+    private fun carAlerts(speed: Double?): List<Alert> {
+        val st = com.nebi.obdbridge.obd.VolvoCan.state
+        val now = System.currentTimeMillis()
+        val moving = (speed ?: 0.0) > 5
+        val out = ArrayList<Alert>(3)
+        if (moving && st.doorOpen == true && com.nebi.obdbridge.obd.VolvoCan.fresh(st.doorTs, now))
+            out += Alert(AlertKind.DOOR_OPEN, "Kapı açık", Level.CRIT, 100)
+        if (moving && st.handbrake == true && com.nebi.obdbridge.obd.VolvoCan.fresh(st.handbrakeTs, now))
+            out += Alert(AlertKind.HANDBRAKE, "El freni çekili", Level.CRIT, 99)
+        com.nebi.obdbridge.obd.VolvoCan.climateText(now)?.let { out += Alert(AlertKind.CLIMATE, it, Level.NORMAL, 50) }
+        return out
     }
 
     private fun applySpeedFactor() {
