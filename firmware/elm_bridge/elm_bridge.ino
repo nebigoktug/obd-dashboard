@@ -558,7 +558,7 @@ static void startWifi() {
 void setup() {
   Serial.begin(115200);
   pinMode(LED, OUTPUT);
-  rawQ = xQueueCreate(1024, sizeof(Frame));
+  rawQ = xQueueCreate(3072, sizeof(Frame));   // ~3 sn: telefonun erişim noktasındaki 1–1.5 sn Wi-Fi takılmalarında çerçeve düşmesin
   elmQ = xQueueCreate(256, sizeof(Frame));
   canLock = xSemaphoreCreateMutex();
   elmDefaults();
