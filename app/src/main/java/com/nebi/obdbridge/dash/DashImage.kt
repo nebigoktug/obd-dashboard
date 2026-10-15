@@ -55,9 +55,9 @@ object DashImageGeom {
     /** Uyarı hapı: ekran yazısının üstü (yazı x≈1080..1330, y≈135..170) */
     val PILL = RectF(860f, 118f, 1540f, 188f)
     /** Sinyal okları (ESP32 kutusu, Volvo): hava/saat yazılarının altı, halkaların üstündeki boşluk */
-    val BLINK_L = floatArrayOf(780f, 168f)
-    val BLINK_R = floatArrayOf(1620f, 168f)
-    const val BLINK_SIZE = 50f
+    val BLINK_L = floatArrayOf(780f, 172f)
+    val BLINK_R = floatArrayOf(1620f, 172f)
+    const val BLINK_SIZE = 84f
     /** Devir halkasında rpm yazısının altındaki kısa not ("yakıt kesik") */
     const val NOTE_BASE = 742f
     const val START = 135f
