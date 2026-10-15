@@ -37,6 +37,20 @@ python tools/can_tool.py loss   can_X.txt.gz
 - `--ref MS=SS:DD:ss`: kayıttaki bir anı (ör. sinyal başlangıcı) duvar saatine bağlar. Test listesindeki saatlerle karşılaştırmak için kullanılır.
 - Bilinen sinyaller: [can-sinyalleri.md](can-sinyalleri.md).
 
+## Canlı izleme
+
+Uygulama ESP32'ye bağlıyken ham akışın bir kopyasını telefonun içinde **127.0.0.1:35002**'de yayınlar. Uygulamanın kaydı bundan etkilenmez.
+
+```sh
+python tools/can_tool.py live                 # bilinen sinyaller: sinyal, far kolu, kapı, el freni, klima, tuşlar...
+python tools/can_tool.py live --raw           # + bilinmeyen kimliklerde seyrek değişen baytlar ("yeni?")
+python tools/can_tool.py live --raw --save ~/canli.txt
+```
+
+Claude Code'da izleme arka planda başlatılır, kullanıcı bir tuşa basınca son satırlara bakılır.
+Ya da çıktı bir dosyaya yazılır (`> ~/canli.log`) ve Claude o dosyayı izler.
+Denemek için araçsız: `python tools/can_tool.py live --file ~/storage/downloads/OBD-CAN/can_X.txt.gz`.
+
 ## Kutuyla doğrudan konuşma
 
 Telefon erişim noktasıyken kutu `obd-esp32` adıyla görünür. Ad çözülmezse erişim noktası istemci listesindeki IP'yi kullan.

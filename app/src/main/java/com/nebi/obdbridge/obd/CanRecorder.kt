@@ -39,6 +39,7 @@ object CanRecorder {
     fun start(ctx: Context, host: String) {
         if (thread?.isAlive == true) return
         val app = ctx.applicationContext
+        LiveRelay.ensureStarted()
         thread = Thread({ run(app, host) }, "can-rec").apply { isDaemon = true; start() }
     }
 
@@ -84,6 +85,7 @@ object CanRecorder {
                     val n = inp.read(buf)
                     if (n < 0) break
                     out.write(buf, 0, n)
+                    LiveRelay.feed(buf, n)
                     got += n; bytes += n
                 }
             }

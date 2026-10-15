@@ -12,6 +12,7 @@ Girdi .txt ya da .txt.gz olabilir. Saatler: --ref MS=SS:DD:ss verilirse duvar sa
   can_tool.py window  kayit.gz A-B,C-D,... BAZ_A-BAZ_B
                                                     pencerelerde görülüp baz aralığında görülmeyen bayt değerleri (ms)
   can_tool.py loss    kayit.gz                      düzenli kimliklerde kaçan çerçeve oranı + "# dusen" satırları
+  can_tool.py live    [--raw] [--save dosya]        canlı: uygulamanın 127.0.0.1:35002 kopyasından bilinen sinyalleri yazar
 """
 import argparse, collections, gzip, sys
 
@@ -146,6 +147,107 @@ def cmd_loss(a):
         print('ortalama gelen %%%.0f (%d kimlik)' % (100 * sum(r[0] for r in rows) / len(rows), len(rows)))
 
 
+# ---------- canlı izleme ----------
+
+PANEL = [  # 05704000: (bayt, maske, ad)
+    (4, 0xC0, 'VOLUME bas'), (1, 0xC0, 'VOLUME çevir'), (1, 0x10, 'TUNING çevir'), (3, 0x0C, 'TUNING bas'),
+    (4, 0x03, 'EXIT'), (4, 0x30, 'PHONE'), (4, 0x0C, 'MENU'), (5, 0x03, 'AM/FM'), (5, 0x0C, 'MODE'),
+    (5, 0x30, 'Çıkar'), (5, 0xC0, 'ENTER'), (7, 0x01, 'yön ▲'), (7, 0x02, 'yön ▼'), (7, 0x04, 'yön ◀'), (7, 0x08, 'yön ▶')]
+KEYPAD = [(5, 0x02, '1'), (5, 0x04, '2'), (5, 0x08, '3'), (5, 0x01, '0'), (4, 0x04, 'AUTO'), (4, 0x08, 'SCAN')]
+CRUISE = {0x04: 'CRUISE', 0x40: '+', 0x80: '−', 0x20: '0', 0x10: 'dönüş'}
+
+
+def decode(i, b):
+    """Bilinen sinyaller: {ad: değer}. b = bayt listesi (int)."""
+    r = {}
+    n = len(b)
+    if i == '19000026' and n >= 8:
+        r['sinyal kolu'] = {0xA5: 'sol', 0xE5: 'sağ'}.get(b[6] & 0xF7, 'boşta')
+        r['far kolu'] = 'sonuna kadar (uzun)' if b[5] & 0x08 else 'selektör' if b[5] & 0x04 else 'serbest'
+        r['hız sabitleyici tuşu'] = ' '.join(v for k, v in CRUISE.items() if b[7] & k) or '-'
+    elif i == '13F041BA' and n >= 2:
+        r['sürücü kapısı'] = 'açık' if b[1] & 0x20 else 'kapalı'
+    elif i == '1760E008' and n >= 3:
+        r['el freni'] = 'çekili' if b[2] & 0x08 else 'indirilmiş'
+    elif i == '1C810066' and n >= 1:
+        r['arka cam rezistansı'] = 'açık' if b[0] & 0x40 else 'kapalı'
+    elif i == '12404002' and n >= 8:
+        r['klima sıcaklık'] = b[0]
+        r['fan'] = b[3] & 0x1F
+        r['hava yönü'] = '+'.join(v for k, v in ((0x10, 'yüz'), (0x08, 'gövde'), (0x04, 'ayak')) if b[7] & k) or '-'
+    elif i == '05704000' and n >= 8:
+        r['panel tuşu'] = ' '.join(nm for k, m, nm in PANEL if b[k] & m) or '-'
+    elif i == '04A0409E' and n >= 7:
+        r['rakam tuşu'] = ' '.join(nm for k, m, nm in KEYPAD if b[6] & 0x04 and b[k] & m) or '-'
+    elif i == '03C3F7FC' and n >= 6:
+        r['READ'] = 'basılı' if b[5] & 0x40 else '-'
+    elif i == '08E2300E' and n >= 4:
+        r['direksiyon ses tuşu'] = 'basılı' if b[3] & 0x40 else '-'
+    elif i == '09C050B8' and n >= 1:
+        r['gösterge ışığı'] = b[0]
+    elif i == '19E00006' and n >= 5:
+        r['hararet °C'] = b[4] - 60
+    return r
+
+
+def live_lines(a):
+    if a.file:
+        yield from (l.rstrip('\n') for l in (gzip.open(a.file, 'rt') if a.file.endswith('.gz') else open(a.file)))
+        return
+    import socket
+    s = socket.create_connection((a.host, a.port), timeout=10)
+    s.settimeout(None)
+    buf = b''
+    while True:
+        d = s.recv(65536)
+        if not d:
+            return
+        buf += d
+        *lines, buf = buf.split(b'\n')
+        for l in lines:
+            yield l.decode('ascii', 'replace')
+
+
+def cmd_live(a):
+    import time
+    state, last, recent = {}, {}, collections.defaultdict(collections.deque)
+    known = {'19000026', '13F041BA', '1760E008', '1C810066', '12404002', '05704000', '04A0409E', '03C3F7FC',
+             '08E2300E', '09C050B8', '19E00006'}
+    save = open(a.save, 'a') if a.save else None
+    for line in live_lines(a):
+        if save:
+            save.write(line + '\n')
+        p = line.split()
+        if len(p) < 3 or line.startswith('#'):
+            if 'dusen' in line:
+                print(time.strftime('%H:%M:%S'), line, flush=True)
+            continue
+        try:
+            ms = int(p[0]); b = [int(p[2][k:k + 2], 16) for k in range(0, len(p[2]), 2)]
+        except ValueError:
+            continue
+        i = p[1]
+        t = time.strftime('%H:%M:%S') if not a.file else '%.2f' % (ms / 1000)
+        for k, v in decode(i, b).items():
+            if state.get(k) != v:
+                if k in state:
+                    print(t, k, ':', state[k], '→', v, flush=True)
+                state[k] = v
+        if a.raw and i not in known and i != '18DAF110':
+            prev = last.get(i)
+            if prev:
+                for k, (x, y) in enumerate(zip(prev, b)):
+                    if x == y:
+                        continue
+                    dq = recent[(i, k)]
+                    dq.append(ms)
+                    while dq and ms - dq[0] > 20000:
+                        dq.popleft()
+                    if len(dq) <= 2:                   # 20 sn'de 2'den az değişen bayt: olay olabilir
+                        print(t, 'yeni?', i, 'b%d' % k, '%02X → %02X' % (x, y), flush=True)
+        last[i] = b
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sp = ap.add_subparsers(dest='cmd', required=True)
@@ -158,6 +260,10 @@ def main():
     p = sp.add_parser('window'); p.add_argument('file'); p.add_argument('wins'); p.add_argument('base')
     p.set_defaults(fn=cmd_window)
     p = sp.add_parser('loss'); p.add_argument('file'); p.set_defaults(fn=cmd_loss)
+    p = sp.add_parser('live'); p.add_argument('--host', default='127.0.0.1'); p.add_argument('--port', type=int, default=35002)
+    p.add_argument('--file', help='canlı yerine kayıttan oynat (deneme için)')
+    p.add_argument('--raw', action='store_true', help='bilinmeyen kimliklerde seyrek değişen baytları da yaz')
+    p.add_argument('--save', help='gelen satırları bu dosyaya da ekle'); p.set_defaults(fn=cmd_live)
     a = ap.parse_args()
     try:
         a.fn(a)
