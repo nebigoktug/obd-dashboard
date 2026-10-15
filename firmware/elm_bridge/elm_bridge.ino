@@ -210,26 +210,34 @@ static WiFiClient rawClient, elmClient;
 static void pumpRaw();
 static void rawTask(void *) {
   rawServer.begin();
-  for (;;) { pumpRaw(); vTaskDelay(pdMS_TO_TICKS(5)); }
+  // Kuyrukta çerçeve varsa beklemeden devam: test1'de 5 ms uyku + 1400 baytlık yazmalar hattın ~%70'ini taşıyabildi,
+  // kuyruk sürekli taşıp iki hattan da çerçeve düştü. Kuyruk boşalınca kısa uyku.
+  for (;;) { pumpRaw(); if (!uxQueueMessagesWaiting(rawQ)) vTaskDelay(pdMS_TO_TICKS(2)); }
 }
 
 static void pumpRaw() {
   if (rawServer.hasClient()) {
     WiFiClient c = rawServer.accept();
     if (rawClient) rawClient.stop();
-    rawClient = c; rawClient.setNoDelay(false);
+    rawClient = c; rawClient.setNoDelay(true);   // büyük parçalar yazıyoruz; Nagle + telefonun gecikmeli ACK'ı akışı yavaşlatıyordu
     xQueueReset(rawQ);
     rawClient.printf("# obd-esp32 ham akis, hiz %d kbit/s, konfor %d kbit/s (m)\n", bitrate, msBitrate);
   }
   if (!rawClient || !rawClient.connected()) { xQueueReset(rawQ); return; }
-  static char buf[1400];
+  static char buf[5760];                       // 4 TCP segmenti
   int n = 0;
   Frame f;
-  while (n < (int)sizeof buf - 40 && xQueueReceive(rawQ, &f, 0) == pdTRUE) {
+  while (n < (int)sizeof buf - 100 && xQueueReceive(rawQ, &f, 0) == pdTRUE) {
     n += snprintf(buf + n, sizeof buf - n, f.ext ? "%lu %08lX " : "%lu %03lX ", (unsigned long)f.ms, (unsigned long)f.id);
     for (int i = 0; i < f.dlc && i < 8; i++) n += snprintf(buf + n, sizeof buf - n, "%02X", f.d[i]);
     if (f.bus) { buf[n++] = ' '; buf[n++] = 'm'; }
     buf[n++] = '\n';
+  }
+  static uint32_t lastStat = 0;              // kayıtta kayıp ölçülebilsin: 5 sn'de bir düşen çerçeve sayacı
+  if (millis() - lastStat > 5000) {
+    lastStat = millis();
+    n += snprintf(buf + n, sizeof buf - n, "# %lu dusen %lu kuyruk %u\n", (unsigned long)lastStat,
+                  (unsigned long)rawDropped, (unsigned)uxQueueMessagesWaiting(rawQ));
   }
   if (n) rawClient.write((const uint8_t *)buf, n);
 }
