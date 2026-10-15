@@ -205,6 +205,14 @@ static bool canSend(uint32_t id, bool ext, const uint8_t *d, uint8_t dlc) {
 static WiFiServer rawServer(35001), elmServer(35000);
 static WiFiClient rawClient, elmClient;
 
+/** Ham akış kendi görevinde: Wi-Fi takılınca yazma saniyelerce bloklanabilir (ilk sürüşte ELM cevapları bu yüzden
+ *  gecikti, uygulama bağlantıyı kopardı). Takılmada çerçeveler kuyrukta bekler, ELM tarafı etkilenmez. */
+static void pumpRaw();
+static void rawTask(void *) {
+  rawServer.begin();
+  for (;;) { pumpRaw(); vTaskDelay(pdMS_TO_TICKS(5)); }
+}
+
 static void pumpRaw() {
   if (rawServer.hasClient()) {
     WiFiClient c = rawServer.accept();
@@ -334,7 +342,7 @@ static void obdRequest(String cmd) {
   if (!bitrate) {
     if (cfg.proto == 0) line("SEARCHING...");
     uint32_t t0 = millis();
-    while (!bitrate && millis() - t0 < 5000) { pumpRaw(); delay(20); }
+    while (!bitrate && millis() - t0 < 5000) delay(20);
     if (!bitrate) { line("UNABLE TO CONNECT"); return; }
   }
   if (!ensureNormal()) { line("CAN ERROR"); return; }
@@ -356,7 +364,7 @@ static void obdRequest(String cmd) {
   uint32_t deadline = millis() + cfg.timeoutMs;
   while ((int32_t)(millis() - deadline) < 0) {
     Frame f;
-    if (xQueueReceive(elmQ, &f, pdMS_TO_TICKS(5)) != pdTRUE) { pumpRaw(); continue; }
+    if (xQueueReceive(elmQ, &f, pdMS_TO_TICKS(5)) != pdTRUE) continue;
     if (!isResponse(f, ext)) continue;
     uint8_t pci = f.d[0] >> 4;
     if (cfg.caf && pci == 3) continue;          // akış denetimi (bize değil)
@@ -409,7 +417,6 @@ static void monitorAll() {
       k++;
     }
     if (out.length()) flushOut();
-    pumpRaw();
   }
   elmListen = 0;
   out = "";
@@ -552,7 +559,7 @@ static void startWifi() {
   MDNS.begin("obd-esp32");
   MDNS.addService("elm327", "tcp", 35000);
   MDNS.addService("canlog", "tcp", 35001);
-  elmServer.begin(); rawServer.begin();
+  elmServer.begin();
 }
 
 void setup() {
@@ -569,6 +576,7 @@ void setup() {
   xTaskCreatePinnedToCore(canTask, "can", 4096, nullptr, 5, nullptr, 1);
   xTaskCreatePinnedToCore(mcpTask, "mcp", 4096, nullptr, 4, nullptr, 1);
 #endif
+  xTaskCreatePinnedToCore(rawTask, "raw", 6144, nullptr, 1, nullptr, 0);
 #ifndef SIM
   Serial.println("\n== obd-esp32 ELM327 köprüsü ==");
 #endif
@@ -576,7 +584,6 @@ void setup() {
 
 void loop() {
   pumpElm();
-  pumpRaw();
 
   // Erişim noktası kopunca yeniden dene; ama kendi ağımıza bağlı biri varsa tarama yapma (onu bozar)
   static uint32_t lastTry = 0, lastLog = 0, lastLed = 0;
