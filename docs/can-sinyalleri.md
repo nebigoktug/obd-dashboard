@@ -40,8 +40,8 @@ Referanslar: github.com/johnbutol/CCM-busmaster, github.com/Alfaa123/Volvo-CAN-G
 | 09C050B8 | b0 | Gösterge aydınlatma seviyesi (tekerlek), 4F normal | KESİN |
 | 03C3F7FC | b5 | 0x40 darbe = READ tuşu (sol kol, yol bilgisayarı) | KESİN |
 | 19F010FC | b2 | Hız sabitleyici tuşlarının kopyası (40 / 20 / 10) | KUVVETLİ |
-| 19F010FC | b7 | Dış sıcaklık? X/2 − 10 (= 1C810066 b5) | ADAY |
-| 1EF00066 / 1AD10068 | b3 | Yakıt seviyesi? | ADAY |
+| 19F010FC | b7 | Dış sıcaklık? (= 1C810066 b5); 0x2D iken gösterge 11 °C → X/2 − 11 civarı | ADAY |
+| 1EF00066 / 1AD10068 | b3 | Yakıt seviyesi? (gösterge ~1/3 iken 0x2C) | ADAY |
 
 ### Klima (manuel, 12404002)
 
@@ -55,8 +55,10 @@ Referanslar: github.com/johnbutol/CCM-busmaster, github.com/Alfaa123/Volvo-CAN-G
 | Kimlik | Bayt | Anlam | Durum |
 |---|---|---|---|
 | 1C810066 / 16801028 | b0 0x40 / b1 bit0 | Arka cam ve ayna rezistansı açık (12–20 dk sonra kendiliğinden kapanır) | KESİN |
-| 1C810066 | b6 | İç hava? (C8 / 01) | ADAY |
+| 1C810066 | b6 | İç hava açık = C8 | KESİN |
 | 1C810066 | b2 | A/C? (D1 / A0) | ADAY |
+| 12404002 | b4 | 0x80 / 0x40: A/C ON / OFF? (OFF→ON basışında 48 → 88) | ADAY |
+| 04A0409E | b2 | 0x06 deseni (1E→1A→1C→18): klima panelinde HERHANGİ bir tuş (koltuk ısıtma, AC, iç hava); hangi tuş olduğu yok | KESİN |
 
 ### Orta panel tuşları (05704000)
 
@@ -84,5 +86,6 @@ b6 0x04 = tuş olayı. b5: 02 "1", 04 "2", 08 "3", 01 "0". b4: 04 AUTO, 08 SCAN.
 ### Çözülemeyenler
 
 - **Direksiyon ses ±, ileri/geri:** dört tuşta da yalnız 08E2300E b3 0x40 darbesi var. Tuşu ayıran bayt bulunamadı.
-- **Koltuk ısıtma:** iki testte de kayıt boşluğuna denk geldi.
-- **Işık düğmesi (0 / park / far), ön ve arka sis, yakıt kapağı:** belirgin bir sinyal görülmedi.
+- **Koltuk ısıtma:** durumu hatta yayınlanmıyor (test3, kayıpsız). Basışta yalnız 04A0409E b2 "panel tuşu" darbesi var.
+- **Işık düğmesi (0 / park / far), ön ve arka sis, yakıt kapağı:** test3'te kayıpsız kayıtta da sinyal yok; bu hatlarda yayınlanmıyor.
+- Ortak desen: direksiyon ses tuşları ve klima panelinin bir kısmı yalnız "bir tuşa basıldı" darbesi bırakıyor; tuşun kimliği hatta yok.
