@@ -1,8 +1,12 @@
 package com.nebi.obdbridge.obd
 
+import android.content.ContentValues
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
+import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
 import android.util.Log
 import java.io.File
 import java.io.IOException
@@ -16,6 +20,7 @@ import java.util.zip.GZIPOutputStream
 /**
  * ESP32 adaptörünün ham CAN akışını (port 35001, satır başına "ms kimlik veri") telefona yazar.
  * Kayıt: files/can/can_<tarih>.txt.gz, bağlantı başına bir dosya. Klasör [MAX_BYTES]'ı aşınca en eskiler silinir.
+ * Kapanan her kaydın kopyası İndirilenler/OBD-CAN'a da yazılır: bilgisayarsız inceleme (Termux) oradan okur.
  * OBD bağlantısından bağımsız ikinci soket: gösterge sorguları sürerken hattın tamamı kaydedilir.
  */
 object CanRecorder {
@@ -86,7 +91,25 @@ object CanRecorder {
             try { s.close() } catch (_: IOException) {}
             sock = null
             if (got < 200) f.delete()            // yalnız başlık satırı geldiyse (hat sessiz) dosya kalmasın
+            else exportToDownloads(ctx, f)
             Log.i(TAG, "$name: ${got / 1024} KB ham")
+        }
+    }
+
+    /** İndirilenler/OBD-CAN/<ad> kopyası (Android 10+). Telefonun kendi klasörü temizlenir; bu kopyalar kullanıcının. */
+    private fun exportToDownloads(ctx: Context, f: File) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return
+        try {
+            val cv = ContentValues().apply {
+                put(MediaStore.Downloads.DISPLAY_NAME, f.name)
+                put(MediaStore.Downloads.MIME_TYPE, "application/gzip")
+                put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/OBD-CAN")
+            }
+            val cr = ctx.contentResolver
+            val uri = cr.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, cv) ?: return
+            cr.openOutputStream(uri)?.use { out -> f.inputStream().use { it.copyTo(out) } }
+        } catch (e: Exception) {
+            Log.w(TAG, "İndirilenler'e kopyalanamadı: ${e.message}")
         }
     }
 
