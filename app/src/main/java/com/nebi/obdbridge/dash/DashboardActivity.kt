@@ -76,6 +76,8 @@ class DashboardActivity : Activity(), SensorEventListener {
             accM = if (loc.hasAccuracy()) loc.accuracy else null)
     }
     private var lastGpsFix = 0L
+    /** Demo modunda Volvo hattı da taklit edilir (sinyal okları, klima satırı) */
+    private val volvoDemoT0 = System.currentTimeMillis()
     /** İçeride/garajda GPS bulamazsa harita en azından yaklaşık konumda açılsın (hız için kullanılmaz) */
     private val netListener = android.location.LocationListener { loc ->
         if (turnDemoT0 == 0L && System.currentTimeMillis() - lastGpsFix > 15_000) feedTurnMaps(loc.latitude, loc.longitude, null, null, coarse = true)
@@ -522,6 +524,7 @@ class DashboardActivity : Activity(), SensorEventListener {
         trip.update(model.raw("speed"))
         if (trip.startTs != tripStart) { tripStart = trip.startTs; insights.stats.reset() }
         updateInsights()
+        if (model.source is DemoSource) com.nebi.obdbridge.obd.VolvoCan.demo(volvoDemoT0)
         val vs = com.nebi.obdbridge.obd.VolvoCan.state
         val blink = if (!com.nebi.obdbridge.obd.VolvoCan.fresh(vs.blinkTs)) 0
             else (if (vs.blinkLeft) 1 else 0) or (if (vs.blinkRight) 2 else 0)

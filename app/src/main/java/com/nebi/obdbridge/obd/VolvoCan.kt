@@ -87,6 +87,19 @@ object VolvoCan {
         }
     }
 
+    /** Demo modu: 20 sn'lik döngüde 5 sn sol, 5 sn sağ sinyal; 6 sn'de bir klima değişir. */
+    fun demo(t0: Long, now: Long = System.currentTimeMillis()) {
+        val st = state
+        val t = now - t0
+        val on = (t / 400) % 2 == 0L
+        val cyc = t % 20_000
+        st.blinkLeft = on && cyc < 5000; st.blinkRight = on && cyc in 10_000 until 15_000; st.blinkTs = now
+        val step = (t / 6000).toInt()
+        val fan = 4 + step % 3
+        if (st.climFan != fan) st.climChangedAt = now
+        st.climTemp = 0x10 + 2 * (step % 3); st.climFan = fan; st.climAir = 0x14; st.climTs = now
+    }
+
     /** Hararet hattan geliyorsa OBD'den sormaya gerek yok */
     fun coolantFresh() = state.coolant?.let { fresh(it.ts) } == true
 

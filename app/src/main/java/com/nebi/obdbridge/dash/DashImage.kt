@@ -212,7 +212,7 @@ class DashImageDials(ctx: Context, spec: WidgetSpec, private val th: ImageTheme 
         arrowPath.lineTo(cx, cy + z * 0.18f)
         arrowPath.lineTo(cx, cy + z * 0.45f)
         arrowPath.close()
-        blinkP.setShadowLayer(z * 0.25f, 0f, 0f, 0x803DDC6E)
+        blinkP.setShadowLayer(z * 0.25f, 0f, 0f, 0x803DDC6E.toInt())
         c.drawPath(arrowPath, blinkP)
     }
 
