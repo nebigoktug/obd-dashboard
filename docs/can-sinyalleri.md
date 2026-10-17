@@ -21,6 +21,7 @@ Referanslar: github.com/johnbutol/CCM-busmaster, github.com/Alfaa123/Volvo-CAN-G
 | 19000026 | b6 | Sinyal kolu: 85 boşta, A5 sol, E5 sağ (0x08 sayaç biti) | KESİN |
 | 19000026 | b5 | Far kolu: 0x04 hafif çekili (selektör), 0x08 sonuna kadar (uzun aç/kapa), 0x10 kol serbest; 0x02 ~1 Hz değişen, bilinmiyor | KESİN |
 | 19000026 | b7 (b1 = tersi) | Hız sabitleyici: 04 CRUISE, 40 +, 80 −, 20 "0", 10 dönüş | KESİN |
+| 0300410E | b4 0x40 | Fren pedalı basılı (2026-10-17 iki sürüş: 25 basışın 25'i yavaşlarken ya da dururken, hızlanırken hiç) | KESİN |
 | 1AE0092C | b5 | Ön cam buz çözmede D1 → A0 (A/C isteği?) | ADAY |
 | 18DAF110 | — | OBD cevapları (motor beyni) | — |
 
