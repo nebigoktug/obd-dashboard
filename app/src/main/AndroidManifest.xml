@@ -29,6 +29,10 @@
 
     <!-- Android 11+ paket görünürlüğü: medya uygulamasının adını ve başlatıcısını bulmak, sesli yönlendirme (TTS) -->
     <queries>
+        <!-- Müzik uygulamalarının medya tarayıcıları (izinsiz çalan bilgisi) -->
+        <intent>
+            <action android:name="android.media.browse.MediaBrowserService" />
+        </intent>
         <intent>
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LAUNCHER" />

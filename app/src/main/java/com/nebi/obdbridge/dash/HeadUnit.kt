@@ -250,18 +250,30 @@ class NaviCard(ctx: Context, private val prefs: android.content.SharedPreference
 // ---------------- Medya kartı ----------------
 
 /**
- * Çalan uygulamayı (Spotify, YT Music, radyo…) kumanda eder. Oturumlar bildirim dinleyicisi izniyle okunur
- * (NaviListener için verilen izin yeterli). Çalan yoksa son kullanılan uygulama gösterilir, ⏯ onu açar.
+ * Çalan uygulamayı (YT Music, Spotify, radyo…) gösterir ve kumanda eder. İzin istemeden, sırayla:
+ *  1. Uygulamanın medya tarayıcı servisine bağlanır (Android Auto / saatler için açık kapı): kabul eden
+ *     uygulamada başlık, kapak, ilerleme ve kontroller gelir. Kabul edip etmemek o uygulamanın kararı.
+ *  2. Spotify ("Device Broadcast Status" açıksa) ve eski usul çalarların (com.android.music.*) yayınları: başlık, sanatçı.
+ *  3. Hiçbiri yoksa: medya tuşları (her uygulamada çalışır) ve AudioManager'dan "çalıyor mu".
+ * İsteyen kullanıcı bildirim erişimi verirse (Ayarlar, isteğe bağlı) bütün uygulamaların oturumları okunur.
  */
 class MediaHub(private val ctx: Context) {
+    /** Kartın gösterdiği: kaynak ne olursa olsun aynı biçim */
+    data class Now(val title: String?, val artist: String?, val art: Bitmap?, val playing: Boolean,
+                   val durMs: Long, val state: PlaybackState?, val pkg: String?)
+
     var controller: MediaController? = null; private set
     var onChange: (() -> Unit)? = null
     private val msm = ctx.getSystemService(MediaSessionManager::class.java)
+    private val audio = ctx.getSystemService(android.media.AudioManager::class.java)
     private val listener = MediaSessionManager.OnActiveSessionsChangedListener { pick(it) }
     private val cb = object : MediaController.Callback() {
         override fun onMetadataChanged(metadata: MediaMetadata?) { onChange?.invoke() }
-        override fun onPlaybackStateChanged(state: PlaybackState?) { onChange?.invoke() }
-        override fun onSessionDestroyed() { pick(sessions()) }
+        override fun onPlaybackStateChanged(state: PlaybackState?) {
+            if (!hasAccess) pickBrowsed()
+            onChange?.invoke()
+        }
+        override fun onSessionDestroyed() { if (hasAccess) pick(sessions()) else pickBrowsed() }
     }
     private val prefs = ctx.getSharedPreferences("dash", Context.MODE_PRIVATE)
 
@@ -272,21 +284,30 @@ class MediaHub(private val ctx: Context) {
 
     fun start() {
         try { msm.addOnActiveSessionsChangedListener(listener, component()) } catch (_: SecurityException) {}
-        pick(sessions())
+        val s = sessions()
+        if (s != null) pick(s) else connectBrowsers()
+        registerBroadcasts()
     }
 
     fun stop() {
         try { msm.removeOnActiveSessionsChangedListener(listener) } catch (_: Exception) {}
-        controller?.unregisterCallback(cb)
+        controller?.unregisterCallback(cb); controller = null
+        browsers.values.forEach { b -> runCatching { b.second?.unregisterCallback(cb); b.first.disconnect() } }
+        browsers.clear()
+        runCatching { ctx.unregisterReceiver(bcastReceiver) }
     }
 
     /** Çalan oturum öncelikli; yoksa en üstteki (sistem sırası = en son kullanılan). */
     private fun pick(list: List<MediaController>?) {
         val best = list?.firstOrNull { it.playbackState?.state == PlaybackState.STATE_PLAYING } ?: list?.firstOrNull()
+        use(best)
+    }
+
+    private fun use(best: MediaController?) {
         if (best?.sessionToken != controller?.sessionToken) {
-            controller?.unregisterCallback(cb)
+            if (hasAccess) controller?.unregisterCallback(cb)
             controller = best
-            best?.registerCallback(cb)
+            if (hasAccess) best?.registerCallback(cb)
             best?.packageName?.let { prefs.edit().putString("last_media_pkg", it).apply() }
         }
         onChange?.invoke()
@@ -295,19 +316,129 @@ class MediaHub(private val ctx: Context) {
     val hasAccess get() = sessions() != null
     val lastPackage: String? get() = prefs.getString("last_media_pkg", null)
 
+    // ---------- 1. Medya tarayıcı servisleri ----------
+
+    /** paket → (tarayıcı, bağlanınca denetleyici) */
+    private val browsers = HashMap<String, Pair<android.media.browse.MediaBrowser, MediaController?>>()
+
+    /** Kurulu yaygın çalarlar + son kullanılan; hepsine bağlanmak bütün uygulamaları uyandırırdı */
+    private fun connectBrowsers() {
+        val pm = ctx.packageManager
+        val services = try {
+            pm.queryIntentServices(Intent("android.media.browse.MediaBrowserService"), 0)
+        } catch (_: Exception) { emptyList() }
+        val last = lastPackage
+        val wanted = services.filter { it.serviceInfo.packageName in KNOWN_PLAYERS || it.serviceInfo.packageName == last }
+            .distinctBy { it.serviceInfo.packageName }
+        for (ri in wanted) {
+            val si = ri.serviceInfo
+            if (browsers.containsKey(si.packageName)) continue
+            lateinit var b: android.media.browse.MediaBrowser
+            b = android.media.browse.MediaBrowser(ctx, ComponentName(si.packageName, si.name), object : android.media.browse.MediaBrowser.ConnectionCallback() {
+                override fun onConnected() {
+                    android.util.Log.i(TAG, "medya tarayıcısı kabul etti: ${si.packageName}")
+                    val c = runCatching { MediaController(ctx, b.sessionToken) }.getOrNull() ?: return
+                    c.registerCallback(cb)
+                    browsers[si.packageName] = b to c
+                    pickBrowsed()
+                }
+                override fun onConnectionFailed() { android.util.Log.i(TAG, "medya tarayıcısı reddetti: ${si.packageName}"); browsers.remove(si.packageName) }
+                override fun onConnectionSuspended() { browsers[si.packageName]?.second?.unregisterCallback(cb); browsers.remove(si.packageName) }
+            }, null)
+            browsers[si.packageName] = b to null
+            runCatching { b.connect() }.onFailure { browsers.remove(si.packageName) }
+        }
+    }
+
+    /** Bağlı tarayıcılardan çalanı, yoksa son kullanılanı seç (bildirim erişimi yokken) */
+    private fun pickBrowsed() {
+        if (hasAccess) return
+        val cs = browsers.values.mapNotNull { it.second }
+        val best = cs.firstOrNull { it.playbackState?.state == PlaybackState.STATE_PLAYING }
+            ?: cs.firstOrNull { it.packageName == controller?.packageName && it.metadata != null }
+            ?: cs.firstOrNull { it.packageName == lastPackage && it.metadata != null }
+            ?: cs.firstOrNull { it.metadata != null }
+        if (best?.sessionToken != controller?.sessionToken) {
+            controller = best
+            best?.packageName?.let { prefs.edit().putString("last_media_pkg", it).apply() }
+        }
+        onChange?.invoke()
+    }
+
+    // ---------- 2. Yayınlar ----------
+
+    private var bcast: Now? = null
+    private var bcastAt = 0L
+    private val bcastReceiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(c: Context?, i: Intent?) {
+            i ?: return
+            val spotify = i.action?.startsWith("com.spotify.music.") == true
+            val pkg = if (spotify) SPOTIFY else bcast?.pkg
+            val track = i.getStringExtra("track")
+            val artist = i.getStringExtra("artist")
+            val playing = if (i.hasExtra("playing")) i.getBooleanExtra("playing", false) else bcast?.playing ?: true
+            bcast = Now(track ?: bcast?.title, artist ?: bcast?.artist, null, playing,
+                if (spotify) i.getIntExtra("length", 0).toLong() else 0L, null, pkg)
+            bcastAt = System.currentTimeMillis()
+            if (pkg != null) prefs.edit().putString("last_media_pkg", pkg).apply()
+            onChange?.invoke()
+        }
+    }
+
+    private fun registerBroadcasts() {
+        val f = android.content.IntentFilter().apply {
+            for (a in listOf("com.spotify.music.metadatachanged", "com.spotify.music.playbackstatechanged",
+                "com.android.music.metachanged", "com.android.music.playstatechanged")) addAction(a)
+        }
+        runCatching {
+            if (android.os.Build.VERSION.SDK_INT >= 33) ctx.registerReceiver(bcastReceiver, f, Context.RECEIVER_EXPORTED)
+            else ctx.registerReceiver(bcastReceiver, f)
+        }
+    }
+
+    // ---------- Kartın okuduğu ----------
+
+    fun now(): Now {
+        controller?.let { c ->
+            val md = c.metadata
+            val ps = c.playbackState
+            return Now(md?.getString(MediaMetadata.METADATA_KEY_TITLE)?.takeIf { it.isNotBlank() },
+                (md?.getString(MediaMetadata.METADATA_KEY_ARTIST) ?: md?.getString(MediaMetadata.METADATA_KEY_ALBUM_ARTIST))?.takeIf { it.isNotBlank() },
+                md?.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART) ?: md?.getBitmap(MediaMetadata.METADATA_KEY_ART)
+                    ?: md?.getBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON),
+                ps?.state == PlaybackState.STATE_PLAYING, md?.getLong(MediaMetadata.METADATA_KEY_DURATION) ?: 0L, ps, c.packageName)
+        }
+        val active = runCatching { audio.isMusicActive }.getOrDefault(false)
+        // Yayın bilgisi bayatlamadıysa (çalarken yayın tekrarlanmayabilir: ses çalıyorsa geçerli say)
+        bcast?.takeIf { active || System.currentTimeMillis() - bcastAt < 10 * 60_000 }?.let { return it.copy(playing = active || it.playing && System.currentTimeMillis() - bcastAt < 5_000) }
+        return Now(null, null, null, active, 0L, null, null)
+    }
+
     fun playPause() {
         val c = controller
-        if (c == null) { openApp(); return }
-        if (c.playbackState?.state == PlaybackState.STATE_PLAYING) c.transportControls.pause() else c.transportControls.play()
+        when {
+            c != null -> if (c.playbackState?.state == PlaybackState.STATE_PLAYING) c.transportControls.pause() else c.transportControls.play()
+            now().playing || lastPackage != null -> key(android.view.KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE)
+            else -> openApp()
+        }
     }
-    fun next() = controller?.transportControls?.skipToNext()
-    fun prev() = controller?.transportControls?.skipToPrevious()
+    fun next() { controller?.transportControls?.skipToNext() ?: key(android.view.KeyEvent.KEYCODE_MEDIA_NEXT) }
+    fun prev() { controller?.transportControls?.skipToPrevious() ?: key(android.view.KeyEvent.KEYCODE_MEDIA_PREVIOUS) }
+
+    /** Medya tuşu (kulaklık/direksiyon tuşu gibi): izin gerektirmez, son çalan uygulamaya gider */
+    private fun key(code: Int) {
+        runCatching {
+            audio.dispatchMediaKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, code))
+            audio.dispatchMediaKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_UP, code))
+        }
+        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({ onChange?.invoke() }, 600)
+    }
 
     fun openApp() {
         val c = controller
         try {
             c?.sessionActivity?.send() ?: run {
-                val pkg = c?.packageName ?: lastPackage ?: return
+                val pkg = c?.packageName ?: bcast?.pkg ?: lastPackage ?: return
                 ctx.packageManager.getLaunchIntentForPackage(pkg)?.let { ctx.startActivity(it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
             }
         } catch (_: Exception) {}
@@ -316,6 +447,20 @@ class MediaHub(private val ctx: Context) {
     fun appLabel(pkg: String?): String = try {
         pkg?.let { ctx.packageManager.getApplicationLabel(ctx.packageManager.getApplicationInfo(it, 0)).toString() } ?: ""
     } catch (_: Exception) { "" }
+
+    companion object {
+        const val TAG = "MediaHub"
+        const val SPOTIFY = "com.spotify.music"
+        /** Medya tarayıcısına bağlanılan yaygın çalarlar (Türkiye'de kullanılanlar dahil) */
+        val KNOWN_PLAYERS = setOf(
+            "com.google.android.apps.youtube.music", "com.google.android.youtube", SPOTIFY, "com.apple.android.music", "deezer.android.app",
+            "com.aspiro.tidal", "com.amazon.mp3", "com.soundcloud.android", "com.turkcell.gncplay", "com.turkcell.fizy",
+            "com.miui.player", "com.sec.android.app.music", "com.maxmpz.audioplayer", "org.videolan.vlc",
+            "com.google.android.apps.podcasts", "au.com.shiftyjelly.pocketcasts", "de.danoeh.antennapod",
+            "fm.castbox.audiobook.radio.podcast", "com.audible.application", "tunein.player", "com.radio.pocketfm",
+            "com.kodarkooperativet.blackplayerex", "com.musicolet", "in.krosbits.musicolet", "com.shazam.android",
+        )
+    }
 }
 
 @SuppressLint("ViewConstructor")  // yalnız koddan oluşturuluyor
@@ -337,16 +482,14 @@ class MediaCard(ctx: Context, private val hub: MediaHub) : TouchCard(ctx) {
         hits.clear()
         val pad = h * 0.1f
         iconP.color = Glass.TEXT
-        val ctl = hub.controller
-        val md = ctl?.metadata
-        val ps = ctl?.playbackState
-        val playing = ps?.state == PlaybackState.STATE_PLAYING
+        val now = hub.now()
+        val ps = now.state
+        val playing = now.playing
 
         // Kapak (yoksa nota simgeli boş kare)
         val side = h * 0.52f
         art.set(pad, pad, pad + side, pad + side)
-        val bmp = md?.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART) ?: md?.getBitmap(MediaMetadata.METADATA_KEY_ART)
-            ?: md?.getBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON)
+        val bmp = now.art
         val rad = side * 0.1f
         if (bmp != null) {
             if (bmp !== artBmp) { artBmp = bmp; artP.shader = BitmapShader(bmp, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP) }
@@ -359,33 +502,25 @@ class MediaCard(ctx: Context, private val hub: MediaHub) : TouchCard(ctx) {
             val np = Glass.text(pc, "r5", side * 0.45f, Glass.DIM); np.textAlign = Paint.Align.CENTER
             c.drawText("♪", art.centerX(), art.centerY() + side * 0.16f, np)
         }
-        // İzin yokken kart izin ekranına götürür (uzun yazı kartta kesiliyordu)
-        val openAccess = { context.startActivity(android.content.Intent(android.provider.Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
-            .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)) }
-        hits += art to if (hub.hasAccess) { -> hub.openApp(); Unit } else openAccess
+        hits += art to { hub.openApp() }
 
-        // Başlık, sanatçı, kaynak uygulama
+        // Başlık, sanatçı, kaynak uygulama (şarkı adını vermeyen uygulamada yalnız çalıyor/durdu)
         val tx = art.right + pad
         val tw = w - tx - pad
-        if (!hub.hasAccess) hits += RectF(tx, art.top, w - pad, art.bottom) to openAccess
-        // Bazı uygulamalar başlığı null değil boş verir: o zaman da yedek yazı
-        val title = md?.getString(MediaMetadata.METADATA_KEY_TITLE)?.takeIf { it.isNotBlank() }
-            ?: if (!hub.hasAccess) "Müzik izni yok" else if (md != null || hub.lastPackage != null) "Çalan yok" else "Müzik açılmadı"
-        val artist = md?.getString(MediaMetadata.METADATA_KEY_ARTIST)?.takeIf { it.isNotBlank() }
-            ?: md?.getString(MediaMetadata.METADATA_KEY_ALBUM_ARTIST)?.takeIf { it.isNotBlank() }
-            ?: if (!hub.hasAccess) "Dokun, izin ver" else if (md != null) "▶ ile devam et" else ""
+        val src = hub.appLabel(now.pkg ?: hub.lastPackage)
+        val title = now.title ?: when { playing -> "Çalıyor"; hub.lastPackage != null -> "Çalan yok"; else -> "Müzik" }
+        val artist = now.artist ?: when { now.title != null -> ""; playing -> "Şarkı adı için: Ayarlar › Medya"; else -> "▶ ile başlat" }
         val tp = Glass.text(pc, "r6", h * 0.15f)
         c.drawText(Glass.ellipsize(title, tp, tw), tx, art.top + h * 0.17f, tp)
         val ap = Glass.text(pc, "r7", h * 0.11f, Glass.DIM)
         c.drawText(Glass.ellipsize(artist, ap, tw), tx, art.top + h * 0.33f, ap)
-        val src = hub.appLabel(ctl?.packageName ?: hub.lastPackage)
         if (src.isNotEmpty()) {
             val sp = Glass.text(pc, "r8", h * 0.08f, Glass.ICE); sp.letterSpacing = 0.1f
             c.drawText(Glass.ellipsize(src.uppercase(), sp, tw), tx, art.bottom - h * 0.02f, sp)
         }
 
         // İlerleme çubuğu
-        val dur = md?.getLong(MediaMetadata.METADATA_KEY_DURATION) ?: 0L
+        val dur = now.durMs
         val by = art.bottom + pad * 0.9f
         bar.strokeWidth = h * 0.018f
         bar.color = Glass.TEXT; bar.alpha = 40
@@ -416,7 +551,8 @@ class MediaCard(ctx: Context, private val hub: MediaHub) : TouchCard(ctx) {
             }
             hits += r to when (i) { 0 -> { -> hub.prev(); Unit }; 1 -> { -> hub.playPause() }; else -> { -> hub.next(); Unit } }
         }
-        if (playing) postInvalidateDelayed(500)   // ilerleme çubuğu
+        // İlerleme çubuğu; bilgi gelmeyen uygulamada "çalıyor mu" seyrek yoklanır
+        if (playing) postInvalidateDelayed(500) else if (hub.controller == null) postInvalidateDelayed(2000)
     }
 
     /** Ucu [x]'te olan dolu üçgen. */
