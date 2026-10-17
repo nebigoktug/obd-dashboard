@@ -12,12 +12,23 @@
 // OBD isteği gönderdiğinde ve hat hızı kesin bilindiğinde normal kipe geçer. Yanlış hızda asla gönderilmez.
 // MCP2515 (konfor hattı) her zaman dinleme kipinde kalır: bu yazılım o hatta hiçbir şey göndermez.
 //
+// Yönetim sayfası (port 80, şifre = OBD-ESP32 ağ şifresi): durum, Wi-Fi ayarları, yazılım yükleme (OTA), yeniden
+// başlatma. Bölüm düzeni "Minimal SPIFFS (OTA ile 1.9MB)": derlerken PartitionScheme=min_spiffs verilmeli.
+//
 // Wi-Fi bilgileri secrets.h'de (depoda yok): make_secrets.sh ~/.config/obd-dashboard/esp32-wifi.txt'den üretir.
+// Yönetim sayfasından değiştirilirse NVS'de saklanır ve secrets.h'dekilerin önüne geçer.
 #include "driver/twai.h"
 #include <WiFi.h>
 #include <ESPmDNS.h>
 #include <SPI.h>
+#include <WebServer.h>
+#include <Update.h>
+#include <Preferences.h>
+#include "esp_system.h"
 #include "secrets.h"
+#include "panel_html.h"
+
+#define FW_VERSION "2026-10-17"
 
 static const gpio_num_t CAN_TX = GPIO_NUM_5;
 static const gpio_num_t CAN_RX = GPIO_NUM_4;
@@ -35,7 +46,7 @@ static bool isResponse(const struct Frame &f, bool ext);
 static volatile int bitrate = 0;          // kilitlenen hız (kbit/s), 0 = henüz yok
 static volatile bool seenExt = false, seenStd = false;
 static volatile bool normalMode = false;
-static volatile uint32_t rawDropped = 0, lastFrameMs = 0;
+static volatile uint32_t rawDropped = 0, lastFrameMs = 0, hsFrames = 0;
 static SemaphoreHandle_t canLock;
 
 static bool installCan(int kbps, bool normal) {
@@ -69,7 +80,7 @@ static void canTask(void *) {
       Frame f; f.ms = millis(); f.id = m.identifier; f.ext = m.extd; f.dlc = m.data_length_code; f.bus = 0;
       memcpy(f.d, m.data, 8);
       if (m.extd) seenExt = true; else seenStd = true;
-      lastFrameMs = f.ms;
+      lastFrameMs = f.ms; hsFrames++;
       if (xQueueSend(rawQ, &f, 0) != pdTRUE) rawDropped++;
       if (elmListen == 2 || (elmListen == 1 && isResponse(f, reqExt))) xQueueSend(elmQ, &f, 0);
     } else {
@@ -236,8 +247,10 @@ static void pumpRaw() {
   static uint32_t lastStat = 0;              // kayıtta kayıp ölçülebilsin: 5 sn'de bir düşen çerçeve sayacı
   if (millis() - lastStat > 5000) {
     lastStat = millis();
-    n += snprintf(buf + n, sizeof buf - n, "# %lu dusen %lu kuyruk %u\n", (unsigned long)lastStat,
-                  (unsigned long)rawDropped, (unsigned)uxQueueMessagesWaiting(rawQ));
+    n += snprintf(buf + n, sizeof buf - n, "# %lu dusen %lu kuyruk %u calisma %lu bellek %u rssi %d\n",
+                  (unsigned long)lastStat, (unsigned long)rawDropped, (unsigned)uxQueueMessagesWaiting(rawQ),
+                  (unsigned long)(lastStat / 1000), (unsigned)ESP.getFreeHeap(),
+                  WiFi.status() == WL_CONNECTED ? (int)WiFi.RSSI() : 0);
   }
   if (n) rawClient.write((const uint8_t *)buf, n);
 }
@@ -438,7 +451,7 @@ static void atCommand(String c) {      // c: "AT" sonrası, boşluksuz, büyük 
   if (c == "WS") { line(""); line(ID_TEXT); return; }
   if (c == "D") { elmDefaults(); ok(); return; }
   if (c == "I") { line(ID_TEXT); return; }
-  if (c == "@1") { line(DESC_TEXT); return; }
+  if (c == "@1") { line(String(DESC_TEXT) + " " + FW_VERSION); return; }
   if (c == "E0" || c == "E1") { cfg.echo = c[1] == '1'; ok(); return; }
   if (c == "L0" || c == "L1") { cfg.lf = c[1] == '1'; ok(); return; }
   if (c == "S0" || c == "S1") { cfg.spaces = c[1] == '1'; ok(); return; }
@@ -558,16 +571,149 @@ static void simEcu(uint32_t id, bool ext, const uint8_t *d, uint8_t dlc) {
 #endif
 
 // ---------- Wi-Fi ----------
+static Preferences prefs;
+static String staSsid, staPass, apPass;     // NVS'de varsa onlar, yoksa secrets.h
+
+static void loadWifi() {
+  prefs.begin("wifi", true);
+  staSsid = prefs.getString("ssid", HOTSPOT_SSID);
+  staPass = prefs.getString("pass", HOTSPOT_PASS);
+  apPass = prefs.getString("ap", AP_PASS);
+  prefs.end();
+}
+
 static void startWifi() {
+  loadWifi();
   WiFi.mode(WIFI_AP_STA);
   WiFi.softAPConfig(IPAddress(192, 168, 0, 10), IPAddress(192, 168, 0, 10), IPAddress(255, 255, 255, 0));
-  WiFi.softAP("OBD-ESP32", AP_PASS);
+  WiFi.softAP("OBD-ESP32", apPass.c_str());
   WiFi.setSleep(false);                   // gecikme için güç tasarrufu kapalı
-  WiFi.begin(HOTSPOT_SSID, HOTSPOT_PASS);
+  WiFi.begin(staSsid.c_str(), staPass.c_str());
   MDNS.begin("obd-esp32");
   MDNS.addService("elm327", "tcp", 35000);
   MDNS.addService("canlog", "tcp", 35001);
+  MDNS.addService("http", "tcp", 80);
   elmServer.begin();
+}
+
+// ---------- Yönetim sayfası (port 80) ----------
+static WebServer web(80);
+static bool otaOk = false;
+static String otaErr;
+static uint32_t restartAt = 0;            // cevap gittikten sonra yeniden başlat
+
+static bool authed() {
+  if (web.authenticate("admin", apPass.c_str())) return true;
+  web.requestAuthentication(BASIC_AUTH, "OBD-ESP32", "Kullanici admin, sifre OBD-ESP32 ag sifresi");
+  return false;
+}
+
+static const char *resetText() {
+  switch (esp_reset_reason()) {
+    case ESP_RST_POWERON: return "elektrik geldi";
+    case ESP_RST_SW: return "yazılım (güncelleme ya da yeniden başlatma)";
+    case ESP_RST_PANIC: return "ÇÖKME";
+    case ESP_RST_INT_WDT: case ESP_RST_TASK_WDT: case ESP_RST_WDT: return "BEKÇİ (takılma)";
+    case ESP_RST_BROWNOUT: return "VOLTAJ DÜŞTÜ";
+    case ESP_RST_DEEPSLEEP: return "uykudan uyandı";
+    default: return "diğer";
+  }
+}
+
+static String jsonEsc(const String &v) {
+  String o; for (char c : v) { if (c == '"' || c == '\\') o += '\\'; if ((uint8_t)c >= 0x20) o += c; } return o;
+}
+
+static void handleStatus() {
+  if (!authed()) return;
+  static uint32_t lastT = 0, lastHs = 0, lastMs = 0; static float hsFps = 0, msFps = 0;
+  uint32_t now = millis();
+  if (now - lastT >= 1000) {
+    float dt = (now - lastT) / 1000.0f;
+    if (lastT) { hsFps = (hsFrames - lastHs) / dt; msFps = (msFrames - lastMs) / dt; }
+    lastT = now; lastHs = hsFrames; lastMs = msFrames;
+  }
+  bool sta = WiFi.status() == WL_CONNECTED;
+  String j; j.reserve(700);
+  j += "{\"ver\":\"" FW_VERSION "\",\"up\":" + String(now / 1000);
+  j += ",\"reset\":\"" + String(resetText()) + "\",\"heap\":" + String(ESP.getFreeHeap());
+  j += ",\"minHeap\":" + String(ESP.getMinFreeHeap());
+  j += ",\"sta\":" + String(sta ? "true" : "false") + ",\"ssid\":\"" + jsonEsc(staSsid) + "\"";
+  j += ",\"ip\":\"" + (sta ? WiFi.localIP().toString() : String("")) + "\",\"rssi\":" + String(sta ? WiFi.RSSI() : 0);
+  j += ",\"apClients\":" + String(WiFi.softAPgetStationNum());
+  j += ",\"hsRate\":" + String(bitrate) + ",\"hsMode\":\"" + String(normalMode ? "normal" : "dinleme") + "\"";
+  j += ",\"hsFps\":" + String(hsFps, 0) + ",\"hsTotal\":" + String(hsFrames);
+  j += ",\"msOk\":" + String(mcpOk ? "true" : "false") + ",\"msRate\":" + String(msBitrate);
+  j += ",\"msFps\":" + String(msFps, 0) + ",\"msTotal\":" + String(msFrames) + ",\"msOverflow\":" + String(msOverflow);
+  j += ",\"elm\":" + String(elmClient.connected() ? "true" : "false") + ",\"raw\":" + String(rawClient.connected() ? "true" : "false");
+  j += ",\"dropped\":" + String(rawDropped) + ",\"queue\":" + String(uxQueueMessagesWaiting(rawQ));
+  j += ",\"sketch\":" + String(ESP.getSketchSize()) + ",\"free\":" + String(ESP.getFreeSketchSpace()) + "}";
+  web.send(200, "application/json", j);
+}
+
+static void handleWifi() {
+  if (!authed()) return;
+  String ss = web.arg("ssid"), ps = web.arg("pass"), ap = web.arg("ap");
+  if (ss.length() > 32 || ps.length() > 63 || (ap.length() && (ap.length() < 8 || ap.length() > 63))) {
+    web.send(400, "text/plain; charset=utf-8", "Geçersiz: ağ adı en fazla 32, şifreler 8–63 karakter"); return;
+  }
+  prefs.begin("wifi", false);
+  if (ss.length()) prefs.putString("ssid", ss);
+  if (ps.length()) prefs.putString("pass", ps);
+  if (ap.length()) prefs.putString("ap", ap);
+  prefs.end();
+  web.send(200, "text/plain; charset=utf-8", "Kaydedildi. Yeniden başlatınca geçerli olur.");
+}
+
+static void handleWifiReset() {
+  if (!authed()) return;
+  prefs.begin("wifi", false); prefs.clear(); prefs.end();
+  web.send(200, "text/plain; charset=utf-8", "Fabrika Wi-Fi ayarlarına dönüldü. Yeniden başlatınca geçerli olur.");
+}
+
+static void handleRestart() {
+  if (!authed()) return;
+  web.send(200, "text/plain; charset=utf-8", "Yeniden başlatılıyor…");
+  restartAt = millis() + 500;
+}
+
+/** Yazılım yükleme: tarayıcıdan dosya (multipart). Yükleme bitince kontrol edilir, doğruysa yeniden başlar. */
+static void handleUploadDone() {
+  if (!authed()) return;
+  if (otaOk) { web.send(200, "text/plain; charset=utf-8", "Yüklendi, yeniden başlatılıyor…"); restartAt = millis() + 800; }
+  else web.send(500, "text/plain; charset=utf-8", "Yükleme başarısız: " + otaErr);
+}
+static void handleUploadChunk() {
+  // Yetki kontrolü ilk parçada: şifresiz istek flaşa hiçbir şey yazamaz
+  static bool allowed = false;
+  HTTPUpload &u = web.upload();
+  if (u.status == UPLOAD_FILE_START) {
+    otaOk = false; otaErr = "";
+    allowed = web.authenticate("admin", apPass.c_str());
+    if (!allowed) { otaErr = "yetki yok"; return; }
+    Serial.printf("OTA basladi: %s\n", u.filename.c_str());
+    if (!Update.begin(UPDATE_SIZE_UNKNOWN, U_FLASH)) otaErr = Update.errorString();
+  } else if (!allowed || otaErr.length()) {
+    if (u.status == UPLOAD_FILE_END || u.status == UPLOAD_FILE_ABORTED) Update.abort();
+  } else if (u.status == UPLOAD_FILE_WRITE) {
+    if (Update.write(u.buf, u.currentSize) != u.currentSize) otaErr = Update.errorString();
+  } else if (u.status == UPLOAD_FILE_END) {
+    if (Update.end(true)) { otaOk = true; Serial.printf("OTA tamam: %u bayt\n", u.totalSize); }
+    else otaErr = Update.errorString();
+  } else if (u.status == UPLOAD_FILE_ABORTED) {
+    Update.abort(); otaErr = "bağlantı koptu";
+  }
+}
+
+static void startWeb() {
+  web.on("/", HTTP_GET, [] { if (authed()) web.send_P(200, "text/html; charset=utf-8", PANEL_HTML); });
+  web.on("/api/status", HTTP_GET, handleStatus);
+  web.on("/api/wifi", HTTP_POST, handleWifi);
+  web.on("/api/wifi-reset", HTTP_POST, handleWifiReset);
+  web.on("/api/restart", HTTP_POST, handleRestart);
+  web.on("/update", HTTP_POST, handleUploadDone, handleUploadChunk);
+  web.onNotFound([] { web.send(404, "text/plain", "yok"); });
+  web.begin();
 }
 
 void setup() {
@@ -578,6 +724,7 @@ void setup() {
   canLock = xSemaphoreCreateMutex();
   elmDefaults();
   startWifi();
+  startWeb();
 #ifdef SIM
   bitrate = 500; seenExt = true; normalMode = true;
 #else
@@ -592,11 +739,13 @@ void setup() {
 
 void loop() {
   pumpElm();
+  web.handleClient();
+  if (restartAt && (int32_t)(millis() - restartAt) >= 0) ESP.restart();
 
   // Erişim noktası kopunca yeniden dene; ama kendi ağımıza bağlı biri varsa tarama yapma (onu bozar)
   static uint32_t lastTry = 0, lastLog = 0, lastLed = 0;
   if (WiFi.status() != WL_CONNECTED && WiFi.softAPgetStationNum() == 0 && millis() - lastTry > 15000) {
-    lastTry = millis(); WiFi.disconnect(); WiFi.begin(HOTSPOT_SSID, HOTSPOT_PASS);
+    lastTry = millis(); WiFi.disconnect(); WiFi.begin(staSsid.c_str(), staPass.c_str());
   }
   // Işık: mesaj geliyorsa hızlı; istemci bağlıysa sürekli yanık kısa söner
   uint32_t period = millis() - lastFrameMs < 500 && lastFrameMs ? 100 : 1000;
