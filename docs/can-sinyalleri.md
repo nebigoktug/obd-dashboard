@@ -68,8 +68,8 @@ b0'ın üst iki biti 50 ms'lik sayaç (00, 40, 80, C0). Tuşlar iki bitlik desen
 | Tuş | Bayt / bit | Durum |
 |---|---|---|
 | VOLUME bas (aç/kapa) | b4 0xC0 | KESİN |
-| VOLUME çevir | b1 0xC0 / 0x40 sağ, 0x80 sol | KESİN |
-| TUNING çevir | b1 0x10, yön b2'de (0x80 sağ, 0x01 sol) | KUVVETLİ |
+| VOLUME çevir | Her tık: b0 bit0 ve b2 0x80 bir çerçeve yanar. Yön b2 0x40 (1 sağ/ses aç, 0 sol/kıs; tıktan sonra da öyle kalır). Kullanıldıktan sonra b1 0x20 | KESİN (2026-10-17 sürüşte de doğrulandı) |
+| TUNING çevir | Her tık: b1 0x10 ve b2 0x01 bir çerçeve yanar. Yön b3 0x80 (1 sağ, 0 sol). Kullanıldıktan sonra b1 0x02 | KUVVETLİ |
 | TUNING bas (SOUND) | b3 0x0C | KESİN |
 | EXIT | b4 0x03 | KESİN |
 | PHONE | b4 0x30 | KESİN |
