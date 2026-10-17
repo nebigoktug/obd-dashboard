@@ -294,7 +294,10 @@ class SettingsActivity : Activity() {
         }
         note("Rota, dönüşler ve adres arama Yandex'ten gelir; ayrı bir navigasyon uygulaması gerekmez.")
         header("Medya")
-        add(ui.item("Bildirim erişimi", "Çalan müziği göstermek ve kontrol etmek için gerekli. Bildirim içeriği okunmaz, telefondan dışarı gönderilmez",
+        note("Müzik kontrolü izin istemez. Şarkı adı ve kapak, izin vermeden YouTube Music gibi kabul eden uygulamalardan gelir; " +
+            "Spotify'da Ayarlar > \"Device Broadcast Status\" açılırsa Spotify'dan da.")
+        add(ui.item("Şarkı adı her uygulamada (isteğe bağlı)", "Bildirim erişimi verirsen bütün uygulamaların çalanı görünür. " +
+            "Uygulama bildirimleri okumaz ve telefondan dışarı bir şey göndermez; istemezsen verme",
             { if (NaviListener.hasAccess(this)) "Verildi ✓" else "Verilmedi" }) {
             startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
         })

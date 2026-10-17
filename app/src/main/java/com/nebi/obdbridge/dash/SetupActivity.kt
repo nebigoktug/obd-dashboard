@@ -6,14 +6,12 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
-import android.provider.Settings
 import android.view.Gravity
 import android.view.View
 import android.view.WindowInsets
 import android.view.WindowInsetsController
 import android.widget.LinearLayout
 import android.widget.ScrollView
-import com.nebi.obdbridge.NaviListener
 
 /**
  * İlk açılış sihirbazı (forum sürümü): hoş geldin + sorumluluk → adaptör → araç → isteğe bağlı izinler → bitti.
@@ -135,12 +133,8 @@ class SetupActivity : Activity() {
     }
 
     private fun permissions() {
-        title("İsteğe bağlı izinler", "İkisi de zorunlu değil; vermezsen ilgili özellik çalışmaz, gerisi çalışır.")
-        val notif = NaviListener.hasAccess(this)
+        title("İsteğe bağlı izin", "Zorunlu değil; vermezsen navigasyon ve GPS hızı çalışmaz, gerisi çalışır.")
         val loc = checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
-        permRow("Bildirim erişimi", "Çalan müziği göstermek ve kontrol etmek için. Bildirim içeriği okunmaz, telefondan dışarı gönderilmez.", notif) {
-            startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
-        }
         permRow("Konum", "Navigasyon, adaptör bağlı değilken GPS hızı, hız göstergesi sapmasını ölçmek ve dış hava sıcaklığı için.", loc) {
             requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION), 2)
         }
