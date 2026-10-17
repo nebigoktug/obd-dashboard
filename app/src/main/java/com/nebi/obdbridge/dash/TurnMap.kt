@@ -267,21 +267,3 @@ private class LibreBackend(ctx: Context, light: Boolean) : MapBackend() {
         const val STYLE_LIGHT = "https://tiles.openfreemap.org/styles/positron"
     }
 }
-
-/** Halka göstergesi ve üstünde (ortalanmış kare) dönüş haritası: harita görünürken halka saklanır. */
-@SuppressLint("ViewConstructor")
-class RingSlot(ctx: Context, private val ring: View, private val map: TurnMapView) : FrameLayout(ctx) {
-    init {
-        addView(ring, LayoutParams(-1, -1))
-        addView(map, LayoutParams(1, 1))
-    }
-
-    override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
-        super.onLayout(changed, l, t, r, b)
-        val w = r - l; val h = b - t
-        val d = (minOf(w, h) * 0.94f).toInt()
-        if (map.measuredWidth != d) map.measure(MeasureSpec.makeMeasureSpec(d, MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(d, MeasureSpec.EXACTLY))
-        val x = (w - d) / 2; val y = (h - d) / 2
-        map.layout(x, y, x + d, y + d)
-    }
-}

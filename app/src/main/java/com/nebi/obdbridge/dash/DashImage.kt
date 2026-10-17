@@ -284,7 +284,11 @@ class DashImageDials(ctx: Context, spec: WidgetSpec, private val th: ImageTheme 
         // Orta: büyük rakam (ya da vites) ve altında birim
         val cd = if (centerKey != null) frame[centerKey] else d
         val big = when {
-            cd == null || cd.missing -> if (centerKey == "gear") "N" else "—"
+            // Vites bilinmiyorsa "N" yalnız motor çalışırken araç dururken (gerçekten boşta); sürerken ve bağlantı yokken "–"
+            cd == null || cd.missing -> {
+                val sp = frame["speed"]
+                if (centerKey == "gear" && d != null && !d.missing && sp != null && !sp.missing && sp.value < 3) "N" else if (centerKey == "gear") "–" else "—"
+            }
             else -> cd.text
         }
         bigP.textSize = DashImageGeom.BIG_SIZE * s; bigP.color = Color.WHITE; bigP.alpha = alphaFor(cd)

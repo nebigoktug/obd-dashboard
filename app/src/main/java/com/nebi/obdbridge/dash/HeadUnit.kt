@@ -359,14 +359,21 @@ class MediaCard(ctx: Context, private val hub: MediaHub) : TouchCard(ctx) {
             val np = Glass.text(pc, "r5", side * 0.45f, Glass.DIM); np.textAlign = Paint.Align.CENTER
             c.drawText("♪", art.centerX(), art.centerY() + side * 0.16f, np)
         }
-        hits += art to { hub.openApp() }
+        // İzin yokken kart izin ekranına götürür (uzun yazı kartta kesiliyordu)
+        val openAccess = { context.startActivity(android.content.Intent(android.provider.Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
+            .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)) }
+        hits += art to if (hub.hasAccess) { -> hub.openApp(); Unit } else openAccess
 
         // Başlık, sanatçı, kaynak uygulama
         val tx = art.right + pad
         val tw = w - tx - pad
-        val title = md?.getString(MediaMetadata.METADATA_KEY_TITLE)
-            ?: if (!hub.hasAccess) "Bildirim erişimi gerekli" else if (hub.lastPackage != null) "Çalan yok" else "Müzik açılmadı"
-        val artist = md?.getString(MediaMetadata.METADATA_KEY_ARTIST) ?: md?.getString(MediaMetadata.METADATA_KEY_ALBUM_ARTIST) ?: ""
+        if (!hub.hasAccess) hits += RectF(tx, art.top, w - pad, art.bottom) to openAccess
+        // Bazı uygulamalar başlığı null değil boş verir: o zaman da yedek yazı
+        val title = md?.getString(MediaMetadata.METADATA_KEY_TITLE)?.takeIf { it.isNotBlank() }
+            ?: if (!hub.hasAccess) "Müzik izni yok" else if (md != null || hub.lastPackage != null) "Çalan yok" else "Müzik açılmadı"
+        val artist = md?.getString(MediaMetadata.METADATA_KEY_ARTIST)?.takeIf { it.isNotBlank() }
+            ?: md?.getString(MediaMetadata.METADATA_KEY_ALBUM_ARTIST)?.takeIf { it.isNotBlank() }
+            ?: if (!hub.hasAccess) "Dokun, izin ver" else if (md != null) "▶ ile devam et" else ""
         val tp = Glass.text(pc, "r6", h * 0.15f)
         c.drawText(Glass.ellipsize(title, tp, tw), tx, art.top + h * 0.17f, tp)
         val ap = Glass.text(pc, "r7", h * 0.11f, Glass.DIM)

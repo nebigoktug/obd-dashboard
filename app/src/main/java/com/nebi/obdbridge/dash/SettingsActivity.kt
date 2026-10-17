@@ -203,7 +203,16 @@ class SettingsActivity : Activity() {
                 .setNegativeButton("Tamam", null).show()
         })
         add(ui.toggle("Açılışta otomatik bağlan", "Uygulama açılınca seçili adaptöre kendiliğinden bağlanır",
-            { dash.getBoolean("autoconnect", false) }) { dash.edit().putBoolean("autoconnect", it).apply() })
+            { dash.getBoolean("autoconnect", true) }) { dash.edit().putBoolean("autoconnect", it).apply() })
+        // Bazı telefonlar (HyperOS gibi) arka plandaki bağlantı servisini kapatıyor; muafiyet bunu önler
+        val pm = getSystemService(POWER_SERVICE) as android.os.PowerManager
+        add(ui.item("Arka planda kapanmasın", "Telefon pil tasarrufu için bağlantıyı kesmesin (ekran kapanınca ya da başka uygulamadayken)",
+            { if (pm.isIgnoringBatteryOptimizations(packageName)) "Verildi ✓" else "Verilmedi" }) {
+            @android.annotation.SuppressLint("BatteryLife")
+            val i = android.content.Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                android.net.Uri.parse("package:$packageName"))
+            runCatching { startActivity(i) }
+        })
     }
 
     private fun vehicle() {
@@ -393,6 +402,7 @@ class SettingsActivity : Activity() {
         t(AlertKind.CHARGE_HIGH, "Şarj voltajı yüksek", "14,9 V üstü (voltaj regülatörü)")
         t(AlertKind.BATTERY_WEAK, "Akü zayıf", "Kontak açık, motor kapalıyken 12,2 V altı")
         t(AlertKind.COLD, "Motor soğuk", "Motor ısınmadan yüksek devire çıkınca uyarır")
+        t(AlertKind.MIL, "Arıza lambası", "Motor arıza lambası yanınca ana ekranda gösterir; dokununca arıza kodları açılır")
         // Yalnız ESP32 kutusuyla (Volvo P1 hattı dinlenirken) çalışırlar
         t(AlertKind.DOOR_OPEN, "Kapı açık", "Araç giderken sürücü kapısı açıksa (ESP32 kutusu, Volvo)")
         t(AlertKind.HANDBRAKE, "El freni çekili", "Araç giderken el freni çekiliyse (ESP32 kutusu, Volvo)")
@@ -409,9 +419,7 @@ class SettingsActivity : Activity() {
             { Conn.prefs(this).getBoolean(BridgeService.PREF_DRIVE_LOG, true) }) {
             Conn.prefs(this).edit().putBoolean(BridgeService.PREF_DRIVE_LOG, it).apply()
         })
-        add(ui.item("Sorun bildir", "Bağlantı özeti, uygulama logu ve son 3 sürüş kaydını tek .zip olarak gönder. Şasi no ve adaptör adresi gizlenir", null) { reportProblem() })
-        add(ui.item("Kayıtları paylaş", "Tüm sürüş kayıtlarını tek bir .zip olarak gönder (ör. hata bildirmek için)",
-            { "${dir.listFiles { f -> f.name.endsWith(".csv") }?.size ?: 0} kayıt" }) { shareLogs(dir) })
+        // Sorun bildir Hakkında'da; bütün kayıtları paylaşmak geliştirici bölümünde
         add(ui.item("Tüm kayıtları sil", null, null, danger = true) {
             confirm("Tüm sürüş kayıtları silinsin mi?", "Geçmiş sekmesi boşalır. Geri alınamaz.", "Sil") {
                 dir.listFiles()?.forEach { it.delete() }
@@ -550,6 +558,9 @@ class SettingsActivity : Activity() {
         add(ui.item("Teşhis ekranı", "Araç testi, gizli değer taraması, blok kaydı, ham TCP köprüsü, canlı ham değerler", null) {
             startActivity(Intent(this, com.nebi.obdbridge.MainActivity::class.java))
         })
+        val dir = java.io.File(getExternalFilesDir(null), "logs")
+        add(ui.item("Bütün sürüş kayıtlarını paylaş", "Ham kayıtlar tek .zip olarak (Sorun bildir yalnız son 3 sürüşü gönderir)",
+            { "${dir.listFiles { f -> f.name.endsWith(".csv") }?.size ?: 0} kayıt" }) { shareLogs(dir) })
 
         header("")
         add(ui.item("Geliştirici bölümünü gizle", "Yeniden açmak için Hakkında > Sürüm'e 7 kez dokunun", null) {
