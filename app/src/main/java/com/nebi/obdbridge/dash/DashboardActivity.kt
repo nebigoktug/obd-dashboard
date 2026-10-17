@@ -54,9 +54,6 @@ class DashboardActivity : Activity(), SensorEventListener {
     private val demoGears = GearEstimator.fromRatios(DemoSource.RATIOS.drop(1))
     private val widgets = ArrayList<DashWidget>()
     private val topBars = ArrayList<TopBar>()
-    private val brands = ArrayList<BrandLabel>()
-    private val roads = ArrayList<RoadView>()
-    private val navis = ArrayList<NaviView>()
     private val naviCards = ArrayList<NaviCard>()
     private val mediaCards = ArrayList<MediaCard>()
     private val weather by lazy { Weather(this) }
@@ -181,7 +178,7 @@ class DashboardActivity : Activity(), SensorEventListener {
         model.insights = insights.apply { load(prefs.getString("insights", null)) }
         applySpeedFactor()
         if (prefs.getBoolean("open_strip", false)) { prefs.edit().remove("open_strip").apply(); root.post { chooseStripSlot() } }
-        if (prefs.getBoolean("autoconnect", false) && !BridgeService.running && !prefs.getBoolean("demo", false)) Conn.start(this)
+        if (prefs.getBoolean("autoconnect", true) && !BridgeService.running && !prefs.getBoolean("demo", false)) Conn.start(this)
         Updates.checkDaily(this)
         setSource(pickSource())
         com.nebi.obdbridge.NaviListener.rebind(this)
@@ -260,9 +257,9 @@ class DashboardActivity : Activity(), SensorEventListener {
         root.removeAllViews()
         turnMaps.forEach { if (resumed) it.onPause(); it.onStop(); it.onDestroy() }
         turnMaps.clear()
-        widgets.clear(); topBars.clear(); brands.clear(); roads.clear(); navis.clear(); naviCards.clear(); mediaCards.clear(); pills.clear(); dialsList.clear()
+        widgets.clear(); topBars.clear(); naviCards.clear(); mediaCards.clear(); pills.clear(); dialsList.clear()
         val land = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
-        val imageMode = theme.image && land && tab == 0
+        val imageMode = tab == 0
         val pad = if (imageMode) 0 else dp(if (land) 14 else 10)
         panel = PanelLayout(this).apply { bone = land; theme = this@DashboardActivity.theme; shape = !imageMode }
         root.addView(panel, FrameLayout.LayoutParams(-1, -1).apply { setMargins(pad, pad, pad, pad) })
@@ -270,9 +267,7 @@ class DashboardActivity : Activity(), SensorEventListener {
         val content = when {
             tab == 1 -> detailView(land)
             tab == 2 -> historyView()
-            imageMode -> imageLayout()
-            land -> landscape()
-            else -> portrait()
+            else -> imageLayout()
         }
         panel.addView(content, FrameLayout.LayoutParams(-1, -1))
         keys = widgets.flatMap { it.keys() }.distinct()
@@ -359,25 +354,6 @@ class DashboardActivity : Activity(), SensorEventListener {
     }
     private var shownRoute: List<RouteTracker.LatLon>? = null
 
-    private fun landscape(): View {
-        // Referanstaki gibi: halkalar iki yanda, üst çubuk panelin üst ortasında, kutucuklar ortada
-        val frame = FrameLayout(this)
-        val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setPadding(dp(18), dp(14), dp(18), dp(10)) }
-        row.addView(ring(left), LinearLayout.LayoutParams(0, -1, 1f))
-        val mid = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(10), dp(44), dp(10), dp(8)) }
-        if (theme.premium) mid.addView(brand(), LinearLayout.LayoutParams(-1, dp(20)))
-        mid.addView(tileGrid(2, tiles.take(4)), LinearLayout.LayoutParams(-1, 0, 1f))
-        mid.addView(navi(), LinearLayout.LayoutParams(-1, dp(56)).apply { setMargins(dp(8), dp(4), dp(8), 0) })
-        if (theme.premium) mid.addView(road(), LinearLayout.LayoutParams(-1, dp(64)))
-        row.addView(mid, LinearLayout.LayoutParams(0, -1, 0.95f))
-        row.addView(RingSlot(this, ring(right), turnMap(android.graphics.Color.luminance(theme.bg) > 0.5f)), LinearLayout.LayoutParams(0, -1, 1f))
-        frame.addView(row, FrameLayout.LayoutParams(-1, -1))
-        val w = resources.displayMetrics.widthPixels
-        frame.addView(topBar(), FrameLayout.LayoutParams((w * 0.46).toInt(), dp(40), android.view.Gravity.TOP or android.view.Gravity.CENTER_HORIZONTAL)
-            .apply { topMargin = dp(6) })
-        return frame
-    }
-
     /**
      * Görsel teması = araç ekranı (HEADUNIT.md): referans resim, iki yanda halkalar; ortada nav ve medya kartları,
      * altta dört değerlik şerit. Üst çubuk resimdeki yerinde.
@@ -396,7 +372,10 @@ class DashboardActivity : Activity(), SensorEventListener {
         widgets += strip
         strip.setOnLongClickListener { chooseStripSlot(); true }
         lay.place(strip, DashImageGeom.STRIP)
-        lay.place(StatusPill(this).also { it.visibility = View.INVISIBLE; pills += it }, DashImageGeom.PILL)
+        lay.place(StatusPill(this).also { pill ->
+            pill.visibility = View.INVISIBLE; pills += pill
+            pill.setOnClickListener { onPillTap(pill.alerts) }
+        }, DashImageGeom.PILL)
         val (rx, ry) = DashImageGeom.RPM_C.let { it[0] to it[1] }
         val rr = imgTheme.bandOut
         lay.place(turnMap(imgTheme.light), android.graphics.RectF(rx - rr, ry - rr, rx + rr, ry + rr))
@@ -412,23 +391,7 @@ class DashboardActivity : Activity(), SensorEventListener {
             .show()
     }
 
-    /** Ev/İş konumu: "enlem, boylam" ya da harita bağlantısı yapıştırılır. */
-    private fun portrait(): View {
-        val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(12), dp(8), dp(12), dp(12)) }
-        col.addView(topBar(), LinearLayout.LayoutParams(-1, dp(40)))
-        if (theme.premium) col.addView(brand(), LinearLayout.LayoutParams(-1, dp(22)))
-        val rings = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        rings.addView(ring(left), LinearLayout.LayoutParams(0, -1, 1f))
-        rings.addView(RingSlot(this, ring(right), turnMap(android.graphics.Color.luminance(theme.bg) > 0.5f)), LinearLayout.LayoutParams(0, -1, 1f))
-        val ringH = (resources.displayMetrics.widthPixels - dp(44)) / 2
-        col.addView(rings, LinearLayout.LayoutParams(-1, ringH))
-        col.addView(navi(), LinearLayout.LayoutParams(-1, dp(64)).apply { setMargins(dp(8), dp(8), dp(8), 0) })
-        col.addView(tileGrid(2, tiles), LinearLayout.LayoutParams(-1, 0, 1f))
-        if (theme.premium) col.addView(road(), LinearLayout.LayoutParams(-1, dp(90)))
-        return col
-    }
-
-    /** Detay sekmesi: bütün sinyaller, yaşlarıyla (teşhis için; sürüşte değil). */
+    /** Detay sekmesi: kartlar, arıza şeridi ve bütün sinyaller (sürüşte değil). */
     private fun detailView(land: Boolean): View {
         val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(24), dp(8), dp(24), dp(8)) }
         col.addView(topBar(), LinearLayout.LayoutParams(-1, dp(36)))
@@ -444,7 +407,7 @@ class DashboardActivity : Activity(), SensorEventListener {
         SignalCatalog.ALL.chunked(perRow).forEach { chunk ->
             val r = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
             chunk.forEach { def ->
-                val tile = ValueTile(this, WidgetSpec("tile", def.key), showRate = true)
+                val tile = ValueTile(this, WidgetSpec("tile", def.key), showStale = true)
                 widgets += tile
                 r.addView(tile, LinearLayout.LayoutParams(0, dp(78), 1f).apply { setMargins(dp(6), dp(6), dp(6), dp(6)) })
             }
@@ -455,42 +418,30 @@ class DashboardActivity : Activity(), SensorEventListener {
         return col
     }
 
-    private fun ring(spec: WidgetSpec): View = RingGauge(this, spec).also { g ->
-        widgets += g
-        g.setOnLongClickListener { chooseSignal(spec) { build(); saveLayout() }; true }
-    }
-
-    private fun tileGrid(cols: Int, specs: List<WidgetSpec>): View {
-        val grid = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(0, dp(8), 0, 0) }
-        specs.chunked(cols).forEach { chunk ->
-            val r = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-            chunk.forEach { spec ->
-                val t = ValueTile(this, spec)
-                widgets += t
-                t.setOnLongClickListener { chooseSignal(spec) { build(); saveLayout() }; true }
-                r.addView(t, LinearLayout.LayoutParams(0, -1, 1f).apply { setMargins(dp(8), dp(4), dp(8), dp(4)) })
-            }
-            grid.addView(r, LinearLayout.LayoutParams(-1, 0, 1f))
-        }
-        return grid
-    }
-
-    private fun brand() = BrandLabel(this, prefs.getString("brand", "PREMIUM")!!.uppercase()).also { brands += it }
-    private fun road() = RoadView(this).also { roads += it }
-    private fun navi() = NaviView(this).also { it.theme = theme; navis += it }
-
     private fun topBar() = TopBar(this, listOf("Sürüş", "Detay", "Geçmiş", "Ayarlar")) { onTab(it) }.also {
         it.selected = tab
         // Sinyal çubuklarına dokun: bağlan / bağlantıyı kes
         it.onStatusTap = {
             when {
                 prefs.getBoolean("demo", false) -> toast("Demo modu açık (Ayarlar > Ekran)")
-                BridgeService.running -> { Conn.stop(this); toast("Bağlantı kesildi") }
+                BridgeService.running -> connectionDialog()
                 Conn.start(this) -> toast("Bağlanıyor…")
                 else -> startActivity(android.content.Intent(this, SettingsActivity::class.java))
             }
         }
         topBars += it
+    }
+
+    /** Bağlıyken çubuklara dokunmak hemen kesmesin (sürerken yanlış dokunuş): önce durumu göster */
+    private fun connectionDialog() {
+        val src = model.source
+        val msg = Conn.status(this) + if (src.online) " · saniyede %.1f değer".format(src.rpmHz).replace('.', ',') else ""
+        AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle("Bağlantı")
+            .setMessage(msg)
+            .setPositiveButton("Kapat", null)
+            .setNegativeButton("Bağlantıyı kes") { _, _ -> Conn.stop(this); toast("Bağlantı kesildi") }
+            .show()
     }
 
     private fun onTab(i: Int) {
@@ -513,10 +464,6 @@ class DashboardActivity : Activity(), SensorEventListener {
         }
         // Navigasyon: sıradaki manevra (rota beklenirken "hesaplanıyor")
         val ns = Nav.state() ?: if (Nav.active) NaviState("…", "Rota hesaplanıyor", null) else null
-        for (n in navis) {
-            if (n.state !== ns) { n.state = ns; n.invalidate() }
-            n.visibility = if (ns != null) View.VISIBLE else View.INVISIBLE
-        }
         for (n in naviCards) n.state = ns
         updateTurnMap()
         trip.update(model.raw("speed"))
@@ -595,7 +542,8 @@ class DashboardActivity : Activity(), SensorEventListener {
         weather.pressureHpa?.let { motion.baro.onWeather(it) }
         paceGps()
         put("baro", model.raw("baro")?.value)
-        for (p in pills) p.alerts = shown
+        val all = (shown + listOfNotNull(milAlert(), connAlert())).sortedBy { it.priority }
+        for (p in pills) p.alerts = all
         val note = if (!prefs.getBoolean("note_fuelcut", true)) null
             else when { insights.fuelCut -> "yakıt kesik"; insights.coasting && Vehicle.current.manual -> "boşta"; else -> null }
         for (d in dialsList) d.note = note
@@ -623,21 +571,8 @@ class DashboardActivity : Activity(), SensorEventListener {
     }
 
     private fun applyTheme(t: DashTheme) {
-        // premium'da marka yazısı ve yol süsü, görsel temada resim var: yerleşim değişir
-        val relayout = t.premium != theme.premium || t.image != theme.image
         theme = t
-        if (relayout && ::panel.isInitialized) { build(); return }
-        // Premium zemin: derin antrasit dairesel degrade (tam siyah değil)
-        // Ekranın ortasından köşelere doğru hafifçe koyulaşan geniş dairesel degrade
-        root.background = if (t.image) android.graphics.drawable.ColorDrawable(if (imgTheme.light) 0xFFE6E8EB.toInt() else 0xFF0E1013.toInt())
-        else if (t.premium) android.graphics.drawable.GradientDrawable().apply {
-            gradientType = android.graphics.drawable.GradientDrawable.RADIAL_GRADIENT
-            colors = intArrayOf(0xFF262B31.toInt(), t.bg, 0xFF0D0F12.toInt())
-            gradientRadius = maxOf(resources.displayMetrics.widthPixels, resources.displayMetrics.heightPixels) * 0.62f
-        } else android.graphics.drawable.ColorDrawable(t.bg)
-        brands.forEach { it.theme = t; it.invalidate() }
-        roads.forEach { it.theme = t; it.invalidate() }
-        navis.forEach { it.theme = t; it.invalidate() }
+        root.background = android.graphics.drawable.ColorDrawable(if (imgTheme.light) 0xFFE6E8EB.toInt() else 0xFF0E1013.toInt())
         if (::panel.isInitialized) panel.theme = t
         widgets.forEach { it.theme = t }
         topBars.forEach { it.theme = t }
@@ -764,6 +699,54 @@ class DashboardActivity : Activity(), SensorEventListener {
             "Güç (anlık)" to (p.kw?.let { "%.0f kW · %.0f hp".format(it, it * 1.341) } ?: "—"),
             "Güç (en yüksek)" to (if (p.peakKw > 0) "%.0f kW · %.0f hp".format(p.peakKw, p.peakKw * 1.341) else "—"),
         )
+    }
+
+    /** Arıza lambası yanıyorsa (son 2 dk içinde okunmuş 0101) */
+    private fun milAlert(): Alert? {
+        if (!prefs.getBoolean("alert_MIL", true)) return null
+        val mil = model.raw("mil")?.takeIf { System.currentTimeMillis() - it.ts < 120_000 }?.value ?: return null
+        if (mil == 0.0) return null
+        val n = model.raw("dtc_count")?.value?.toInt()?.takeIf { it > 0 }
+        return Alert(AlertKind.MIL, "Arıza lambası yanıyor" + (n?.let { " · $it kod" } ?: ""), Level.WARN, 0)
+    }
+
+    private var connText: String? = null
+    private var connAt = 0L
+
+    /** Araçtan veri gelmiyorsa nedenini hapta yaz (en düşük öncelik); saniyede bir hesaplanır */
+    private fun connAlert(): Alert? {
+        val now = System.currentTimeMillis()
+        if (now - connAt > 1000) {
+            connAt = now
+            connText = if (model.source.online || prefs.getBoolean("demo", false)) null
+            else when (val st = Conn.status(this)) {
+                "Canlı" -> null
+                "Bağlı değil" -> "Adaptör bağlı değil · bağlanmak için dokun"
+                "Adaptör seçilmedi" -> "Adaptör seçilmedi · seçmek için dokun"
+                else -> st
+            }
+        }
+        return connText?.let { Alert(AlertKind.CONN, it, Level.NORMAL, 9) }
+    }
+
+    /** Hapa dokununca: tek uyarıysa doğrudan işi yap, çoksa hepsini listele */
+    private fun onPillTap(alerts: List<Alert>) {
+        fun act(a: Alert) = when (a.kind) {
+            AlertKind.MIL -> startActivity(android.content.Intent(this, DtcActivity::class.java))
+            AlertKind.CONN -> connectOrSettings()
+            else -> {}
+        }
+        if (alerts.size == 1 && alerts[0].kind in setOf(AlertKind.MIL, AlertKind.CONN)) { act(alerts[0]); return }
+        AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle("Uyarılar")
+            .setItems(alerts.map { it.text }.toTypedArray()) { _, i -> act(alerts[i]) }
+            .setNegativeButton("Kapat", null)
+            .show()
+    }
+
+    private fun connectOrSettings() {
+        if (!BridgeService.running && Conn.start(this)) toast("Bağlanıyor…")
+        else startActivity(android.content.Intent(this, SettingsActivity::class.java))
     }
 
     /** Detay'daki arıza şeridi: canlı 0101 (lamba, sayı) ve son okuma; dokununca DtcActivity. (metin, uyarı mı) */

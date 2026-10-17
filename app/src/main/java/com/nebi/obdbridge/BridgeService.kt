@@ -180,7 +180,7 @@ class BridgeService : Service() {
                 // Sadece loopback: telefon dışından erişilemez
                 server = ServerSocket(PORT, 1, InetAddress.getByName("127.0.0.1")).apply { reuseAddress = true }
             } catch (e: IOException) {
-                setStatus("Hata: $PORT portu kullanımda")
+                setStatus("Başlatılamadı · uygulamayı kapatıp yeniden aç")
                 stopSelf()
                 return START_NOT_STICKY
             }
@@ -284,7 +284,7 @@ class BridgeService : Service() {
         val buf = ByteArray(1024)
         val what = if (spec.type == LinkType.WIFI) "Wi-Fi" else "Bluetooth"
         while (active) {
-            setStatus("$what adaptörüne bağlanıyor")
+            setStatus("Adaptöre bağlanıyor…")
             try {
                 val link = connect(spec, device)
                 bt = link
@@ -305,7 +305,7 @@ class BridgeService : Service() {
                 }
             } catch (e: Exception) {
                 Log.w(TAG, "$what hatası: ${e.message}")
-                if (active) setStatus("$what: ${e.message ?: "bağlanılamadı"}")
+                if (active) setStatus("Adaptöre ulaşılamadı · takılı ve kontak açık mı?")
             }
             // Bağlantı koptu: motoru durdur, istemciyi de kapat ki karşı taraf durumu anlasın
             engine?.stop(); engine = null; current = null
@@ -313,7 +313,7 @@ class BridgeService : Service() {
             client?.let { dropClient(it) }
             if (!active) break
             try { Thread.sleep(RETRY_MS) } catch (_: InterruptedException) { break }
-            setStatus("$what bağlantısı yeniden deneniyor")
+            setStatus("Adaptöre yeniden bağlanıyor…")
         }
     }
 
@@ -476,10 +476,10 @@ class BridgeService : Service() {
 
     /** Bildirim/ekran metni; yalnız durum değişince güncellenir (Hz her saniye değişir, bildirim titremesin). */
     private fun engineStatusText(s: EngineStatus): String? = when (s.state) {
-        EngineState.INIT -> "BT bağlı · OBD hazırlanıyor"
+        EngineState.INIT -> "Adaptör bağlı · araç hazırlanıyor"
         EngineState.SEARCHING -> "Araç aranıyor"
         EngineState.LIVE -> "Canlı"
-        EngineState.NO_ECU -> "Araç cevap vermiyor (kontak kapalı?)"
+        EngineState.NO_ECU -> "Araç cevap vermiyor · kontak açık mı?"
         EngineState.PROBING -> s.msg ?: "Araç testi"
         EngineState.PAUSED, EngineState.STOPPED -> null
     }
@@ -500,7 +500,7 @@ class BridgeService : Service() {
             client?.let { dropClient(it) }  // tek istemci: yeni gelen eskisinin yerini alır
             engine?.pause()  // süren OBD isteği bitsin, adaptör ham istemciye kalsın
             client = s
-            setStatus("TCP istemcisi bağlı")
+            setStatus("Başka bir uygulama adaptörü kullanıyor")
             Thread({ tcpToBt(s, sock) }, "tcp->bt").start()
         }
     }

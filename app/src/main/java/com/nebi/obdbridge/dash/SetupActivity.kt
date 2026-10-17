@@ -82,9 +82,9 @@ class SetupActivity : Activity() {
 
     private fun welcome() {
         title("OBD Dashboard'a hoş geldin",
-            "Telefonunu araç göstergesine çevirir: hız, devir, vites, turbo, sıcaklık; yanında navigasyon oku ve müzik kontrolü.")
+            "Telefonunu araç göstergesine çevirir: hız, devir, vites, turbo, sıcaklık; yanında navigasyon ve müzik kontrolü.")
         label("Gerekenler")
-        body.addView(ui.text("• Bluetooth ELM327 OBD adaptörü (Bluetooth Classic)\n• 2001 sonrası benzinli ya da 2004 sonrası dizel, OBD-II'li araç\n" +
+        body.addView(ui.text("• ELM327 OBD adaptörü (Bluetooth ya da Wi-Fi)\n• 2001 sonrası benzinli ya da 2004 sonrası dizel, OBD-II'li araç\n" +
             "• Telefon tutucusu (yatay)", 15f))
         label("Önemli")
         body.addView(ui.text("Sürüş sırasında uygulamayla uğraşma; ayarları araç dururken yap. Yakıt ve uyarılar tahmindir, " +
@@ -162,7 +162,7 @@ class SetupActivity : Activity() {
         title("Hazır", if (demo) "Demo modunda başlıyor: sahte sürüş verisi. Adaptörü sonra Ayarlar > Bağlantı'dan seçebilirsin."
             else "Kontağı aç ve Bağlan'a bas. Uygulama motoru bulunca göstergeler canlanır (ilk bağlantı 10–20 sn sürebilir).")
         label("İpuçları")
-        body.addView(ui.text("• Üst çubuktaki sinyal çubuklarına dokununca bağlanır / bağlantıyı keser.\n" +
+        body.addView(ui.text("• Uygulama her açılışta adaptöre kendiliğinden bağlanır. Bağlantı durumu için üst çubuktaki sinyal çubuklarına dokun.\n" +
             "• Alttaki değer şeridine uzun basınca gösterilen değerleri değiştirebilirsin.\n" +
             "• Vites, ilk birkaç dakikalık sürüşte öğrenilir; o zamana kadar \"–\" görünebilir.\n" +
             "• Yakıt tüketimi tahminidir; Ayarlar > Yakıt'tan depo dolumu girerek düzeltilir.", 15f, Pal.DIM))
