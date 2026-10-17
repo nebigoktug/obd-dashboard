@@ -30,7 +30,7 @@
 #include "secrets.h"
 #include "panel_html.h"
 
-#define FW_VERSION "2026-10-17"
+#define FW_VERSION "2026-10-17b"
 
 static const gpio_num_t CAN_TX = GPIO_NUM_5;
 static const gpio_num_t CAN_RX = GPIO_NUM_4;
@@ -766,7 +766,8 @@ static void handleUploadChunk() {
   } else if (u.status == UPLOAD_FILE_WRITE) {
     if (Update.write(u.buf, u.currentSize) != u.currentSize) otaErr = Update.errorString();
   } else if (u.status == UPLOAD_FILE_END) {
-    if (Update.end(true)) { otaOk = true; Serial.printf("OTA tamam: %u bayt\n", u.totalSize); }
+    // Cevap istemciye ulaşmasa da (bağlantı koparsa) yeni yazılım devreye girsin
+    if (Update.end(true)) { otaOk = true; restartAt = millis() + 3000; Serial.printf("OTA tamam: %u bayt\n", u.totalSize); }
     else otaErr = Update.errorString();
   } else if (u.status == UPLOAD_FILE_ABORTED) {
     Update.abort(); otaErr = "bağlantı koptu";
