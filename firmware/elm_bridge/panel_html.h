@@ -75,6 +75,13 @@ progress{width:100%;height:10px;margin-top:12px}
 <div class="note">Araç dururken yükle. Yükleme sırasında uygulamanın bağlantısı birkaç saniye takılabilir. Dosya bozuksa kutu eski yazılımla açılmaya devam eder.</div>
 </section>
 <section id="sistem">
+<h3>Konfor hattında gönderme</h3><table>
+<tr><td>Durum</td><td id="mss">…</td></tr>
+<tr><td>Gönderilen çerçeve</td><td id="msn">…</td></tr>
+</table>
+<div class="note">Kapalıyken kutu konfor hattını yalnız dinler (hatta hiçbir şey göndermez). Açınca uygulama o hattaki modüllere istek gönderebilir. Yalnız araç dururken aç; 30 dakika sonra ve her yeniden başlatmada kendiliğinden kapanır.</div>
+<button class="btn" id="mson">Aç (30 dk)</button> <button class="btn sec" id="msoff">Kapat</button>
+<div class="msg" id="msmsg"></div>
 <h3>Yeniden başlat</h3>
 <div class="note">Kutu yaklaşık 5 saniyede geri gelir, uygulama kendiliğinden yeniden bağlanır.</div>
 <button class="btn red" id="rb">Yeniden başlat</button>
@@ -96,7 +103,9 @@ async function tick(){
     const r=await fetch('/api/status');if(!r.ok)throw 0;const s=await r.json();
     $('hv').textContent='sürüm '+s.ver;
     set('hs',s.hsRate?dot(s.hsFps>0?'g':'y')+s.hsRate+' kbit/s, '+s.hsMode+', '+s.hsFps+' çerçeve/sn':dot('y')+'hız aranıyor (araç kapalı olabilir)');
-    set('ms',!s.msOk?dot('r')+'MCP2515 yok':s.msRate?dot(s.msFps>0?'g':'y')+s.msRate+' kbit/s, dinleme, '+s.msFps+' çerçeve/sn'+(s.msOverflow?' · taşma '+s.msOverflow:''):dot('y')+'hız aranıyor');
+    set('mss',s.msSend?dot('y')+'AÇIK · '+Math.ceil(s.msSendLeft/60)+' dk kaldı':dot('g')+'kapalı (yalnız dinleme)');
+    set('msn',s.msSent);
+    set('ms',!s.msOk?dot('r')+'MCP2515 yok':s.msRate?dot(s.msFps>0?'g':'y')+s.msRate+' kbit/s, '+(s.msSend?'GÖNDERME AÇIK':'dinleme')+', '+s.msFps+' çerçeve/sn'+(s.msOverflow?' · taşma '+s.msOverflow:''):dot('y')+'hız aranıyor');
     set('elm',s.elm?dot('g')+'bağlı':dot('')+'bağlı değil');
     set('raw',s.raw?dot('g')+'bağlı':dot('')+'bağlı değil');
     set('drop',(s.dropped?dot('y'):dot('g'))+s.dropped+' / '+s.queue);
@@ -119,6 +128,8 @@ $('wsave').onclick=()=>{
   post('/api/wifi',f,'wmsg');$('pass').value='';$('appass').value='';
 };
 $('wreset').onclick=()=>{if(confirm('Wi-Fi ayarları kutunun ilk yüklendiği haline dönsün mü?'))post('/api/wifi-reset',null,'wmsg')};
+$('mson').onclick=()=>{if(confirm('Konfor hattında gönderme açılsın mı? Araç duruyor olmalı.'))post('/api/ms-send',new URLSearchParams({on:'1'}),'msmsg')};
+$('msoff').onclick=()=>post('/api/ms-send',new URLSearchParams({on:'0'}),'msmsg');
 $('rb').onclick=()=>{if(confirm('Kutu yeniden başlatılsın mı?'))post('/api/restart',null,'smsg')};
 $('up').onclick=()=>{
   const f=$('fw').files[0];if(!f){$('umsg').textContent='Önce .bin dosyasını seç';return}

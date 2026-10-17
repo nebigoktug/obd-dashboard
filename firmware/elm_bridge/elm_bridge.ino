@@ -10,7 +10,9 @@
 //
 // GÜVENLİK: TWAI dinleme kipinde başlar (hatta hiçbir şey göndermez, ACK bile vermez). Yalnız uygulama bir
 // OBD isteği gönderdiğinde ve hat hızı kesin bilindiğinde normal kipe geçer. Yanlış hızda asla gönderilmez.
-// MCP2515 (konfor hattı) her zaman dinleme kipinde kalır: bu yazılım o hatta hiçbir şey göndermez.
+// MCP2515 (konfor hattı) varsayılan olarak dinleme kipindedir. Güvenli denemeler için (kullanıcı onayı 2026-10-17)
+// yönetim sayfasından "konfor hattında gönderme" açılabilir: hat hızı bilinmeden açılmaz, her açılışta kapalıdır,
+// 30 dk sonra kendiliğinden kapanır. Açıkken uygulama ATBUSM ile o hatta istek gönderebilir.
 //
 // Yönetim sayfası (port 80, şifre = OBD-ESP32 ağ şifresi): durum, Wi-Fi ayarları, yazılım yükleme (OTA), yeniden
 // başlatma. Bölüm düzeni "Minimal SPIFFS (OTA ile 1.9MB)": derlerken PartitionScheme=min_spiffs verilmeli.
@@ -47,6 +49,7 @@ static volatile int bitrate = 0;          // kilitlenen hız (kbit/s), 0 = henü
 static volatile bool seenExt = false, seenStd = false;
 static volatile bool normalMode = false;
 static volatile uint32_t rawDropped = 0, lastFrameMs = 0, hsFrames = 0;
+static volatile int elmBus = 0;           // ELM isteklerinin gittiği hat: 0 motor, 1 konfor (ATBUSM)
 static SemaphoreHandle_t canLock;
 
 static bool installCan(int kbps, bool normal) {
@@ -82,7 +85,7 @@ static void canTask(void *) {
       if (m.extd) seenExt = true; else seenStd = true;
       lastFrameMs = f.ms; hsFrames++;
       if (xQueueSend(rawQ, &f, 0) != pdTRUE) rawDropped++;
-      if (elmListen == 2 || (elmListen == 1 && isResponse(f, reqExt))) xQueueSend(elmQ, &f, 0);
+      if (elmBus == 0 && (elmListen == 2 || (elmListen == 1 && isResponse(f, reqExt)))) xQueueSend(elmQ, &f, 0);
     } else {
       // Kilitlenmeden önce 4 sn mesaj yoksa sıradaki hız. Kilitlendikten sonra hız değişmez (araç kapanınca da).
       if (!bitrate && millis() - tryStart > 4000) {
@@ -116,7 +119,11 @@ static const int MCP_CS = 27;
 static SPISettings mcpSpi(500000, MSBFIRST, SPI_MODE0);   // BSS138 dönüştürücüler yavaş, masa testi bu hızda geçti
 static volatile int msBitrate = 0;        // konfor hattı hızı, 0 = henüz yok
 static volatile bool mcpOk = false;
-static volatile uint32_t msFrames = 0, msOverflow = 0;
+static volatile uint32_t msFrames = 0, msOverflow = 0, msSent = 0;
+static SemaphoreHandle_t mcpLock;         // SPI'ye aynı anda tek görev: alım görevi ve gönderme/kip değişimi
+static volatile bool msSend = false;      // konfor hattında gönderme açık mı (yönetim sayfası)
+static volatile uint32_t msSendUntil = 0;
+static const uint32_t MS_SEND_MS = 30UL * 60 * 1000;
 
 static uint8_t mcpRd(uint8_t a) {
   SPI.beginTransaction(mcpSpi); digitalWrite(MCP_CS, LOW);
@@ -164,6 +171,47 @@ static void mcpReadBuf(uint8_t instr) {    // 0x90 RXB0, 0x94 RXB1; CS kalkınca
   memcpy(f.d, r + 5, 8);
   msFrames++;
   if (xQueueSend(rawQ, &f, 0) != pdTRUE) rawDropped++;
+  if (elmBus == 1 && (elmListen == 2 || (elmListen == 1 && isResponse(f, reqExt)))) xQueueSend(elmQ, &f, 0);
+}
+
+/** Konfor hattı gönderme anahtarı. Açmak için hat hızı bilinmeli; kapatınca hemen dinleme kipine döner. */
+static bool setMsSend(bool on) {
+  if (on && (!mcpOk || !msBitrate)) return false;
+  xSemaphoreTake(mcpLock, portMAX_DELAY);
+  bool ok = mcpMode(on ? 0x00 : 0x60);
+  if (!ok && on) mcpMode(0x60);
+  xSemaphoreGive(mcpLock);
+  msSend = on && ok; msSendUntil = msSend ? millis() + MS_SEND_MS : 0;
+  Serial.printf("konfor hattinda gonderme %s\n", msSend ? "ACIK" : "kapali");
+  return ok;
+}
+
+/** TXB0 ile tek çerçeve; yalnız anahtar açıkken */
+static bool mcpSend(uint32_t id, bool ext, const uint8_t *d, uint8_t dlc) {
+  if (!msSend) return false;
+  uint8_t h[5];
+  if (ext) { h[0] = id >> 21; h[1] = ((id >> 13) & 0xE0) | 0x08 | ((id >> 16) & 0x03); h[2] = id >> 8; h[3] = id; }
+  else { h[0] = id >> 3; h[1] = (id & 7) << 5; h[2] = 0; h[3] = 0; }
+  h[4] = dlc & 0x0F;
+  xSemaphoreTake(mcpLock, portMAX_DELAY);
+  bool ok = false;
+  if (!(mcpRd(0x30) & 0x08)) {                       // TXB0 boş
+    SPI.beginTransaction(mcpSpi); digitalWrite(MCP_CS, LOW);
+    SPI.transfer(0x40);                              // LOAD TX BUFFER, TXB0SIDH'den başlayarak
+    for (int i = 0; i < 5; i++) SPI.transfer(h[i]);
+    for (int i = 0; i < dlc && i < 8; i++) SPI.transfer(d[i]);
+    digitalWrite(MCP_CS, HIGH); SPI.endTransaction();
+    mcpCmd(0x81);                                    // RTS TXB0
+    for (int i = 0; i < 50; i++) {                   // en fazla ~50 ms: gitti mi
+      uint8_t c = mcpRd(0x30);
+      if (!(c & 0x08)) { ok = !(c & 0x30); break; }  // TXREQ düştü; ABTF/MLOA yoksa başarılı
+      xSemaphoreGive(mcpLock); vTaskDelay(1); xSemaphoreTake(mcpLock, portMAX_DELAY);
+    }
+    if (!ok) mcpWr(0x30, 0x00);                      // gitmediyse isteği geri çek, hatta tekrar tekrar denemesin
+  }
+  xSemaphoreGive(mcpLock);
+  if (ok) msSent++;
+  return ok;
 }
 
 /** Konfor hattı: hız arama (125 → 250 → 500, dinleme kipinde) ve alım. Kart yoksa görev biter. */
@@ -177,11 +225,13 @@ static void mcpTask(void *) {
   mcpOk = mcpSetup(RATES[idx]);
   uint32_t tryStart = millis();
   for (;;) {
+    xSemaphoreTake(mcpLock, portMAX_DELAY);
     uint8_t st = mcpCmd(0xA0);
     if (st & 0x03) {
       if (!msBitrate) msBitrate = RATES[idx];
       if (st & 0x01) mcpReadBuf(0x90);
       if (st & 0x02) mcpReadBuf(0x94);
+      xSemaphoreGive(mcpLock);
       continue;
     }
     // 1 ms uyku: 125 kbit/s'de en fazla ~1 çerçeve gelir, iki alım tamponu yeter
@@ -192,6 +242,7 @@ static void mcpTask(void *) {
       mcpOk = mcpSetup(RATES[idx]);
       tryStart = millis();
     }
+    xSemaphoreGive(mcpLock);
     vTaskDelay(1);
   }
 }
@@ -203,6 +254,7 @@ static bool canSend(uint32_t id, bool ext, const uint8_t *d, uint8_t dlc) {
 #ifdef SIM
   simEcu(id, ext, d, dlc); return true;
 #endif
+  if (elmBus == 1) return mcpSend(id, ext, d, dlc);
   twai_message_t m = {};
   m.identifier = id; m.extd = ext; m.data_length_code = dlc;
   memcpy(m.data, d, dlc);
@@ -247,10 +299,10 @@ static void pumpRaw() {
   static uint32_t lastStat = 0;              // kayıtta kayıp ölçülebilsin: 5 sn'de bir düşen çerçeve sayacı
   if (millis() - lastStat > 5000) {
     lastStat = millis();
-    n += snprintf(buf + n, sizeof buf - n, "# %lu dusen %lu kuyruk %u calisma %lu bellek %u rssi %d\n",
+    n += snprintf(buf + n, sizeof buf - n, "# %lu dusen %lu kuyruk %u calisma %lu bellek %u rssi %d konfor-gonder %d\n",
                   (unsigned long)lastStat, (unsigned long)rawDropped, (unsigned)uxQueueMessagesWaiting(rawQ),
                   (unsigned long)(lastStat / 1000), (unsigned)ESP.getFreeHeap(),
-                  WiFi.status() == WL_CONNECTED ? (int)WiFi.RSSI() : 0);
+                  WiFi.status() == WL_CONNECTED ? (int)WiFi.RSSI() : 0, (int)msSend);
   }
   if (n) rawClient.write((const uint8_t *)buf, n);
 }
@@ -267,6 +319,7 @@ static struct {
 } cfg;
 
 static void elmDefaults() {
+  elmBus = 0;
   cfg.echo = true; cfg.lf = true; cfg.spaces = true; cfg.headers = false; cfg.caf = true;
   cfg.proto = 0; cfg.txSet = false; cfg.prio = 0x18; cfg.craSet = false; cfg.cfSet = false; cfg.cf = 0; cfg.cm = 0;
   cfg.timeoutMs = 200;
@@ -366,7 +419,10 @@ static void obdRequest(String cmd) {
     while (!bitrate && millis() - t0 < 5000) delay(20);
     if (!bitrate) { line("UNABLE TO CONNECT"); return; }
   }
-  if (!ensureNormal()) { line("CAN ERROR"); return; }
+  if (elmBus == 1) {
+    if (!msBitrate) { line("UNABLE TO CONNECT"); return; }
+    if (!msSend) { line("BUS BLOCKED"); return; }    // konfor hattında gönderme kapalı (yönetim sayfası)
+  } else if (!ensureNormal()) { line("CAN ERROR"); return; }
 
   bool ext; uint32_t id = requestId(ext);
   uint8_t frame[8] = {0};
@@ -494,6 +550,9 @@ static void atCommand(String c) {      // c: "AT" sonrası, boşluksuz, büyük 
   if (c.startsWith("CM")) { cfg.cm = strtoul(c.substring(2).c_str(), nullptr, 16); cfg.cfSet = true; ok(); return; }
   if (c.startsWith("ST")) { uint32_t v = strtoul(c.substring(2).c_str(), nullptr, 16); cfg.timeoutMs = v ? v * 4 : 200; ok(); return; }
   if (c == "MA") { monitorAll(); return; }
+  // Bu kutuya özel: isteklerin gideceği hat. BUSH motor (pin 6/14), BUSM konfor (pin 3/11, gönderme anahtarı açıksa).
+  if (c == "BUSH" || c == "BUSM") { elmBus = c[3] == 'M'; ok(); return; }
+  if (c == "BUS") { line(elmBus ? "M" : "H"); return; }
   // Etkisiz ama kabul edilenler: uyarlamalı zamanlama, akış denetimi ayarları, protokol kapatma, bellek, vb.
   if (c.startsWith("AT") || c.startsWith("FC") || c == "PC" || c.startsWith("M") || c.startsWith("AR") ||
       c.startsWith("CFC") || c.startsWith("D") || c.startsWith("V") || c.startsWith("R")) { ok(); return; }
@@ -644,6 +703,8 @@ static void handleStatus() {
   j += ",\"hsRate\":" + String(bitrate) + ",\"hsMode\":\"" + String(normalMode ? "normal" : "dinleme") + "\"";
   j += ",\"hsFps\":" + String(hsFps, 0) + ",\"hsTotal\":" + String(hsFrames);
   j += ",\"msOk\":" + String(mcpOk ? "true" : "false") + ",\"msRate\":" + String(msBitrate);
+  j += ",\"msSend\":" + String(msSend ? "true" : "false") + ",\"msSendLeft\":" + String(msSend ? (msSendUntil - now) / 1000 : 0);
+  j += ",\"msSent\":" + String(msSent);
   j += ",\"msFps\":" + String(msFps, 0) + ",\"msTotal\":" + String(msFrames) + ",\"msOverflow\":" + String(msOverflow);
   j += ",\"elm\":" + String(elmClient.connected() ? "true" : "false") + ",\"raw\":" + String(rawClient.connected() ? "true" : "false");
   j += ",\"dropped\":" + String(rawDropped) + ",\"queue\":" + String(uxQueueMessagesWaiting(rawQ));
@@ -669,6 +730,13 @@ static void handleWifiReset() {
   if (!authed()) return;
   prefs.begin("wifi", false); prefs.clear(); prefs.end();
   web.send(200, "text/plain; charset=utf-8", "Fabrika Wi-Fi ayarlarına dönüldü. Yeniden başlatınca geçerli olur.");
+}
+
+static void handleMsSend() {
+  if (!authed()) return;
+  bool on = web.arg("on") == "1";
+  if (!setMsSend(on)) { web.send(409, "text/plain; charset=utf-8", "Açılamadı: konfor hattının hızı henüz bilinmiyor (araç kapalı olabilir)"); return; }
+  web.send(200, "text/plain; charset=utf-8", on ? "Konfor hattında gönderme AÇIK (30 dk sonra kendiliğinden kapanır)" : "Kapalı: yalnız dinleme");
 }
 
 static void handleRestart() {
@@ -711,6 +779,7 @@ static void startWeb() {
   web.on("/api/wifi", HTTP_POST, handleWifi);
   web.on("/api/wifi-reset", HTTP_POST, handleWifiReset);
   web.on("/api/restart", HTTP_POST, handleRestart);
+  web.on("/api/ms-send", HTTP_POST, handleMsSend);
   web.on("/update", HTTP_POST, handleUploadDone, handleUploadChunk);
   web.onNotFound([] { web.send(404, "text/plain", "yok"); });
   web.begin();
@@ -722,6 +791,7 @@ void setup() {
   rawQ = xQueueCreate(3072, sizeof(Frame));   // ~3 sn: telefonun erişim noktasındaki 1–1.5 sn Wi-Fi takılmalarında çerçeve düşmesin
   elmQ = xQueueCreate(256, sizeof(Frame));
   canLock = xSemaphoreCreateMutex();
+  mcpLock = xSemaphoreCreateMutex();
   elmDefaults();
   startWifi();
   startWeb();
@@ -741,6 +811,7 @@ void loop() {
   pumpElm();
   web.handleClient();
   if (restartAt && (int32_t)(millis() - restartAt) >= 0) ESP.restart();
+  if (msSend && (int32_t)(millis() - msSendUntil) >= 0) setMsSend(false);   // süre doldu
 
   // Erişim noktası kopunca yeniden dene; ama kendi ağımıza bağlı biri varsa tarama yapma (onu bozar)
   static uint32_t lastTry = 0, lastLog = 0, lastLed = 0;
