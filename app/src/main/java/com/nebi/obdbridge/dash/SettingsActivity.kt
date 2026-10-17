@@ -297,7 +297,7 @@ class SettingsActivity : Activity() {
         note("Müzik kontrolü izin istemez. Şarkı adı ve kapak, izin vermeden YouTube Music gibi kabul eden uygulamalardan gelir; " +
             "Spotify'da Ayarlar > \"Device Broadcast Status\" açılırsa Spotify'dan da.")
         add(ui.item("Şarkı adı her uygulamada (isteğe bağlı)", "Bildirim erişimi verirsen bütün uygulamaların çalanı görünür. " +
-            "Uygulama bildirimleri okumaz ve telefondan dışarı bir şey göndermez; istemezsen verme",
+            "Uygulama hiçbir bildirimi almaz (Android 13+ izin sayfasında bütün bildirim türleri kapalı görünür), yalnız çalan müziği görür; istemezsen verme",
             { if (NaviListener.hasAccess(this)) "Verildi ✓" else "Verilmedi" }) {
             startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
         })
