@@ -72,6 +72,14 @@
             tools:ignore="DiscouragedApi,LockedOrientationActivity"
             android:theme="@android:style/Theme.DeviceDefault.NoActionBar.Fullscreen" />
 
+        <!-- Öğrenme modu (Geliştirici, ESP32 kutusu) -->
+        <activity
+            android:name=".dash.LearnActivity"
+            android:exported="false"
+            android:screenOrientation="sensorLandscape"
+            tools:ignore="DiscouragedApi,LockedOrientationActivity"
+            android:theme="@android:style/Theme.DeviceDefault.NoActionBar.Fullscreen" />
+
         <!-- Hedef arama (navigasyon, Ev/İş) -->
         <activity
             android:name=".dash.PlaceSearchActivity"

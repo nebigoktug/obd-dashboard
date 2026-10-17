@@ -18,7 +18,7 @@ import com.nebi.obdbridge.NaviListener
 
 /**
  * Ayarlar (forum sürümü, 2026-10-10): solda bölümler, sağda seçenekler. Her seçeneğin altında ne işe yaradığı
- * tek cümleyle yazılı. Geliştirici araçları "Hakkında > Sürüm"e 7 kez dokununca açılan Gelişmiş bölümünde.
+ * tek cümleyle yazılı. Geliştirici araçları "Hakkında > Sürüm"e 7 kez dokununca açılan Geliştirici bölümünde.
  */
 class SettingsActivity : Activity() {
     private lateinit var ui: Ui
@@ -45,7 +45,7 @@ class SettingsActivity : Activity() {
             Section("Uyarılar", ::alerts),
             Section("Kayıtlar", ::logs),
             Section("Hakkında", ::about),
-            Section("Gelişmiş", ::advanced) { dash.getBoolean("dev", false) },
+            Section("Geliştirici", ::advanced) { dash.getBoolean("dev", false) },
         )
     }
 
@@ -486,7 +486,7 @@ class SettingsActivity : Activity() {
         add(ui.item("OBD Dashboard", "ELM327 Bluetooth adaptörüyle araç göstergesi, navigasyon ve medya ekranı", null, onClick = null))
         add(ui.item("Sürüm", null, { ver }) {
             if (dash.getBoolean("dev", false)) return@item
-            if (++devTaps >= 7) { dash.edit().putBoolean("dev", true).apply(); toast("Gelişmiş ayarlar açıldı"); buildNav() }
+            if (++devTaps >= 7) { dash.edit().putBoolean("dev", true).apply(); toast("Geliştirici bölümü açıldı"); buildNav() }
             else if (devTaps >= 4) toast("${7 - devTaps} kez daha")
         })
         add(ui.item("Güncellemeleri denetle", "Yeni sürüm yayınlanınca haber verir (GitHub)", {
@@ -532,13 +532,41 @@ class SettingsActivity : Activity() {
     }
 
     private fun advanced() {
-        note("Geliştirici araçları: araç beyni keşfi ve ham veri. Sıradan kullanım için gerekmez.")
-        add(ui.item("Teşhis ve geliştirici araçları", "Araç testi, gizli değer taraması, blok kaydı, ham TCP köprüsü, canlı ham değerler", null) {
+        note("Araç hattını keşfetme ve ham veri araçları. Sıradan kullanım için gerekmez; araç dururken kullanın.")
+
+        header("ESP32 kutusu")
+        add(ui.item("Öğrenme modu", "Uygulama ne yapacağını söyler, sen araçta yaparsın; hatta neyin değiştiğini bulur ve kaydeder. Yalnız dinler", {
+            val n = learnedCount(); if (n > 0) "$n / ${LearnActivity.TASKS.size}" else null
+        }) { startActivity(Intent(this, LearnActivity::class.java)) })
+        add(ui.item("Kutu yönetim sayfası", "Durum, Wi-Fi ayarları, yazılım güncelleme, konfor hattında gönderme anahtarı (tarayıcıda açılır)", {
+            com.nebi.obdbridge.link.TcpLink.espHost ?: "bağlı değil"
+        }) { openBoxPage() })
+        add(ui.item("Hat kaydı", "Kutu bağlıyken iki hattın tamamı kaydedilir; kopyaları İndirilenler/OBD-CAN klasöründe", {
+            val b = com.nebi.obdbridge.obd.CanRecorder.bytes
+            if (b > 0) "%.1f MB bu oturumda".format(b / 1048576.0) else "kayıt yok"
+        }, onClick = null))
+
+        header("OBD teşhis")
+        add(ui.item("Teşhis ekranı", "Araç testi, gizli değer taraması, blok kaydı, ham TCP köprüsü, canlı ham değerler", null) {
             startActivity(Intent(this, com.nebi.obdbridge.MainActivity::class.java))
         })
-        add(ui.item("Gelişmiş ayarları gizle", null, null) {
+
+        header("")
+        add(ui.item("Geliştirici bölümünü gizle", "Yeniden açmak için Hakkında > Sürüm'e 7 kez dokunun", null) {
             dash.edit().putBoolean("dev", false).apply(); devTaps = 0; show(0)
         })
+    }
+
+    private fun learnedCount(): Int = try {
+        val f = java.io.File(java.io.File(filesDir, "learn"), "learn.json")
+        if (!f.exists()) 0 else org.json.JSONObject(f.readText()).let { o -> LearnActivity.TASKS.count { o.has(it.id) } }
+    } catch (_: Exception) { 0 }
+
+    /** Kutunun yönetim sayfası: bağlıysa bildiğimiz adres, değilse mDNS adı (kutunun kendi ağında 192.168.0.10) */
+    private fun openBoxPage() {
+        val host = com.nebi.obdbridge.link.TcpLink.espHost ?: com.nebi.obdbridge.link.TcpLink.ESP32_HOST + ".local"
+        try { startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse("http://$host/"))) }
+        catch (_: Exception) { Toast.makeText(this, "Tarayıcı açılamadı", Toast.LENGTH_SHORT).show() }
     }
 
     @Suppress("DEPRECATION")

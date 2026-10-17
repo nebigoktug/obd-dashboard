@@ -88,6 +88,7 @@ object CanRecorder {
                     out.write(buf, 0, n)
                     LiveRelay.feed(buf, n)
                     VolvoCan.feed(buf, n)
+                    CanLearn.feed(buf, n)
                     got += n; bytes += n
                 }
             }
