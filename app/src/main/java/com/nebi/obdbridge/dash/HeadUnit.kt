@@ -43,6 +43,8 @@ internal object Glass {
     var EDGE = Color.WHITE
     /** Uyarı hapının zemini (kullanıcı seçebilir); yazısı zemine göre açık ya da koyu */
     var PILL = 0xFF12161C.toInt()
+    /** Kadran ortasındaki büyük rakamların rengi (null: beyaz; kadran ortaları her temada koyu) */
+    var DIAL: Int? = null
 
     /**
      * Zemin üstündeki yazının rengi (kart dışındaki saat, hava, sekmeler, alt şerit). Temalar arasında zemin
@@ -87,6 +89,7 @@ internal object Glass {
         DIM = if (l) 0xFF5F6670.toInt() else 0xFF9AA2A9.toInt()
         ICE = t.accent
         PILL = 0xFF12161C.toInt()
+        DIAL = colors.dial
         // Kullanıcı seçimleri (ThemeColors): yazının sönük tonu yazı ile kart zemininin arası
         colors.card?.let { fill.color = it }
         colors.cardAlpha?.let { fill.alpha = it } ?: run { if (colors.card != null) fill.alpha = t.cardAlpha ?: if (l) 200 else 195 }
