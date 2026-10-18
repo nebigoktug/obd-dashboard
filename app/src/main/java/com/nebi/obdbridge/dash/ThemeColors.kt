@@ -14,6 +14,8 @@ data class ThemeColors(
     val cardAlpha: Int? = null,
     val accent: Int? = null,
     val pill: Int? = null,
+    /** Kadran ortasındaki büyük rakamlar (hız, vites/devir) ve birimleri */
+    val dial: Int? = null,
 ) {
     val isDefault get() = this == ThemeColors()
 
@@ -21,7 +23,7 @@ data class ThemeColors(
         if (isDefault) { p.edit().remove(key(themeId)).apply(); return }
         val j = JSONObject()
         text?.let { j.put("text", it) }; card?.let { j.put("card", it) }; cardAlpha?.let { j.put("cardAlpha", it) }
-        accent?.let { j.put("accent", it) }; pill?.let { j.put("pill", it) }
+        accent?.let { j.put("accent", it) }; pill?.let { j.put("pill", it) }; dial?.let { j.put("dial", it) }
         p.edit().putString(key(themeId), j.toString()).apply()
     }
 
@@ -31,7 +33,7 @@ data class ThemeColors(
         fun load(p: SharedPreferences, themeId: String): ThemeColors {
             val j = p.getString(key(themeId), null)?.let { runCatching { JSONObject(it) }.getOrNull() } ?: return ThemeColors()
             fun opt(k: String) = if (j.has(k)) j.getInt(k) else null
-            return ThemeColors(opt("text"), opt("card"), opt("cardAlpha"), opt("accent"), opt("pill"))
+            return ThemeColors(opt("text"), opt("card"), opt("cardAlpha"), opt("accent"), opt("pill"), opt("dial"))
         }
 
         /** Seçim paleti: açıktan koyuya nötrler, sonra renkler */

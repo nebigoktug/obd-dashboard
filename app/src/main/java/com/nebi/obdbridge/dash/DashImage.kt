@@ -296,14 +296,14 @@ class DashImageDials(ctx: Context, spec: WidgetSpec, private val th: ImageTheme 
             }
             else -> cd.text
         }
-        bigP.textSize = DashImageGeom.BIG_SIZE * s; bigP.color = Color.WHITE; bigP.alpha = alphaFor(cd)
+        bigP.textSize = DashImageGeom.BIG_SIZE * s; bigP.color = Glass.DIAL ?: Color.WHITE; bigP.alpha = alphaFor(cd)
         c.drawText(big, cx, oy + DashImageGeom.BIG_BASE * s, bigP)
         val cap = when {
             d == null -> ""
             centerKey != null -> if (d.missing) "— ${d.def.unit}" else "${d.def.format(d.value)} ${d.def.unit}"
             else -> d.def.unit
         }
-        capP.textSize = DashImageGeom.CAP_SIZE * s; capP.color = 0xFFC9D0D6.toInt()
+        capP.textSize = DashImageGeom.CAP_SIZE * s; capP.color = Glass.DIAL?.let { ThemeColors.mix(it, 0xFF15181C.toInt(), 0.2f) } ?: 0xFFC9D0D6.toInt()
         c.drawText(cap, cx, oy + DashImageGeom.CAP_BASE * s, capP)
         if (centerKey == "gear") note?.let {
             capP.textSize = DashImageGeom.CAP_SIZE * s * 0.62f; capP.color = th.accent

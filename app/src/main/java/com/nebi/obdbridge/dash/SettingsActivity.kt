@@ -274,7 +274,7 @@ class SettingsActivity : Activity() {
             chooseTheme(themes, cur) { dash.edit().putString("theme", it.id).apply() }
         })
         val colors = ThemeColors.load(dash, cur.id)
-        add(ui.item("Renkler", "Bu temada kart yazısı, kart zemini, vurgu ve uyarı hapı renkleri", { if (colors.isDefault) "Otomatik" else "Özel" }) {
+        add(ui.item("Renkler", "Bu temada gösterge rakamları, kart yazısı, kart zemini, vurgu ve uyarı hapı renkleri", { if (colors.isDefault) "Otomatik" else "Özel" }) {
             colorsDialog(cur)
         })
         add(ui.item("Kendi temanı ekle", "Şablonu bir yapay zekâya (Gemini, ChatGPT…) kendi tarzında çizdir, çıkan resmi ekle", null) { themeHelp() })
@@ -407,6 +407,7 @@ class SettingsActivity : Activity() {
                 override fun onStopTrackingTouch(sb: android.widget.SeekBar) { c.save(dash, t.id) }
             })
         })
+        row("Gösterge rakamları (hız, vites, devir)", { c.dial }) { c = c.copy(dial = it) }
         row("Vurgu (seçili sekme, simgeler, çubuklar)", { c.accent }) { c = c.copy(accent = it) }
         row("Uyarı hapı zemini", { c.pill }) { c = c.copy(pill = it) }
         col.addView(ui.text("Değişiklikler ana ekrana dönünce görünür. Renkler yalnız \"${t.name}\" teması için.", 13f, Pal.DIM)
