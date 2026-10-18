@@ -3,7 +3,7 @@
 ## 1.0 (ilk yayın)
 
 - Araç göstergesi: hız, devir, vites tahmini, turbo, motor yükü, akü, motor sıcaklığı.
-- 30 görsel tema; güneşte otomatik gündüz teması. Üst ortada isteğe bağlı ekran yazısı (ör. araç modeli).
+- 30 görsel tema; güneşte otomatik gündüz teması. Kendi teması: şablon resmi yapay zekâya çizdirilir, uygulama tek resimden temayı üretir. Üst ortada isteğe bağlı ekran yazısı (ör. araç modeli).
 - Tahmini yakıt tüketimi (yakıt debisi PID'i yoksa motor yükünden), depo dolumuyla kalibrasyon.
 - Uyarılar: arıza lambası, DPF temizlenmesi (dizel), düşük turbo, şarj sorunu, soğuk motorda yüksek devir.
 - Arıza kodları: kayıtlı / bekleyen / kalıcı kodlar, Türkçe açıklama, paylaşma, onaylı silme.

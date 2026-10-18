@@ -52,6 +52,7 @@ class SettingsActivity : Activity() {
         super.onCreate(savedInstanceState)
         ui = Ui(this)
         VehicleStore.load(this)
+        UserThemes.load(this)
         section = intent.getIntExtra("section", 0)
         val root = ui.row().apply { setBackgroundColor(Pal.BG); gravity = android.view.Gravity.TOP }
         nav = ui.column(16)
@@ -70,11 +71,14 @@ class SettingsActivity : Activity() {
         super.onResume()
         hideBars()
         show(section)   // izin ekranından dönünce durumlar güncellensin
+        resumedNow = this
+        showPendingTheme()
         pane.post(ticker)
     }
 
     override fun onPause() {
         pane.removeCallbacks(ticker)
+        if (resumedNow === this) resumedNow = null
         super.onPause()
     }
 
@@ -135,9 +139,19 @@ class SettingsActivity : Activity() {
                     setStroke(ui.dp(2), t.accent); cornerRadius = ui.dp(8).toFloat()
                 }
                 setOnClickListener { done(t); dlg?.dismiss(); show(section) }
+                // Kendi temaları uzun basınca silinir
+                if (t.dir != null) setOnLongClickListener {
+                    dlg?.dismiss()
+                    confirm("\"${t.name}\" silinsin mi?", "Kendi eklediğin tema telefondan silinir.", "Sil") {
+                        if (dash.getString("theme", null) == t.id) dash.edit().putString("theme", DashboardActivity.DEFAULT_THEME).apply()
+                        UserThemes.delete(this@SettingsActivity, t)
+                    }
+                    true
+                }
             }
             cell.addView(android.widget.ImageView(this).apply {
-                setImageResource(t.thumb); adjustViewBounds = true
+                if (t.dir != null) setImageBitmap(t.decode(resources, ImageTheme.Part.THUMB)) else setImageResource(t.thumb)
+                adjustViewBounds = true
                 scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
             })
             cell.addView(android.widget.TextView(this).apply {
@@ -261,11 +275,12 @@ class SettingsActivity : Activity() {
 
     private fun display() {
         header("Görünüm")
-        val themes = ImageTheme.ALL
+        val themes = ImageTheme.all()
         val cur = ImageTheme.byId(dash.getString("theme", DashboardActivity.DEFAULT_THEME))
-        add(ui.item("Tema", "Göstergelerin görünümü", { cur.name }) {
+        add(ui.item("Tema", "Göstergelerin görünümü" + if (ImageTheme.user.isNotEmpty()) ". Kendi temanı silmek için üstüne uzun bas" else "", { cur.name }) {
             chooseTheme(themes, cur) { dash.edit().putString("theme", it.id).apply() }
         })
+        add(ui.item("Kendi temanı ekle", "Şablonu bir yapay zekâya (Gemini, ChatGPT…) kendi tarzında çizdir, çıkan resmi ekle", null) { themeHelp() })
         add(ui.toggle("Güneşte Gündüz temasına geç", "Ortam ışığı çok artınca okunurluk için açık temaya, kararınca seçili temaya döner",
             { dash.getBoolean("auto_day", true) }) { dash.edit().putBoolean("auto_day", it).apply() })
         add(ui.item("Alt şeritteki değerler", "Ana ekranda yol çiziminin iki yanındaki 4 değer. Dokununca ana ekrana döner ve seçim penceresi açılır (şeride uzun basmak da açar)", null) {
@@ -333,6 +348,87 @@ class SettingsActivity : Activity() {
     }
 
     private val ins get() = DashboardActivity.insights
+
+    // ---------- Kendi teman ----------
+
+    private fun themeHelp() {
+        AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle("Kendi temanı ekle")
+            .setMessage("1. \"Şablonu gönder\" ile şablon resmi ve istek metnini Gemini ya da ChatGPT gibi bir uygulamaya gönder. " +
+                "Metindeki [TARZINI YAZ] yerine istediğini yaz (ör. \"ahşap ve pirinç\", \"neon şehir gecesi\").\n" +
+                "2. Çıkan resmi telefona kaydet.\n" +
+                "3. \"Resim seç\" ile ekle. Önizlemede kesikli çizgiler halkaların üstüne oturuyorsa tema düzgün çalışır.\n\n" +
+                "İstek metni panoya da kopyalanır; uygulama metni almazsa yapıştır.")
+            .setPositiveButton("Resim seç") { _, _ -> pickThemeImage() }
+            .setNeutralButton("Şablonu gönder") { _, _ -> shareTemplate() }
+            .setNegativeButton("Kapat", null)
+            .show()
+    }
+
+    private fun shareTemplate() {
+        (getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager)
+            .setPrimaryClip(android.content.ClipData.newPlainText("Tema isteği", UserThemes.PROMPT))
+        val uri = ShareProvider.uriFor(this, UserThemes.templateFile(this))
+        val send = Intent(Intent.ACTION_SEND).setType("image/jpeg").putExtra(Intent.EXTRA_STREAM, uri)
+            .putExtra(Intent.EXTRA_TEXT, UserThemes.PROMPT).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        send.clipData = android.content.ClipData.newRawUri("", uri)
+        try { startActivity(Intent.createChooser(send, "Şablonu gönder")) } catch (_: Exception) { toast("Paylaşacak uygulama yok") }
+    }
+
+    private fun pickThemeImage() {
+        try {
+            @Suppress("DEPRECATION")
+            startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("image/*"), REQ_THEME)
+        } catch (_: Exception) { toast("Resim seçici açılamadı") }
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun onActivityResult(req: Int, res: Int, data: Intent?) {
+        @Suppress("DEPRECATION") super.onActivityResult(req, res, data)
+        val uri = data?.data
+        if (req != REQ_THEME || res != RESULT_OK || uri == null) return
+        // Seçici dikey açılınca bu ekran dönüşte yeniden kurulur: sonuç ekrandan bağımsız tutulur ([pendingTheme])
+        val wait = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setMessage("Tema hazırlanıyor…").setCancelable(false).show()
+        val app = applicationContext
+        Thread({
+            val r = runCatching { UserThemes.prepare(app, uri).let { it to UserThemes.preview(it) } }
+            pendingTheme = r
+            runOnUiThread {
+                runCatching { if (!isDestroyed) wait.dismiss() }
+                (resumedNow ?: this).showPendingTheme()   // dönüşte yeniden kurulduysa yenisi gösterir
+            }
+        }, "tema").start()
+    }
+
+    /** Hazırlanan tema varsa önizlemeyi göster (bu ekran ya da yeniden kurulan yenisi) */
+    private fun showPendingTheme() {
+        if (isFinishing || isDestroyed) return
+        val r = pendingTheme ?: return
+        pendingTheme = null
+        r.onSuccess { (d, pv) -> confirmTheme(d, pv) }.onFailure { toast("Resim açılamadı: ${it.message ?: "bilinmeyen hata"}") }
+    }
+
+    private fun confirmTheme(d: UserThemes.Draft, preview: android.graphics.Bitmap) {
+        val name = EditText(this).noFullscreen().apply { hint = "Tema adı"; setSingleLine(); setText("Benim temam") }
+        val col = ui.column().apply {
+            setPadding(ui.dp(20), ui.dp(8), ui.dp(20), 0)
+            addView(android.widget.ImageView(this@SettingsActivity).apply { setImageBitmap(preview); adjustViewBounds = true })
+            addView(ui.text("Kesikli çizgiler halkaların iç ve dış kenarına oturmalı. Kaymışsa yapay zekâdan halkaları şablondaki yerde " +
+                "tutmasını yeniden iste.", 13f, Pal.DIM).apply { setPadding(0, ui.dp(8), 0, ui.dp(8)) })
+            addView(name)
+        }
+        AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle("Önizleme")
+            .setView(ScrollView(this).apply { addView(col) })
+            .setPositiveButton("Kaydet ve kullan") { _, _ ->
+                val t = UserThemes.save(this, d, name.text.toString().trim().ifEmpty { "Benim temam" })
+                dash.edit().putString("theme", t.id).apply()
+                toast("Tema eklendi"); show(section)
+            }
+            .setNegativeButton("Vazgeç", null)
+            .show()
+    }
 
     /** Yatay ekranda klavye tam ekran olup pencereyi (ve Kaydet'i) örtmesin */
     private fun EditText.noFullscreen() = apply {
@@ -562,5 +658,12 @@ class SettingsActivity : Activity() {
             if (BridgeService.running && BridgeService.spec(this) != before) Conn.stop(this)
             show(section)
         }.show()
+    }
+
+    companion object {
+        private const val REQ_THEME = 51
+        /** Ön plandaki Ayarlar ekranı (tema hazırlığı bitince önizleme buna gösterilir) */
+        private var resumedNow: SettingsActivity? = null
+        @Volatile private var pendingTheme: Result<Pair<UserThemes.Draft, android.graphics.Bitmap>>? = null
     }
 }

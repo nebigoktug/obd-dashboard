@@ -86,7 +86,7 @@ object DashImageGeom {
  */
 @SuppressLint("ViewConstructor")  // yalnız koddan oluşturuluyor
 class ThemeBackdrop(ctx: Context, th: ImageTheme) : android.view.View(ctx) {
-    private val base: Bitmap = BitmapFactory.decodeResource(ctx.resources, th.base, BitmapFactory.Options().apply { inScaled = false })
+    private val base: Bitmap = th.decode(ctx.resources, ImageTheme.Part.BASE, BitmapFactory.Options().apply { inScaled = false })!!
     private val edgeColor = base.getPixel(4, base.height / 2)
     private val bmpP = Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG)
     private val panelP = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = if (th.light) 0xFFE9EBEE.toInt() else 0xFF0D1014.toInt(); alpha = 238 }
@@ -142,8 +142,8 @@ class DashImageLayout(ctx: Context, background: android.view.View) : FrameLayout
 class DashImageDials(ctx: Context, spec: WidgetSpec, private val th: ImageTheme = ImageTheme.ALL[0]) : DashWidget(ctx, spec) {
     /** Devir halkasında rpm altında kısa not (yakıt kesik / boşta); null = yok */
     var note: String? = null
-    private val base: Bitmap = load(ctx, th.base)
-    private val lit: Bitmap = load(ctx, th.lit)
+    private val base: Bitmap = th.decode(ctx.resources, ImageTheme.Part.BASE, BitmapFactory.Options().apply { inScaled = false })!!
+    private val lit: Bitmap = th.decode(ctx.resources, ImageTheme.Part.LIT, BitmapFactory.Options().apply { inScaled = false })!!
     /** Resmin kenar rengi: ekran oranı farklıysa kalan şerit bununla boyanır */
     private val edgeColor = base.getPixel(4, base.height / 2)
     private val ink = if (th.light) 0xFF15181C.toInt() else Color.WHITE
@@ -315,8 +315,4 @@ class DashImageDials(ctx: Context, spec: WidgetSpec, private val th: ImageTheme 
         }
     }
 
-    companion object {
-        private fun load(ctx: Context, id: Int): Bitmap =
-            BitmapFactory.decodeResource(ctx.resources, id, BitmapFactory.Options().apply { inScaled = false })
-    }
 }

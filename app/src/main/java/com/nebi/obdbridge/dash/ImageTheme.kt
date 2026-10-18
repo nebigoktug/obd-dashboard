@@ -30,7 +30,18 @@ data class ImageTheme(
     val tickDim: Int? = null,
     /** Kart zemininin opaklığı (0-255); çok desenli temalarda (çini, grafiti) yazı okunsun diye daha koyu */
     val cardAlpha: Int? = null,
+    /** Kullanıcının kendi teması: katmanlar bu klasörde (UserThemes); yerleşik temalarda null */
+    val dir: java.io.File? = null,
 ) {
+    enum class Part(val file: String) { BASE("base.webp"), LIT("lit.webp"), THUMB("thumb.webp") }
+
+    /** Katmanı yükle: yerleşik temada kaynaktan, kullanıcı temasında dosyadan */
+    fun decode(res: android.content.res.Resources, part: Part, opts: android.graphics.BitmapFactory.Options? = null): android.graphics.Bitmap? {
+        dir?.let { return android.graphics.BitmapFactory.decodeFile(java.io.File(it, part.file).path, opts) }
+        val id = when (part) { Part.BASE -> base; Part.LIT -> lit; Part.THUMB -> thumb }
+        return android.graphics.BitmapFactory.decodeResource(res, id, opts)
+    }
+
     /** Üst çubuk ve göstergelerin kullandığı renk takımı */
     fun dash() = DashTheme.IMAGE.copy(
         text = if (light) 0xFF15181C.toInt() else 0xFFFFFFFF.toInt(),
@@ -107,8 +118,13 @@ data class ImageTheme(
                 0xFF2A1408.toInt(), 0xFFE0B898.toInt(), accent = 0xFFE08A50.toInt()),
         )
 
-        /** Eski kayıtlar (auto/night/day/premium vektör temaları) referans temaya düşer */
-        fun byId(id: String?): ImageTheme = ALL.firstOrNull { it.id == id } ?: ALL[0]
+        /** Kullanıcının temaları (UserThemes.load) */
+        @Volatile var user: List<ImageTheme> = emptyList()
+
+        fun all() = ALL + user
+
+        /** Eski kayıtlar (auto/night/day/premium vektör temaları) ve silinmiş kullanıcı temaları referans temaya düşer */
+        fun byId(id: String?): ImageTheme = all().firstOrNull { it.id == id } ?: ALL[0]
         val DAY get() = ALL.first { it.id == "day" }
     }
 }
