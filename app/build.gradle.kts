@@ -3,6 +3,9 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
+// Yayın derlemesi işlemciye göre iki APK (aşağıda splits); geliştirme derlemesi tek APK
+val releaseSplit = gradle.startParameter.taskNames.any { it.contains("Release") }
+
 android {
     namespace = "com.nebi.obdbridge"
     compileSdk = 34
@@ -15,7 +18,7 @@ android {
         versionCode = 1
         versionName = "1.0"
         // Harita kütüphaneleri yerel kod getiriyor: yalnız telefon işlemcileri (x86 öykünücü gerekmiyor)
-        ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
+        if (!releaseSplit) ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
         // Yandex MapKit anahtarı depo dışında (~/.config/obd-dashboard/yandex-mapkit.key); yoksa harita MapLibre'ye düşer
         val mk = file(System.getProperty("user.home") + "/.config/obd-dashboard/yandex-mapkit.key")
         buildConfigField("String", "YANDEX_MAPKIT_KEY", "\"" + (if (mk.exists()) mk.readText().trim() else "") + "\"")
@@ -48,6 +51,18 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     kotlinOptions { jvmTarget = "17" }
+    // APK boyutu (2026-10-18): harita kütüphanelerinin yerel kodu APK içinde sıkıştırılsın (indirme ~yarıya iner;
+    // kurulumda açılır). Yayın derlemesi işlemciye göre iki APK: arm64 (bugünkü telefonlar) ve armeabi-v7a
+    // (eski telefonlar, 32 bit araç ekranları). Geliştirme derlemesi tek APK kalır (app-debug.apk).
+    packaging { jniLibs { useLegacyPackaging = true } }
+    splits {
+        abi {
+            isEnable = releaseSplit
+            reset()
+            include("arm64-v8a", "armeabi-v7a")
+            isUniversalApk = false
+        }
+    }
     // SetTextI18n: arayüz metinleri bilerek kodda. LogNotTimber: MapLibre getiren Timber kuralı (Timber kullanmıyoruz).
     // ChromeOsAbiSupport: harita kütüphaneleri büyük, yalnız telefon işlemcileri
     lint { disable += listOf("SetTextI18n", "LogNotTimber", "ChromeOsAbiSupport") }

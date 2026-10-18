@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Referans görselden (reference.jpg, 1376x768) "Görsel" temasının iki katmanını üretir:
-  dash_lit.jpg  — ışıklı kadran bantları (değere kadar olan dilim bundan kesilir)
-  dash_base.jpg — bantlar karartılmış taban
+  dash_lit.webp  — ışıklı kadran bantları (değere kadar olan dilim bundan kesilir)
+  dash_base.webp — bantlar karartılmış taban
 Değişen yazılar (üst çubuk, kutucuklar, kadran ortaları, devir çubuğu) silinip çevre dokusuyla doldurulur.
 Çıktı 2400x1080 (telefon oranı). Gerekenler: pip install opencv-python-headless numpy
 Koordinatlar DashImage.kt'deki sabitlerle aynı olmalı.
@@ -70,7 +70,7 @@ dim = (base * 0.85 + gray * 0.15) * DIM
 base = base * (1 - ann) + dim * ann
 
 x0, y0, x1, y1 = 24, 92, 1352, 690   # 1328x598 ≈ 2.22:1
-for name, im in (("dash_lit.jpg", clean), ("dash_base.jpg", base.clip(0, 255).astype(np.uint8))):
+for name, im in (("dash_lit.webp", clean), ("dash_base.webp", base.clip(0, 255).astype(np.uint8))):
     up = cv2.resize(im[y0:y1, x0:x1], (2400, 1080), interpolation=cv2.INTER_LANCZOS4)
-    cv2.imwrite(os.path.join(OUT, name), up, [cv2.IMWRITE_JPEG_QUALITY, 93])
+    cv2.imwrite(os.path.join(OUT, name), up, [cv2.IMWRITE_WEBP_QUALITY, 90])
 print("tamam")

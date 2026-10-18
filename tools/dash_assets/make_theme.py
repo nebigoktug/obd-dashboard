@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Gemini ile üretilmiş yazısız tema resimlerinden (1376x768, referansla aynı çerçeve) iki katman üretir:
-  theme_<ad>_lit.jpg  — halkalar ışıklı (resmin kendisi)
-  theme_<ad>_base.jpg — halka bandı sönük (koyu temada karartılır, gündüz temasında zemine doğru açılır)
+  theme_<ad>_lit.webp — halkalar ışıklı (resmin kendisi)
+  theme_<ad>_base.webp — halka bandı sönük (koyu temada karartılır, gündüz temasında zemine doğru açılır)
 Bant yarıçapları referans koordinatında (merkezler 302,391 ve 1087,391); ölçüm: radyal parlaklık profili (2026-10-10).
 Kotlin tarafındaki ImageTheme.band değerleri bunların 2400 ölçeğindeki karşılığıdır (× 2400/1328).
 Kullanım: python make_theme.py [ad ...]   (ad verilmezse hepsini üretir)
@@ -84,7 +84,7 @@ def make(name, r0, r1, mode, amount, cut_gap=False):
     x0, y0, x1, y1 = CROP
     for suffix, im in (("lit", img), ("base", base.clip(0, 255).astype(np.uint8))):
         up = cv2.resize(im[y0:y1, x0:x1], (2400, 1080), interpolation=cv2.INTER_LANCZOS4)
-        cv2.imwrite(os.path.join(OUT, f"theme_{name}_{suffix}.jpg"), up, [cv2.IMWRITE_JPEG_QUALITY, 90])
+        cv2.imwrite(os.path.join(OUT, f"theme_{name}_{suffix}.webp"), up, [cv2.IMWRITE_WEBP_QUALITY, 85])  # WebP: APK küçük
     print(name, "bant (2400):", round(r0 * 2400 / 1328), round(r1 * 2400 / 1328))
 
 
@@ -99,8 +99,8 @@ if __name__ == "__main__":
 def thumb(name, r0, r1, prefix=None):
     """Tema seçicisi için küçük önizleme: sönük taban + %60 ışıklı dilim (2400 ölçeğinde bant)"""
     pre = prefix or f"theme_{name}"
-    base = cv2.imread(os.path.join(OUT, pre + "_base.jpg"))
-    lit = cv2.imread(os.path.join(OUT, pre + "_lit.jpg"))
+    base = cv2.imread(os.path.join(OUT, pre + "_base.webp"))
+    lit = cv2.imread(os.path.join(OUT, pre + "_lit.webp"))
     H, W = base.shape[:2]
     yy, xx = np.mgrid[0:H, 0:W]
     s = 2400 / 1328
@@ -112,7 +112,7 @@ def thumb(name, r0, r1, prefix=None):
         m |= (r >= r0 * s) & (r <= r1 * s) & (a <= 270 * fr)
     out = np.where(m[..., None], lit, base)
     small = cv2.resize(out, (480, 216), interpolation=cv2.INTER_AREA)
-    cv2.imwrite(os.path.join(OUT, f"theme_{name}_thumb.jpg"), small, [cv2.IMWRITE_JPEG_QUALITY, 85])
+    cv2.imwrite(os.path.join(OUT, f"theme_{name}_thumb.webp"), small, [cv2.IMWRITE_WEBP_QUALITY, 85])
 
 
 def thumbs():

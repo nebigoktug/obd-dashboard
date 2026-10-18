@@ -21,8 +21,8 @@ import kotlin.math.sin
 
 /**
  * "Görsel" teması: referans tasarımın kendisi resim katmanı olarak kullanılır (tools/dash_assets/make_layers.py).
- *  - dash_base.jpg: kadran bantları sönük, yazılar silinmiş taban
- *  - dash_lit.jpg : bantlar ışıklı; değere kadar olan dilim bundan kesilip tabanın üstüne çizilir
+ *  - dash_base.webp: kadran bantları sönük, yazılar silinmiş taban
+ *  - dash_lit.webp : bantlar ışıklı; değere kadar olan dilim bundan kesilip tabanın üstüne çizilir
  * Rakamlar, kutucuklar ve üst çubuk resimdeki yerlerine canlı çizilir. Koordinatlar 2400x1080 resim pikseli.
  */
 object DashImageGeom {
