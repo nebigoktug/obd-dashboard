@@ -41,6 +41,8 @@ internal object Glass {
     const val AMBER = 0xFFE08B36.toInt()   // devir halkasının kehribar ucu
     /** Kenar çizgisinin rengi (koyu temada beyaz, açık temada siyah); [edge] her kullanımdan sonra buna döner */
     var EDGE = Color.WHITE
+    /** Uyarı hapının zemini (kullanıcı seçebilir); yazısı zemine göre açık ya da koyu */
+    var PILL = 0xFF12161C.toInt()
 
     /**
      * Zemin üstündeki yazının rengi (kart dışındaki saat, hava, sekmeler, alt şerit). Temalar arasında zemin
@@ -70,7 +72,7 @@ internal object Glass {
     fun halo(p: Paint, ink: Ink) = p.setShadowLayer(p.textSize * 0.22f, 0f, 0f, ink.halo)
 
     /** Temaya göre kart rengi: koyu cam ya da (gündüz) açık cam */
-    fun use(t: ImageTheme, res: android.content.res.Resources) {
+    fun use(t: ImageTheme, res: android.content.res.Resources, colors: ThemeColors = ThemeColors()) {
         inks.clear()
         luma = try {
             t.decode(res, ImageTheme.Part.BASE, android.graphics.BitmapFactory.Options().apply { inSampleSize = 16 })
@@ -84,6 +86,13 @@ internal object Glass {
         TEXT = if (l) 0xFF15181C.toInt() else 0xFFF2F5F8.toInt()
         DIM = if (l) 0xFF5F6670.toInt() else 0xFF9AA2A9.toInt()
         ICE = t.accent
+        PILL = 0xFF12161C.toInt()
+        // Kullanıcı seçimleri (ThemeColors): yazının sönük tonu yazı ile kart zemininin arası
+        colors.card?.let { fill.color = it }
+        colors.cardAlpha?.let { fill.alpha = it } ?: run { if (colors.card != null) fill.alpha = t.cardAlpha ?: if (l) 200 else 195 }
+        colors.text?.let { TEXT = it; DIM = ThemeColors.mix(it, fill.color, 0.38f) }
+        colors.accent?.let { ICE = it }
+        colors.pill?.let { PILL = it }
     }
 
     fun card(c: Canvas, r: RectF, h: Float) {
@@ -672,16 +681,21 @@ class StatusPill(ctx: Context) : View(ctx) {
         set(v) { if (field != v) { field = v; visibility = if (v.isEmpty()) INVISIBLE else VISIBLE; invalidate() } }
     private val pc = HashMap<String, Paint>()
     private val rect = RectF()
-    private val bg = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFF12161C.toInt() }
+    private val bg = Paint(Paint.ANTI_ALIAS_FLAG)
     private val dot = Paint(Paint.ANTI_ALIAS_FLAG)
 
     override fun onDraw(c: Canvas) {
         val a = alerts.firstOrNull() ?: return
         val w = width.toFloat(); val h = height.toFloat()
-        val color = when (a.level) { Level.CRIT -> 0xFFE0603A.toInt(); Level.WARN -> Glass.AMBER; Level.COLD -> Glass.ICE; Level.NORMAL -> Glass.TEXT }
-        val tp = Glass.text(pc, "t", h * 0.4f, 0xFFF2F5F8.toInt())   // hap her temada koyu
+        bg.color = Glass.PILL
+        val lightPill = ThemeColors.luma(Glass.PILL) > 0.6   // hap zemini açık seçildiyse koyu yazı
+        val color = when (a.level) {
+            Level.CRIT -> 0xFFE0603A.toInt(); Level.WARN -> Glass.AMBER; Level.COLD -> Glass.ICE
+            Level.NORMAL -> if (lightPill) 0xFF15181C.toInt() else 0xFFF2F5F8.toInt()
+        }
+        val tp = Glass.text(pc, "t", h * 0.4f, if (lightPill) 0xFF15181C.toInt() else 0xFFF2F5F8.toInt())
         val more = if (alerts.size > 1) "  +${alerts.size - 1}" else ""
-        val mp = Glass.text(pc, "m", h * 0.34f, 0xFF9AA2A9.toInt())
+        val mp = Glass.text(pc, "m", h * 0.34f, if (lightPill) 0xFF5F6670.toInt() else 0xFF9AA2A9.toInt())
         val text = Glass.ellipsize(a.text, tp, w - h * 1.6f - mp.measureText(more))
         val tw = h * 0.9f + tp.measureText(text) + mp.measureText(more) + h * 0.7f
         rect.set((w - tw) / 2, 1f, (w + tw) / 2, h - 1)

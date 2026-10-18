@@ -7,7 +7,7 @@ Hız, devir, vites, turbo, motor sıcaklığı, tahmini yakıt tüketimi, naviga
 
 ## Özellikler
 
-- **Gösterge:** 30 görsel tema (Spor, OLED, Synthwave, Mermer, Türk Halısı, Nazar…). Güneşte otomatik gündüz teması. **Kendi temanı ekle:** şablonu Gemini/ChatGPT gibi bir yapay zekâya kendi tarzında çizdirip çıkan resmi ekleyebilirsin (Ayarlar > Ekran).
+- **Gösterge:** 30 görsel tema (Spor, OLED, Synthwave, Mermer, Türk Halısı, Nazar…). Güneşte otomatik gündüz teması. Her temada kart, yazı, vurgu ve uyarı hapı renkleri seçilebilir. **Kendi temanı ekle:** şablonu Gemini/ChatGPT gibi bir yapay zekâya kendi tarzında çizdirip çıkan resmi ekleyebilirsin (Ayarlar > Ekran).
 - **Vites tahmini:** Manuel şanzımanda devir/hız oranından; oranları sürdükçe kendisi öğrenir.
 - **Tahmini yakıt:** Yakıt debisi PID'i yoksa motor yükünden tahmin edilir; depo dolumuyla kalibre edilir.
 - **Uyarılar:** Arıza lambası, DPF temizlenmesi (dizel), düşük turbo, şarj sorunu, soğuk motorda yüksek devir.

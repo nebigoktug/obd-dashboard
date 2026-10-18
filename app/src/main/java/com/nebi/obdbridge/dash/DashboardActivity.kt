@@ -619,13 +619,17 @@ class DashboardActivity : Activity(), SensorEventListener {
         return if (sunMode && prefs.getBoolean("auto_day", true)) ImageTheme.DAY else chosen
     }
 
-    private fun applyImageTheme(t: ImageTheme) {
-        val changed = t != imgTheme
-        imgTheme = t
-        Glass.use(t, resources)
+    private fun applyImageTheme(theme: ImageTheme) {
+        // Kullanıcının bu tema için seçtiği renkler (Ayarlar > Ekran > Renkler); vurgu üst çubuğa da gider
+        val colors = ThemeColors.load(prefs, theme.id)
+        val t = colors.accent?.let { theme.copy(accent = it) } ?: theme
+        val changed = t != imgTheme || colors != imgColors
+        imgTheme = t; imgColors = colors
+        Glass.use(t, resources, colors)
         applyTheme(t.dash())
         if (changed) build()   // kadran resimleri temaya bağlı
     }
+    private var imgColors = ThemeColors()
 
     private fun applyTheme(t: DashTheme) {
         theme = t
