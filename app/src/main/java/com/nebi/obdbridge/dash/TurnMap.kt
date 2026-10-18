@@ -43,9 +43,13 @@ class TurnMapView(ctx: Context, private val light: Boolean) : FrameLayout(ctx) {
     init {
         addView(backend.view, LayoutParams(-1, -1))
         addView(puck, LayoutParams(-1, -1))
-        // Dairesel kırpma (harita TextureView'da)
+        // Dairesel kırpma (harita TextureView'da). Android 12 ve altı yalnız tam daireyi kırpar, ovali atlar:
+        // alan 709×710 gibi bir piksel kare değilse ortadaki kareye göre daire.
         outlineProvider = object : ViewOutlineProvider() {
-            override fun getOutline(v: View, o: Outline) { o.setOval(0, 0, v.width, v.height) }
+            override fun getOutline(v: View, o: Outline) {
+                val s = minOf(v.width, v.height); val x = (v.width - s) / 2; val y = (v.height - s) / 2
+                o.setOval(x, y, x + s, y + s)
+            }
         }
         clipToOutline = true
         alpha = 0f
