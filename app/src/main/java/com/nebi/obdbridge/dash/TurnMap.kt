@@ -10,7 +10,6 @@ import android.graphics.Path
 import android.view.View
 import android.view.ViewOutlineProvider
 import android.widget.FrameLayout
-import com.nebi.obdbridge.BuildConfig
 import com.nebi.obdbridge.dash.RouteTracker.LatLon
 import org.maplibre.android.MapLibre
 import org.maplibre.android.camera.CameraUpdateFactory
@@ -23,14 +22,17 @@ import org.maplibre.android.style.layers.PropertyFactory
 /**
  * Dönüşe yaklaşırken devir göstergesinin yerinde beliren yuvarlak harita ([TurnWatch] karar verir).
  * Gidiş yönü yukarıda, araç dairenin altına yakın; yakınlık dönüşe kalan mesafeye göre.
- * Harita: Yandex MapKit (anahtar varsa; rota çizgisi de onunla) ya da MapLibre + OpenFreeMap (anahtarsız yedek).
- * Yaşam döngüsü DashboardActivity'den iletilir.
+ * Harita: navigasyon sürerken Yandex MapKit ([useYandex]; Yandex'in ücretsiz sürümü günlük kullanıcı sayar),
+ * diğer zamanlarda ve anahtar yoksa MapLibre + OpenFreeMap. Yaşam döngüsü DashboardActivity'den iletilir.
  */
 @SuppressLint("ViewConstructor")  // yalnız koddan oluşturuluyor
-class TurnMapView(ctx: Context, light: Boolean) : FrameLayout(ctx) {
+class TurnMapView(ctx: Context, private val light: Boolean) : FrameLayout(ctx) {
     private val dp = ctx.resources.displayMetrics.density
-    private val backend: MapBackend = if (BuildConfig.YANDEX_MAPKIT_KEY.isNotEmpty()) YandexBackend(ctx, light) else LibreBackend(ctx, light)
-    private val puck = Puck(ctx, backend.credit)
+    private var backend: MapBackend = LibreBackend(ctx, light)
+    private var yandex = false
+    private val puck = Puck(ctx).apply { credit = backend.credit }
+    private var started = false; private var resumed = false
+    private var route: List<LatLon>? = null
     private var lat = Double.NaN; private var lon = Double.NaN
     private var bearing = 0.0
     private var distM = 300.0
@@ -49,6 +51,25 @@ class TurnMapView(ctx: Context, light: Boolean) : FrameLayout(ctx) {
         alpha = 0f
         visibility = INVISIBLE
         backend.onReady = { camera(animate = false) }
+    }
+
+    /** Harita motorunu değiştir: navigasyon başlayınca Yandex, bitince MapLibre */
+    fun useYandex(want: Boolean) {
+        if (want == yandex) return
+        val old = backend
+        val new = runCatching { if (want) YandexBackend(context, light) else LibreBackend(context, light) }.getOrNull() ?: return
+        yandex = want
+        if (resumed) old.onPause()
+        if (started) old.onStop()
+        old.onDestroy()
+        removeView(old.view)
+        backend = new
+        addView(new.view, 0, LayoutParams(-1, -1))
+        puck.credit = new.credit; puck.invalidate()
+        new.onReady = { camera(animate = false) }
+        if (started) new.onStart()
+        if (resumed) new.onResume()
+        new.setRoute(route)
     }
 
     /** Konum; [bearingDeg] süzülmüş yön (HeadingFilter), null ise son yön kalır */
@@ -76,7 +97,7 @@ class TurnMapView(ctx: Context, light: Boolean) : FrameLayout(ctx) {
     }
 
     /** Rota çizgisi (null: kaldır) */
-    fun setRoute(points: List<LatLon>?) = backend.setRoute(points)
+    fun setRoute(points: List<LatLon>?) { route = points; backend.setRoute(points) }
 
     private fun camera(animate: Boolean) {
         if (lat.isNaN() || width == 0) return
@@ -99,15 +120,16 @@ class TurnMapView(ctx: Context, light: Boolean) : FrameLayout(ctx) {
         camera(animate = false)
     }
 
-    fun onStart() = backend.onStart()
-    fun onResume() = backend.onResume()
-    fun onPause() = backend.onPause()
-    fun onStop() = backend.onStop()
+    fun onStart() { started = true; backend.onStart() }
+    fun onResume() { resumed = true; backend.onResume() }
+    fun onPause() { resumed = false; backend.onPause() }
+    fun onStop() { started = false; backend.onStop() }
     fun onDestroy() = backend.onDestroy()
     fun onLowMemory() = backend.onLowMemory()
 
     /** Araç oku (sabit, yukarı bakar), çerçeve ve harita kaynağı notu */
-    private class Puck(ctx: Context, private val credit: String?) : View(ctx) {
+    private class Puck(ctx: Context) : View(ctx) {
+        var credit: String? = null
         private val dp = ctx.resources.displayMetrics.density
         private val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFF2F8CFF.toInt() }
         private val edge = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE; style = Paint.Style.STROKE; strokeJoin = Paint.Join.ROUND }
@@ -197,7 +219,7 @@ private class YandexBackend(ctx: Context, light: Boolean) : MapBackend() {
 
 }
 
-/** MapLibre + OpenFreeMap (anahtarsız yedek; rota yok) */
+/** MapLibre + OpenFreeMap (navigasyon dışında ve anahtarsız yedek) */
 private class LibreBackend(ctx: Context, light: Boolean) : MapBackend() {
     private val map: org.maplibre.android.maps.MapView
     override val view: View get() = map
