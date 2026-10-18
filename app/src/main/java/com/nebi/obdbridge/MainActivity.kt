@@ -65,9 +65,15 @@ class MainActivity : Activity() {
         }
         scanBtn = Button(this).apply {
             setOnClickListener {
-                val action = if (BridgeService.scanRunning) BridgeService.ACTION_SCAN_STOP else BridgeService.ACTION_SCAN
-                startService(Intent(this@MainActivity, BridgeService::class.java).setAction(action))
-                postDelayed({ refreshUi() }, 300)
+                fun go() {
+                    val action = if (BridgeService.scanRunning) BridgeService.ACTION_SCAN_STOP else BridgeService.ACTION_SCAN
+                    startService(Intent(this@MainActivity, BridgeService::class.java).setAction(action))
+                    postDelayed({ refreshUi() }, 300)
+                }
+                // Başlatmadan önce uyar (QC2): uzun tarama ve motor beyninde genişletilmiş tanı oturumu
+                if (BridgeService.scanRunning) go() else confirm("Gizli değer taraması",
+                    "Tarama yaklaşık 70 dakika sürer ve bu süre boyunca kontak açık kalmalı: akü zayıfsa boşalabilir. " +
+                    "Motor beyni genişletilmiş tanı oturumuna alınır (yalnız okuma). Araç dururken, motor kapalıyken yap.", "Başlat") { go() }
             }
         }
         blockBtn = Button(this).apply {
@@ -81,7 +87,18 @@ class MainActivity : Activity() {
         rawTcpBox = android.widget.CheckBox(this).apply {
             text = "Ham TCP köprüsü (127.0.0.1:${BridgeService.PORT})"
             isChecked = prefs.getBoolean(BridgeService.PREF_RAW_TCP, false)
-            setOnCheckedChangeListener { _, on -> prefs.edit().putBoolean(BridgeService.PREF_RAW_TCP, on).apply() }
+            // Tıklama (kodla isChecked değiştirmek dinleyiciyi yeniden tetiklemesin)
+            setOnClickListener { v ->
+                val box = v as android.widget.CheckBox
+                if (!box.isChecked) { prefs.edit().putBoolean(BridgeService.PREF_RAW_TCP, false).apply(); return@setOnClickListener }
+                box.isChecked = false
+                // Açmadan önce uyar (QC2): telefondaki her uygulama adaptöre yazma dahil ham komut gönderebilir
+                confirm("Ham TCP köprüsü", "Açıkken telefondaki herhangi bir uygulama 127.0.0.1:${BridgeService.PORT} üzerinden " +
+                    "adaptöre ham komut gönderebilir; arıza kodu silme gibi yazma komutları dahil. Yalnız Torque/RealDash gibi " +
+                    "bir uygulamayı bilerek bağlayacaksan aç. Sonraki bağlantıda geçerli olur.", "Aç") {
+                    prefs.edit().putBoolean(BridgeService.PREF_RAW_TCP, true).apply(); box.isChecked = true
+                }
+            }
         }
 
         setContentView(LinearLayout(this).apply {
@@ -183,5 +200,10 @@ class MainActivity : Activity() {
             sb.append("%-10s %9.1f   %5d ms önce\n".format(x.key, x.value, now - x.ts))
         }
         liveText.text = sb
+    }
+
+    private fun confirm(title: String, msg: String, yes: String, onYes: () -> Unit) {
+        android.app.AlertDialog.Builder(this).setTitle(title).setMessage(msg)
+            .setPositiveButton(yes) { _, _ -> onYes() }.setNegativeButton("Vazgeç", null).show()
     }
 }
