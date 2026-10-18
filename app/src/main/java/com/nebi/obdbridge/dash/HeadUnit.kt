@@ -77,7 +77,7 @@ internal object Glass {
         } catch (_: Exception) { null }
         val l = t.light
         // Yarı şeffaf: tema resmi arkadan biraz görünsün; desenli temalarda (grafiti) yazı okunacak kadar koyu
-        fill.color = if (l) 0xFFFFFFFF.toInt() else 0xFF10141A.toInt(); fill.alpha = if (l) 200 else 195
+        fill.color = if (l) 0xFFFFFFFF.toInt() else 0xFF10141A.toInt(); fill.alpha = t.cardAlpha ?: if (l) 200 else 195
         EDGE = if (l) Color.BLACK else Color.WHITE
         edge.color = EDGE; edge.alpha = if (l) 30 else 38
         pressed.color = EDGE; pressed.alpha = if (l) 22 else 28
@@ -578,7 +578,7 @@ class ValueStrip(ctx: Context, private val specs: List<WidgetSpec>) : DashWidget
         /** Şeritte dar yer: kısa etiketler */
         val SHORT = mapOf("boost" to "TURBO", "load" to "YÜK", "battery" to "AKÜ", "coolant" to "MOTOR", "iat" to "EMME",
             "rail" to "YAKIT BAS.", "map" to "MAP", "speed" to "HIZ", "rpm" to "DEVİR", "dtc_count" to "ARIZA",
-            "fuel_lph" to "L/SA", "fuel_l100" to "TÜKETİM", "fuel_avg" to "ORT. TÜK.")
+            "fuel_lph" to "L/SA", "fuel_l100" to "TÜKETİM", "fuel_avg" to "ORT. TÜK.", "baro" to "BASINÇ")
         /** Şeridin iki yanı (yol çiziminin solu / sağı), resim koordinatında: yazı rengi ayrı ölçülür */
         private val STRIP_L = DashImageGeom.STRIP.let { RectF(it.left, it.top, it.left + it.width() * 0.42f, it.bottom) }
         private val STRIP_R = DashImageGeom.STRIP.let { RectF(it.right - it.width() * 0.42f, it.top, it.right, it.bottom) }
@@ -589,12 +589,14 @@ class ValueStrip(ctx: Context, private val specs: List<WidgetSpec>) : DashWidget
         val side = w * (1 - gapFrac) / 2
         val slot = side / 2
         val lp = Glass.text(pc, "r9", h * 0.22f, Glass.DIM); lp.letterSpacing = 0.1f; lp.textAlign = Paint.Align.CENTER
+        lp.typeface = android.graphics.Typeface.create("sans-serif", android.graphics.Typeface.NORMAL)   // ince yazı çizgilerin arasında kayboluyordu
         val vp = Glass.text(pc, "r10", h * 0.44f); vp.textAlign = Paint.Align.CENTER
         val up = Glass.text(pc, "r11", h * 0.22f, Glass.DIM)
         specs.take(4).forEachIndexed { i, spec ->
             val ink = Glass.ink(if (i < 2) STRIP_L else STRIP_R)
             lp.color = ink.dim; up.color = ink.dim
-            Glass.halo(lp, ink); Glass.halo(vp, ink); Glass.halo(up, ink)
+            // Etiketlerin arkasından yol/ufuk çizgileri geçiyor: geniş hâle çizgiyi yazının çevresinde örter
+            lp.setShadowLayer(lp.textSize * 0.6f, 0f, 0f, ink.halo); Glass.halo(vp, ink); up.setShadowLayer(up.textSize * 0.6f, 0f, 0f, ink.halo)
             val cx = if (i < 2) slot * (i + 0.5f) else w - side + slot * (i - 2 + 0.5f)
             val d = frame[spec.signal]
             val def = SignalCatalog[spec.signal] ?: return@forEachIndexed

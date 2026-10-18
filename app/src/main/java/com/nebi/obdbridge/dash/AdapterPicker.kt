@@ -69,7 +69,10 @@ class AdapterPicker(private val a: Activity, private val askPerms: (Array<String
         body.addView(status)
         body.addView(list, LinearLayout.LayoutParams(-1, -2).apply { topMargin = ui.dp(8) })
         // OBD'ye benzemeyen cihazlar (TV, kulaklık, aracın kendi Bluetooth'u…) "Diğer cihazlar" altında, kapalı
-        val others = ui.column().apply { visibility = android.view.View.GONE }
+        val others = ui.column().apply {
+            visibility = android.view.View.GONE
+            addView(ui.caps("Diğer cihazlar", Pal.DIM).apply { setPadding(0, ui.dp(6), 0, ui.dp(8)) })
+        }
         val othersBtn = ui.button("Diğer cihazları göster") {}.apply { visibility = android.view.View.GONE }
         othersBtn.setOnClickListener { others.visibility = android.view.View.VISIBLE; othersBtn.visibility = android.view.View.GONE }
         val shown = HashSet<String>()
@@ -90,7 +93,7 @@ class AdapterPicker(private val a: Activity, private val askPerms: (Array<String
             if (!obd && !on) {
                 others.addView(t, lp)
                 if (others.visibility != android.view.View.VISIBLE) othersBtn.visibility = android.view.View.VISIBLE
-                othersBtn.text = "Diğer cihazları göster (${others.childCount})"
+                othersBtn.text = "Diğer cihazları göster (${others.childCount - 1})"
             } else list.addView(t, if (obd) 0 else list.childCount, lp)
         }
         for (d in Conn.devices(a)) row(d.address, Conn.label(d), "eşleşmiş", leOnly = false)
@@ -100,7 +103,7 @@ class AdapterPicker(private val a: Activity, private val askPerms: (Array<String
         list.postDelayed({
             status.text = when {
                 list.childCount > 0 -> "Adaptörünü seç"
-                others.childCount > 0 -> "OBD adaptörüne benzeyen cihaz yok. Adaptörün başka adla görünüyorsa \"Diğer cihazlar\"a bak"
+                others.childCount > 1 -> "OBD adaptörüne benzeyen cihaz yok. Adaptörün başka adla görünüyorsa \"Diğer cihazlar\"a bak"
                 else -> "Adaptör bulunamadı. Kontak açık ve adaptör takılı mı?"
             }
         }, 10_000)

@@ -107,7 +107,7 @@ class SetupActivity : Activity() {
         }
         body.addView(card, LinearLayout.LayoutParams(-1, -2))
         body.addView(ui.button(if (cur == null) "Adaptör bul" else "Değiştir", primary = cur == null) {
-            AdapterPicker(this, { requestPermissions(it, 1) }) { show(step) }.show()
+            picker()
         }, wrap().apply { topMargin = ui.dp(12) })
         nav(skip = "Adaptörsüz dene (demo)", onSkip = { dash.edit().putBoolean("demo", true).apply(); show(step + 1) }) {
             if (!Conn.configured(this)) return@nav toastNeed("Önce adaptör seç")
@@ -138,6 +138,8 @@ class SetupActivity : Activity() {
     }
 
     private fun permissions() {
+        // Ana ekran konumu bir kez kendisi soruyor: sihirbaz bu adımı gösterdiyse ikinci kez sorulmasın
+        dash.edit().putBoolean("asked_location", true).apply()
         title("İsteğe bağlı izin", "Zorunlu değil; vermezsen navigasyon ve GPS hızı çalışmaz, gerisi çalışır.")
         val loc = checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
         permRow("Konum", "Navigasyon, adaptör bağlı değilken GPS hızı, hız göstergesi sapmasını ölçmek ve dış hava sıcaklığı için.", loc) {
@@ -180,7 +182,10 @@ class SetupActivity : Activity() {
     override fun onRequestPermissionsResult(code: Int, perms: Array<out String>, res: IntArray) {
         super.onRequestPermissionsResult(code, perms, res)
         show(step)
+        if (code == 1) picker()   // Bluetooth izni sonrası seçici kendiliğinden yeniden açılsın
     }
+
+    private fun picker() = AdapterPicker(this, { requestPermissions(it, 1) }) { show(step) }.show()
 
     @Suppress("DEPRECATION")
     private fun hideBars() {

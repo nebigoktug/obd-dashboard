@@ -28,6 +28,8 @@ data class ImageTheme(
     /** Kadran çentikleri (resimlerden silindi, canlı çiziliyor); null = rakam renkleri */
     val tickLit: Int? = null,
     val tickDim: Int? = null,
+    /** Kart zemininin opaklığı (0-255); çok desenli temalarda (çini, grafiti) yazı okunsun diye daha koyu */
+    val cardAlpha: Int? = null,
 ) {
     /** Üst çubuk ve göstergelerin kullandığı renk takımı */
     fun dash() = DashTheme.IMAGE.copy(
@@ -85,7 +87,7 @@ data class ImageTheme(
             ImageTheme("holo", "Holografik", R.drawable.theme_holo_base, R.drawable.theme_holo_lit, R.drawable.theme_holo_thumb, 199f, 380f,
                 0xFF06262C.toInt(), 0xFFA8E0E8.toInt(), accent = 0xFF50E8F0.toInt()),
             ImageTheme("graffiti", "Grafiti", R.drawable.theme_graffiti_base, R.drawable.theme_graffiti_lit, R.drawable.theme_graffiti_thumb, 202f, 390f,
-                0xFF101010.toInt(), 0xFFF0F0F0.toInt(), accent = 0xFFFF4FB0.toInt()),
+                0xFF101010.toInt(), 0xFFF0F0F0.toInt(), accent = 0xFFFF4FB0.toInt(), cardAlpha = 225),
             ImageTheme("carbon", "Geleceğin Karbonu", R.drawable.theme_carbon_base, R.drawable.theme_carbon_lit, R.drawable.theme_carbon_thumb, 304f, 369f,
                 0xFF061826.toInt(), 0xFFA8C8E0.toInt(), accent = 0xFF30B8FF.toInt()),
             // Yerel temalar (2026-10-12)
@@ -94,9 +96,9 @@ data class ImageTheme(
             ImageTheme("ebru", "Ebru", R.drawable.theme_ebru_base, R.drawable.theme_ebru_lit, R.drawable.theme_ebru_thumb, 213f, 380f,
                 0xFF201810.toInt(), 0xFFE0D0B8.toInt(), accent = 0xFFD08050.toInt()),
             ImageTheme("gokturk", "Göktürk", R.drawable.theme_gokturk_base, R.drawable.theme_gokturk_lit, R.drawable.theme_gokturk_thumb, 202f, 376f,
-                0xFFF0E8D8.toInt(), 0xFF4A4438.toInt(), light = true, accent = 0xFF8A7A60.toInt()),
+                0xFFF0E8D8.toInt(), 0xFF1E1A12.toInt(), light = true, accent = 0xFF8A7A60.toInt()),   // sönük rakam koyu: taş rünlerin üstünde okunsun
             ImageTheme("iznik", "İznik Çinisi", R.drawable.theme_iznik_base, R.drawable.theme_iznik_lit, R.drawable.theme_iznik_thumb, 195f, 387f,
-                0xFF0A1840.toInt(), 0xFFC8D8F0.toInt(), accent = 0xFF40C8D8.toInt()),
+                0xFF0A1840.toInt(), 0xFFC8D8F0.toInt(), accent = 0xFF40C8D8.toInt(), cardAlpha = 225),
             ImageTheme("kilim", "Türk Halısı", R.drawable.theme_kilim_base, R.drawable.theme_kilim_lit, R.drawable.theme_kilim_thumb, 202f, 380f,
                 0xFFFFF4E8.toInt(), 0xFFE0C8B0.toInt(), accent = 0xFFE05030.toInt()),
             ImageTheme("semazen", "Semazen", R.drawable.theme_semazen_base, R.drawable.theme_semazen_lit, R.drawable.theme_semazen_thumb, 213f, 380f,
