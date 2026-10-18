@@ -455,8 +455,7 @@ class DashboardActivity : Activity(), SensorEventListener {
             when {
                 prefs.getBoolean("demo", false) -> toast("Demo modu açık (Ayarlar > Ekran)")
                 BridgeService.running -> connectionDialog()
-                Conn.start(this) -> toast("Bağlanıyor…")
-                else -> startActivity(android.content.Intent(this, SettingsActivity::class.java))
+                else -> connectOrSettings()   // hapla aynı: seçilmediyse doğrudan seçici
             }
         }
         topBars += it
@@ -797,6 +796,13 @@ class DashboardActivity : Activity(), SensorEventListener {
             .setItems(alerts.map { it.text }.toTypedArray()) { _, i -> act(alerts[i]) }
             .setNegativeButton("Kapat", null)
             .show()
+    }
+
+    /** Geri: Detay/Geçmiş'ten önce Sürüş'e, Sürüş'ten çıkış */
+    @Deprecated("Deprecated in Java")
+    override fun onBackPressed() {
+        if (tab != 0) { tab = 0; build(); return }
+        @Suppress("DEPRECATION") super.onBackPressed()
     }
 
     private fun connectOrSettings() {

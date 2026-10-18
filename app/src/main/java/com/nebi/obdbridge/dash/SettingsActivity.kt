@@ -185,11 +185,7 @@ class SettingsActivity : Activity() {
         header("Adaptör")
         add(ui.item("OBD adaptörü", "Bluetooth ya da Wi-Fi ELM327 adaptörü",
             { Conn.label(this)?.let { (if (Conn.isWifi(this)) "Wi-Fi · " else "Bluetooth · ") + it } ?: "Seçilmedi" }) {
-            val before = BridgeService.spec(this)
-            AdapterPicker(this, { requestPermissions(it, 1) }) {
-                if (BridgeService.running && BridgeService.spec(this) != before) Conn.stop(this)
-                show(section)
-            }.show()
+            picker()
         })
         add(ui.item("Adaptör nasıl bağlanır?", "Listede adaptör yoksa", null) {
             AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
@@ -643,5 +639,14 @@ class SettingsActivity : Activity() {
     override fun onRequestPermissionsResult(code: Int, perms: Array<out String>, res: IntArray) {
         super.onRequestPermissionsResult(code, perms, res)
         show(section)
+        if (code == 1) picker()   // Bluetooth izni sonrası seçici kendiliğinden yeniden açılsın
+    }
+
+    private fun picker() {
+        val before = BridgeService.spec(this)
+        AdapterPicker(this, { requestPermissions(it, 1) }) {
+            if (BridgeService.running && BridgeService.spec(this) != before) Conn.stop(this)
+            show(section)
+        }.show()
     }
 }

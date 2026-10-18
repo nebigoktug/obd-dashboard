@@ -210,9 +210,17 @@ class TopBar(ctx: Context, private val tabs: List<String>, private val onTab: (I
         var x = (width - w) / 2
         hit.clear()
         for ((i, it) in items.withIndex()) {
-            p.color = it.second
-            c.drawText(it.first, x, y, p)
             val tw = p.measureText(it.first)
+            p.color = it.second
+            // Resimli temada her sekmenin rengi kendi altındaki zemine göre (Grafiti: sarı boyanın üstündeki "Detay")
+            if (ink != null && i in off until off + tabs.size) {
+                val r = DashImageGeom.TOPBAR
+                val x0 = (r.left + x / width * r.width()).toInt(); val x1 = (r.left + (x + tw) / width * r.width()).toInt()
+                val own = Glass.ink(android.graphics.RectF(x0.toFloat(), r.top, x1.toFloat(), r.bottom))
+                p.color = if (i - off == selected) own.text else own.dim
+                Glass.halo(p, own)
+            }
+            c.drawText(it.first, x, y, p)
             if (i in off until off + tabs.size) hit += x - gap / 2 to x + tw + gap / 2
             if (theme.refined && i == selected + off) {   // aktif sekmenin altında ince parlayan çizgi
                 val uy = y + sz * 0.55f
