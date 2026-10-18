@@ -273,6 +273,10 @@ class SettingsActivity : Activity() {
         add(ui.item("Tema", "Göstergelerin görünümü", { cur.name }) {
             chooseTheme(themes, cur) { dash.edit().putString("theme", it.id).apply() }
         })
+        val colors = ThemeColors.load(dash, cur.id)
+        add(ui.item("Renkler", "Bu temada kart yazısı, kart zemini, vurgu ve uyarı hapı renkleri", { if (colors.isDefault) "Otomatik" else "Özel" }) {
+            colorsDialog(cur)
+        })
         add(ui.item("Kendi temanı ekle", "Şablonu bir yapay zekâya (Gemini, ChatGPT…) kendi tarzında çizdir, çıkan resmi ekle", null) { themeHelp() })
         if (ImageTheme.user.isNotEmpty()) add(ui.item("Kendi temalarım", "Eklediğin temaları sil (tema seçicide üstüne uzun basmak da siler)",
             { "${ImageTheme.user.size} tema" }) { manageThemes() })
@@ -357,6 +361,62 @@ class SettingsActivity : Activity() {
             .setPositiveButton("Resim seç") { _, _ -> pickThemeImage() }
             .setNeutralButton("Şablonu gönder") { _, _ -> shareTemplate() }
             .setNegativeButton("Kapat", null)
+            .show()
+    }
+
+    /** Tema başına renkler: her satırda "Oto" + palet; kart saydamlığı kaydırıcıyla. Seçim hemen kaydedilir */
+    private fun colorsDialog(t: ImageTheme) {
+        var c = ThemeColors.load(dash, t.id)
+        val col = ui.column().apply { setPadding(ui.dp(20), ui.dp(4), ui.dp(20), ui.dp(4)) }
+        fun row(label: String, get: () -> Int?, set: (Int?) -> Unit) {
+            col.addView(ui.caps(label, Pal.DIM).apply { setPadding(0, ui.dp(12), 0, ui.dp(6)) })
+            val strip = ui.row()
+            val cells = ArrayList<Pair<android.view.View, Int?>>()
+            fun mark() = cells.forEach { (v, k) ->
+                (v.background as android.graphics.drawable.GradientDrawable).setStroke(ui.dp(if (k == get()) 3 else 1),
+                    if (k == get()) Pal.ICE else 0x55FFFFFF)
+            }
+            for (k in listOf<Int?>(null) + ThemeColors.PALETTE.toList()) {
+                val v = android.widget.TextView(this).apply {
+                    text = if (k == null) "Oto" else ""; textSize = 11f; setTextColor(Pal.TEXT); gravity = android.view.Gravity.CENTER
+                    background = android.graphics.drawable.GradientDrawable().apply {
+                        shape = android.graphics.drawable.GradientDrawable.OVAL; setColor(k ?: 0x00000000)
+                    }
+                    setOnClickListener { set(k); c.save(dash, t.id); mark() }
+                }
+                cells += v to k
+                strip.addView(v, LinearLayout.LayoutParams(ui.dp(36), ui.dp(36)).apply { marginEnd = ui.dp(8) })
+            }
+            mark()
+            col.addView(android.widget.HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled = false; addView(strip) })
+        }
+        row("Kart yazısı", { c.text }) { c = c.copy(text = it) }
+        row("Kart zemini", { c.card }) { c = c.copy(card = it) }
+        col.addView(ui.caps("Kart saydamlığı", Pal.DIM).apply { setPadding(0, ui.dp(12), 0, ui.dp(2)) })
+        val alphaNote = ui.text("", 13f, Pal.DIM)
+        fun noteText() { alphaNote.text = c.cardAlpha?.let { "%${(it * 100 / 255)} opak" } ?: "Otomatik (temanın ayarı)" }
+        noteText()
+        col.addView(alphaNote)
+        col.addView(android.widget.SeekBar(this).apply {
+            max = 255; progress = c.cardAlpha ?: (t.cardAlpha ?: if (t.light) 200 else 195)
+            setOnSeekBarChangeListener(object : android.widget.SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(sb: android.widget.SeekBar, v: Int, user: Boolean) {
+                    if (user) { c = c.copy(cardAlpha = v.coerceAtLeast(40)); noteText() }
+                }
+                override fun onStartTrackingTouch(sb: android.widget.SeekBar) {}
+                override fun onStopTrackingTouch(sb: android.widget.SeekBar) { c.save(dash, t.id) }
+            })
+        })
+        row("Vurgu (seçili sekme, simgeler, çubuklar)", { c.accent }) { c = c.copy(accent = it) }
+        row("Uyarı hapı zemini", { c.pill }) { c = c.copy(pill = it) }
+        col.addView(ui.text("Değişiklikler ana ekrana dönünce görünür. Renkler yalnız \"${t.name}\" teması için.", 13f, Pal.DIM)
+            .apply { setPadding(0, ui.dp(14), 0, ui.dp(4)) })
+        AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle("Renkler · ${t.name}")
+            .setView(ScrollView(this).apply { addView(col) })
+            .setPositiveButton("Tamam") { _, _ -> show(section) }
+            .setNeutralButton("Varsayılana dön") { _, _ -> ThemeColors().save(dash, t.id); show(section) }
+            .setOnDismissListener { show(section) }
             .show()
     }
 
