@@ -54,6 +54,10 @@ class AdapterPicker(private val a: Activity, private val askPerms: (Array<String
         val status = ui.text("Yakındaki adaptörler aranıyor…", 13f, Pal.DIM)
         body.addView(status)
         body.addView(list, LinearLayout.LayoutParams(-1, -2).apply { topMargin = ui.dp(8) })
+        // OBD'ye benzemeyen BLE cihazları (TV, saat, kulaklık…) "Diğer cihazlar" altında, kapalı
+        val others = ui.column().apply { visibility = android.view.View.GONE }
+        val othersBtn = ui.button("Diğer cihazları göster") {}.apply { visibility = android.view.View.GONE }
+        othersBtn.setOnClickListener { others.visibility = android.view.View.VISIBLE; othersBtn.visibility = android.view.View.GONE }
         val shown = HashSet<String>()
         val cur = Conn.address(a)
         fun row(addr: String, name: String, sub: String, leOnly: Boolean) {
@@ -66,22 +70,29 @@ class AdapterPicker(private val a: Activity, private val askPerms: (Array<String
                 addView(ui.text("$sub · $addr", 12f, Pal.DIM))
                 setOnClickListener { Conn.chooseBt(a, addr, name, leOnly); close() }
             }
-            // OBD'ye benzeyenler üstte
+            // OBD'ye benzeyenler üstte; eşleşmemiş ve OBD'ye benzemeyen BLE cihazları ayrı listede
             val obd = Regex("OBD|ELM|V-?LINK|VGATE|KONNWEI|VEEPEAK|ICAR|IOS-VLINK", RegexOption.IGNORE_CASE).containsMatchIn(name)
-            list.addView(t, if (obd) 0 else list.childCount, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = ui.dp(6) })
+            val lp = LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = ui.dp(6) }
+            if (leOnly && !obd && !on) {
+                others.addView(t, lp)
+                if (others.visibility != android.view.View.VISIBLE) othersBtn.visibility = android.view.View.VISIBLE
+                othersBtn.text = "Diğer cihazları göster (${others.childCount})"
+            } else list.addView(t, if (obd) 0 else list.childCount, lp)
         }
         for (d in Conn.devices(a)) row(d.address, Conn.label(d), "eşleşmiş", leOnly = false)
+        body.addView(othersBtn, LinearLayout.LayoutParams(-2, -2).apply { topMargin = ui.dp(4) })
+        body.addView(others, LinearLayout.LayoutParams(-1, -2).apply { topMargin = ui.dp(6) })
         stopScan = Conn.scanBle(a) { addr, name -> row(addr, name, "yakında · BLE (deneysel)", leOnly = true) }
-        list.postDelayed({ status.text = if (shown.isEmpty()) "Adaptör bulunamadı. Kontak açık ve adaptör takılı mı?" else "Adaptörünü seç" }, 10_000)
+        list.postDelayed({ status.text = if (list.childCount == 0) "Adaptör bulunamadı. Kontak açık ve adaptör takılı mı?" else "Adaptörünü seç" }, 10_000)
         body.addView(ui.text("Listede yoksa: klasik Bluetooth adaptörleri önce telefonun Bluetooth ayarlarından eşleştir " +
             "(PIN genelde 1234 ya da 0000). BLE adaptörler eşleştirmeden burada görünür.", 13f, Pal.DIM)
             .apply { setPadding(0, ui.dp(10), 0, 0) })
         body.addView(ui.button("Bluetooth ayarlarını aç") { Conn.openBtSettings(a) },
-            LinearLayout.LayoutParams(-2, -2).apply { topMargin = ui.dp(8) })
+            LinearLayout.LayoutParams(-2, -2).apply { topMargin = ui.dp(8); bottomMargin = ui.dp(12) })
     }
 
     private fun wifiPane(body: LinearLayout, close: () -> Unit) {
-        body.addView(ui.text("Deneysel: Wi-Fi adaptörlerle henüz gerçek araçta denenmedi. Sorun olursa Ayarlar > Kayıtlar > Sorun bildir.",
+        body.addView(ui.text("Deneysel: Wi-Fi adaptörlerle henüz gerçek araçta denenmedi. Sorun olursa Ayarlar > Hakkında > Sorun bildir.",
             13f, Pal.AMBER).apply { setPadding(0, 0, 0, ui.dp(8)) })
         body.addView(ui.text("1. Telefonu adaptörün Wi-Fi ağına bağla (ör. \"WiFi_OBDII\", \"V-LINK\").\n" +
             "2. \"İnternet yok\" uyarısı çıkarsa \"Bağlı kal\"ı seç.\n" +

@@ -1,7 +1,7 @@
-P0016	Krank/eksantrik konumu uyumsuz (Bank 1, sensör A)
-P0017	Krank/eksantrik konumu uyumsuz (Bank 1, sensör B)
-P0030	Oksijen sensörü ısıtıcı kontrol devresi (Bank 1, sensör 1)
-P0036	Oksijen sensörü ısıtıcı kontrol devresi (Bank 1, sensör 2)
+P0016	Krank/eksantrik konumu uyumsuz (1. sıra, sensör A)
+P0017	Krank/eksantrik konumu uyumsuz (1. sıra, sensör B)
+P0030	Oksijen sensörü ısıtıcı kontrol devresi (1. sıra, sensör 1)
+P0036	Oksijen sensörü ısıtıcı kontrol devresi (1. sıra, sensör 2)
 P0045	Turbo basınç kontrol solenoidi devresi / açık
 P0046	Turbo basınç kontrol solenoidi devresi aralık/performans
 P0047	Turbo basınç kontrol solenoidi devresi düşük
@@ -40,36 +40,36 @@ P0123	Gaz kelebeği / pedal konum sensörü A devresi yüksek giriş
 P0124	Gaz kelebeği / pedal konum sensörü A devresi aralıklı
 P0125	Kapalı çevrim yakıt kontrolü için soğutma suyu sıcaklığı yetersiz
 P0128	Termostat: soğutma suyu sıcaklığı termostat değerinin altında
-P0130	Oksijen sensörü devresi arızası (Bank 1, sensör 1)
-P0131	Oksijen sensörü devresi düşük voltaj (Bank 1, sensör 1)
-P0132	Oksijen sensörü devresi yüksek voltaj (Bank 1, sensör 1)
-P0133	Oksijen sensörü yavaş tepki (Bank 1, sensör 1)
-P0134	Oksijen sensöründe hareket yok (Bank 1, sensör 1)
-P0135	Oksijen sensörü ısıtıcı devresi arızası (Bank 1, sensör 1)
-P0136	Oksijen sensörü devresi arızası (Bank 1, sensör 2)
-P0137	Oksijen sensörü devresi düşük voltaj (Bank 1, sensör 2)
-P0138	Oksijen sensörü devresi yüksek voltaj (Bank 1, sensör 2)
-P0139	Oksijen sensörü yavaş tepki (Bank 1, sensör 2)
-P0140	Oksijen sensöründe hareket yok (Bank 1, sensör 2)
-P0141	Oksijen sensörü ısıtıcı devresi arızası (Bank 1, sensör 2)
-P0150	Oksijen sensörü devresi arızası (Bank 2, sensör 1)
-P0151	Oksijen sensörü devresi düşük voltaj (Bank 2, sensör 1)
-P0152	Oksijen sensörü devresi yüksek voltaj (Bank 2, sensör 1)
-P0153	Oksijen sensörü yavaş tepki (Bank 2, sensör 1)
-P0154	Oksijen sensöründe hareket yok (Bank 2, sensör 1)
-P0155	Oksijen sensörü ısıtıcı devresi arızası (Bank 2, sensör 1)
-P0156	Oksijen sensörü devresi arızası (Bank 2, sensör 2)
-P0157	Oksijen sensörü devresi düşük voltaj (Bank 2, sensör 2)
-P0158	Oksijen sensörü devresi yüksek voltaj (Bank 2, sensör 2)
-P0159	Oksijen sensörü yavaş tepki (Bank 2, sensör 2)
-P0160	Oksijen sensöründe hareket yok (Bank 2, sensör 2)
-P0161	Oksijen sensörü ısıtıcı devresi arızası (Bank 2, sensör 2)
-P0170	Yakıt düzeltme arızası (Bank 1)
-P0171	Karışım çok fakir (Bank 1)
-P0172	Karışım çok zengin (Bank 1)
-P0173	Yakıt düzeltme arızası (Bank 2)
-P0174	Karışım çok fakir (Bank 2)
-P0175	Karışım çok zengin (Bank 2)
+P0130	Oksijen sensörü devresi arızası (1. sıra, sensör 1)
+P0131	Oksijen sensörü devresi düşük voltaj (1. sıra, sensör 1)
+P0132	Oksijen sensörü devresi yüksek voltaj (1. sıra, sensör 1)
+P0133	Oksijen sensörü yavaş tepki (1. sıra, sensör 1)
+P0134	Oksijen sensöründe hareket yok (1. sıra, sensör 1)
+P0135	Oksijen sensörü ısıtıcı devresi arızası (1. sıra, sensör 1)
+P0136	Oksijen sensörü devresi arızası (1. sıra, sensör 2)
+P0137	Oksijen sensörü devresi düşük voltaj (1. sıra, sensör 2)
+P0138	Oksijen sensörü devresi yüksek voltaj (1. sıra, sensör 2)
+P0139	Oksijen sensörü yavaş tepki (1. sıra, sensör 2)
+P0140	Oksijen sensöründe hareket yok (1. sıra, sensör 2)
+P0141	Oksijen sensörü ısıtıcı devresi arızası (1. sıra, sensör 2)
+P0150	Oksijen sensörü devresi arızası (2. sıra, sensör 1)
+P0151	Oksijen sensörü devresi düşük voltaj (2. sıra, sensör 1)
+P0152	Oksijen sensörü devresi yüksek voltaj (2. sıra, sensör 1)
+P0153	Oksijen sensörü yavaş tepki (2. sıra, sensör 1)
+P0154	Oksijen sensöründe hareket yok (2. sıra, sensör 1)
+P0155	Oksijen sensörü ısıtıcı devresi arızası (2. sıra, sensör 1)
+P0156	Oksijen sensörü devresi arızası (2. sıra, sensör 2)
+P0157	Oksijen sensörü devresi düşük voltaj (2. sıra, sensör 2)
+P0158	Oksijen sensörü devresi yüksek voltaj (2. sıra, sensör 2)
+P0159	Oksijen sensörü yavaş tepki (2. sıra, sensör 2)
+P0160	Oksijen sensöründe hareket yok (2. sıra, sensör 2)
+P0161	Oksijen sensörü ısıtıcı devresi arızası (2. sıra, sensör 2)
+P0170	Yakıt düzeltme arızası (1. sıra)
+P0171	Karışım çok fakir (1. sıra)
+P0172	Karışım çok zengin (1. sıra)
+P0173	Yakıt düzeltme arızası (2. sıra)
+P0174	Karışım çok fakir (2. sıra)
+P0175	Karışım çok zengin (2. sıra)
 P0180	Yakıt sıcaklık sensörü A devresi arızası
 P0181	Yakıt sıcaklık sensörü A devresi aralık/performans
 P0182	Yakıt sıcaklık sensörü A devresi düşük giriş
@@ -131,10 +131,10 @@ P0304	4. silindirde tekleme
 P0305	5. silindirde tekleme
 P0306	6. silindirde tekleme
 P0316	İlk çalıştırmada tekleme (ilk 1000 devir)
-P0325	Vuruntu sensörü 1 devresi arızası (Bank 1)
-P0326	Vuruntu sensörü 1 devresi aralık/performans (Bank 1)
-P0327	Vuruntu sensörü 1 devresi düşük giriş (Bank 1)
-P0328	Vuruntu sensörü 1 devresi yüksek giriş (Bank 1)
+P0325	Vuruntu sensörü 1 devresi arızası (1. sıra)
+P0326	Vuruntu sensörü 1 devresi aralık/performans (1. sıra)
+P0327	Vuruntu sensörü 1 devresi düşük giriş (1. sıra)
+P0328	Vuruntu sensörü 1 devresi yüksek giriş (1. sıra)
 P0335	Krank mili konum sensörü A devresi arızası
 P0336	Krank mili konum sensörü A devresi aralık/performans
 P0337	Krank mili konum sensörü A devresi düşük giriş
@@ -159,9 +159,9 @@ P0403	EGR kontrol devresi arızası
 P0404	EGR kontrol devresi aralık/performans
 P0405	EGR sensörü A devresi düşük
 P0406	EGR sensörü A devresi yüksek
-P0420	Katalizör verimi eşiğin altında (Bank 1)
-P0421	Ön katalizör verimi eşiğin altında (Bank 1)
-P0430	Katalizör verimi eşiğin altında (Bank 2)
+P0420	Katalizör verimi eşiğin altında (1. sıra)
+P0421	Ön katalizör verimi eşiğin altında (1. sıra)
+P0430	Katalizör verimi eşiğin altında (2. sıra)
 P0440	Yakıt buharı (EVAP) sistemi arızası
 P0441	Yakıt buharı (EVAP) sistemi hatalı tahliye akışı
 P0442	Yakıt buharı (EVAP) sisteminde küçük kaçak
@@ -227,13 +227,13 @@ P0805	Debriyaj konum sensörü devresi
 P0806	Debriyaj konum sensörü devresi aralık/performans
 P0807	Debriyaj konum sensörü devresi düşük
 P0808	Debriyaj konum sensörü devresi yüksek
-P2002	Partikül filtresi (DPF) verimi eşiğin altında (Bank 1)
-P2031	Egzoz gazı sıcaklık sensörü devresi (Bank 1, sensör 2)
-P2032	Egzoz gazı sıcaklık sensörü devresi düşük (Bank 1, sensör 2)
-P2033	Egzoz gazı sıcaklık sensörü devresi yüksek (Bank 1, sensör 2)
-P2080	Egzoz gazı sıcaklık sensörü devresi aralık/performans (Bank 1, sensör 1)
-P2096	Katalizör sonrası yakıt düzeltme: çok fakir (Bank 1)
-P2097	Katalizör sonrası yakıt düzeltme: çok zengin (Bank 1)
+P2002	Partikül filtresi (DPF) verimi eşiğin altında (1. sıra)
+P2031	Egzoz gazı sıcaklık sensörü devresi (1. sıra, sensör 2)
+P2032	Egzoz gazı sıcaklık sensörü devresi düşük (1. sıra, sensör 2)
+P2033	Egzoz gazı sıcaklık sensörü devresi yüksek (1. sıra, sensör 2)
+P2080	Egzoz gazı sıcaklık sensörü devresi aralık/performans (1. sıra, sensör 1)
+P2096	Katalizör sonrası yakıt düzeltme: çok fakir (1. sıra)
+P2097	Katalizör sonrası yakıt düzeltme: çok zengin (1. sıra)
 P2100	Gaz kelebeği motoru devresi açık
 P2101	Gaz kelebeği motoru devresi aralık/performans
 P2110	Gaz kelebeği kontrol sistemi: güç sınırlandı
@@ -250,8 +250,8 @@ P2263	Turbo basınç sistemi performans
 P2264	Yakıtta su sensörü devresi
 P2269	Yakıtta su var
 P242F	Partikül filtresi (DPF) tıkanması: kül birikimi
-P244A	Partikül filtresi (DPF) fark basıncı çok düşük (Bank 1)
-P244B	Partikül filtresi (DPF) fark basıncı çok yüksek (Bank 1)
+P244A	Partikül filtresi (DPF) fark basıncı çok düşük (1. sıra)
+P244B	Partikül filtresi (DPF) fark basıncı çok yüksek (1. sıra)
 P2452	Partikül filtresi (DPF) basınç sensörü A devresi
 P2453	Partikül filtresi (DPF) basınç sensörü A devresi aralık/performans
 P2454	Partikül filtresi (DPF) basınç sensörü A devresi düşük

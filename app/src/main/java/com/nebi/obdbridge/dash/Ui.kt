@@ -51,7 +51,7 @@ class Ui(private val ctx: Context) {
             typeface = Typeface.create(if (light) "sans-serif-light" else "sans-serif", if (bold) Typeface.BOLD else Typeface.NORMAL)
         }
 
-    fun caps(s: String, color: Int = Pal.ICE) = text(s.uppercase(), 12f, color).apply { letterSpacing = 0.15f }
+    fun caps(s: String, color: Int = Pal.ICE) = text(s.uppercase(java.util.Locale("tr")), 12f, color).apply { letterSpacing = 0.15f }
 
     fun column(pad: Int = 0) = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(pad), dp(pad), dp(pad), dp(pad)) }
     fun row() = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }

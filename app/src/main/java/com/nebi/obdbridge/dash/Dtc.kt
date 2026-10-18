@@ -104,7 +104,7 @@ class DtcActivity : Activity() {
     private val main = Handler(Looper.getMainLooper())
     private var busy: String? = null
     private var message: String? = null
-    private val timeout = Runnable { if (busy != null) { busy = null; message = "Cevap gelmedi. Bağlantıyı kontrol edip yeniden deneyin."; render() } }
+    private val timeout = Runnable { if (busy != null) { busy = null; message = "Cevap gelmedi. Bağlantıyı kontrol edip yeniden dene."; render() } }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -154,7 +154,7 @@ class DtcActivity : Activity() {
         busy = null
         message = r.error ?: when (r.cleared) {
             true -> CLEARED
-            false -> "Motor beyni silmeyi reddetti. Motor çalışıyorsa durdurun, kontağı açık bırakıp yeniden deneyin."
+            false -> "Motor beyni silmeyi reddetti. Motor çalışıyorsa durdur, kontağı açık bırakıp yeniden dene."
             null -> null
         }
         if (r.error == null) last = r
@@ -166,8 +166,10 @@ class DtcActivity : Activity() {
         side.removeAllViews(); list.removeAllViews()
         val r = last
         side.addView(ui.text("‹  Arıza kodları", 22f, bold = true).apply {
-            setPadding(0, ui.dp(4), 0, ui.dp(14)); setOnClickListener { finish() }
+            setPadding(0, ui.dp(4), 0, ui.dp(if (demo) 4 else 14)); setOnClickListener { finish() }
         })
+        // Demoda örnek kodlar gerçekmiş gibi görünmesin
+        if (demo) side.addView(ui.text("DEMO · örnek kodlar, araçtan okunmadı", 13f, Pal.AMBER).apply { setPadding(0, 0, 0, ui.dp(12)) })
         val mil = r?.mil
         side.addView(statusCard(
             when (mil) { true -> "Arıza lambası yanıyor"; false -> "Arıza lambası sönük"; null -> "Arıza lambası: bilinmiyor" },
@@ -181,7 +183,7 @@ class DtcActivity : Activity() {
         fun gap() = LinearLayout.LayoutParams(-1, -2).apply { topMargin = ui.dp(10) }
         val idle = busy == null
         side.addView(ui.button("Yeniden oku", primary = true) { if (idle) read(false) }.apply { alpha = if (idle) 1f else 0.4f }, gap())
-        if (!demo && !BridgeService.running) side.addView(ui.button("Bağlan") { if (Conn.start(this)) { message = "Bağlanıyor… Bağlanınca Yeniden oku'ya dokunun."; render() } }, gap())
+        if (!demo && !BridgeService.running) side.addView(ui.button("Bağlan") { if (Conn.start(this)) { message = "Bağlanıyor… Bağlanınca Yeniden oku'ya dokun."; render() } }, gap())
         if (r != null) {
             side.addView(ui.button("Paylaş") { share(r) }, gap())
             if (r.stored.isNotEmpty() || r.pending.isNotEmpty() || mil == true) side.addView(ui.button("Kodları sil") { if (idle) confirmClear() }.apply { setTextColor(Pal.RED) }, gap())
@@ -202,7 +204,7 @@ class DtcActivity : Activity() {
             list.addView(ui.text(HINTS[title] ?: "", 13f, Pal.DIM).apply { setPadding(ui.dp(6), 0, 0, ui.dp(6)) })
             for (c in codes) list.addView(codeRow(c, title), LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = ui.dp(8) })
         }
-        list.addView(ui.text("Açıklamalar genel SAE tanımlarıdır. Kesin teşhis için servise ya da markanın forumuna danışın.", 12f, Pal.DIM)
+        list.addView(ui.text("Açıklamalar genel SAE tanımlarıdır. Kesin teşhis için servise ya da markanın forumuna danış.", 12f, Pal.DIM)
             .apply { setPadding(ui.dp(6), ui.dp(16), ui.dp(6), ui.dp(16)) })
     }
 
@@ -222,7 +224,7 @@ class DtcActivity : Activity() {
         }, LinearLayout.LayoutParams(ui.dp(104), -2))
         val col = ui.column()
         col.addView(ui.text(info.text, 16f, if (info.known) Pal.TEXT else Pal.DIM))
-        if (info.known) col.addView(ui.text(info.area.replaceFirstChar { it.uppercase() } + if (info.generic) " · genel kod" else "", 13f, Pal.DIM).apply { setPadding(0, ui.dp(3), 0, 0) })
+        if (info.known) col.addView(ui.text(info.area.replaceFirstChar { it.titlecase(java.util.Locale("tr")) } + if (info.generic) " · genel kod" else "", 13f, Pal.DIM).apply { setPadding(0, ui.dp(3), 0, 0) })
         row.addView(col, LinearLayout.LayoutParams(0, -2, 1f))
         return row
     }
@@ -231,9 +233,9 @@ class DtcActivity : Activity() {
         AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
             .setTitle("Arıza kodları silinsin mi?")
             .setMessage("• Kayıtlı ve bekleyen kodlar ile arıza lambası sıfırlanır.\n" +
-                "• Emisyon hazırlık testleri de sıfırlanır; muayeneden hemen önce silmeyin.\n" +
+                "• Emisyon hazırlık testleri de sıfırlanır; muayeneden hemen önce silme.\n" +
                 "• Arıza giderilmediyse kod geri gelir.\n\n" +
-                "Önce Paylaş ile kodları kaydetmeniz önerilir. Kontak açık, motor kapalıyken silin.")
+                "Önce Paylaş ile kodları kaydetmen önerilir. Kontak açık, motor kapalıyken sil.")
             .setPositiveButton("Sil") { _, _ -> read(true) }
             .setNegativeButton("Vazgeç", null)
             .show()
@@ -260,7 +262,7 @@ class DtcActivity : Activity() {
         @Volatile var last: DtcReport? = null
 
         private val HINTS = mapOf(
-            "Kayıtlı" to "Onaylanmış arızalar. Arıza lambasını bunlar yakar.",
+            "Kayıtlı" to "Onaylanmış arızalar. Arıza lambasını bunlar yakabilir.",
             "Bekleyen" to "Bir kez görülmüş, henüz onaylanmamış. Tekrarlarsa kayıtlıya geçer.",
             "Kalıcı" to "Silinemez; arıza giderilip araç kendi testlerini bitirince kendiliğinden kalkar.",
         )

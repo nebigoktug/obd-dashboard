@@ -115,7 +115,8 @@ class PlaceSearchActivity : Activity() {
             }
             val top = ui.row()
             top.addView(ui.text(it.title.text, 18f), LinearLayout.LayoutParams(0, -2, 1f))
-            it.distance?.text?.let { d -> top.addView(ui.text(d, 14f, Pal.DIM).apply { gravity = Gravity.END }) }
+            // Yandex'in hazır metni "95.30 km" (İngilizce biçim): değerden Türkçe yaz
+            it.distance?.value?.let { d -> top.addView(ui.text(Guidance.formatDist(d), 14f, Pal.DIM).apply { gravity = Gravity.END }) }
             row.addView(top)
             it.subtitle?.text?.takeIf { s -> s.isNotBlank() }?.let { s -> row.addView(ui.text(s, 14f, Pal.DIM)) }
             list.addView(row, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = ui.dp(8) })
@@ -170,7 +171,7 @@ class PlaceSearchActivity : Activity() {
         when (e) {
             is com.yandex.runtime.network.NetworkError -> "İnternet bağlantısı yok"
             is com.yandex.runtime.network.UnauthorizedError, is com.yandex.runtime.network.ForbiddenError ->
-                "Yandex aramaya izin vermedi (anahtar reddedildi). Ayarlar › Navigasyon'dan kendi anahtarını girebilirsin"
+                "Yandex aramaya izin vermedi (anahtar reddedildi). Ayarlar › Navigasyon ve medya'dan kendi anahtarını girebilirsin"
             else -> "Arama yapılamadı"
         }
 

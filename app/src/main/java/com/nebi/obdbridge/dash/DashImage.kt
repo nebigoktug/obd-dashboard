@@ -41,6 +41,9 @@ object DashImageGeom {
     /** Büyük hava (sol üst) ve saat (sağ üst): halkaların üstündeki çerçeve alanı */
     val WEATHER = RectF(150f, 26f, 690f, 150f)
     val CLOCK = RectF(1600f, 26f, 2140f, 150f)   // sağ köşe Android gizlilik noktasına (konum/mikrofon) yer bırakır
+    /** Hava açıklaması ve tarih satırının altı (renk ayrı ölçülür) */
+    val WEATHER_SUB = RectF(240f, 120f, 520f, 150f)
+    val CLOCK_SUB = RectF(1940f, 120f, 2140f, 150f)
     /** Orta kutucuklar: sol üst, sağ üst, sol alt, sağ alt */
     val TILES = listOf(
         RectF(916f, 233f, 1222f, 414f), RectF(1236f, 233f, 1547f, 414f),
@@ -198,7 +201,7 @@ class DashImageDials(ctx: Context, spec: WidgetSpec, private val th: ImageTheme 
         if (v.badge.isNotBlank()) {
             val r = DashImageGeom.LOGO
             badgeP.textSize = 34f * s
-            c.drawText(v.badge.uppercase(), ox + r.centerX() * s, oy + (r.centerY() + 12f) * s, badgeP)
+            c.drawText(v.badge.uppercase(java.util.Locale("tr")), ox + r.centerX() * s, oy + (r.centerY() + 12f) * s, badgeP)
         }
         dial(c, DashImageGeom.SPEED_C, frame["speed"], centerKey = null)
         // Otomatik vites: vites tahmini yok, ortada devir yazar

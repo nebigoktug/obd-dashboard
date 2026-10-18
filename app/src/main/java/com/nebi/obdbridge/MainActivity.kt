@@ -80,7 +80,7 @@ class MainActivity : Activity() {
         val prefs = getSharedPreferences(BridgeService.PREFS, MODE_PRIVATE)
         rawTcpBox = android.widget.CheckBox(this).apply {
             text = "Ham TCP köprüsü (127.0.0.1:${BridgeService.PORT})"
-            isChecked = prefs.getBoolean(BridgeService.PREF_RAW_TCP, true)
+            isChecked = prefs.getBoolean(BridgeService.PREF_RAW_TCP, false)
             setOnCheckedChangeListener { _, on -> prefs.edit().putBoolean(BridgeService.PREF_RAW_TCP, on).apply() }
         }
 
