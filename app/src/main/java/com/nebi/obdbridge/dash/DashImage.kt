@@ -67,15 +67,51 @@ object DashImageGeom {
     const val TICK_MINOR = 13f
     /** İsteğe bağlı ekran yazısı (Vehicle.badge), referanstaki marka yazısının yeri */
     val LOGO = RectF(1068f, 132f, 1068f + 271f, 132f + 48f)
+    /** Detay ve Geçmiş: üst çubuğun altındaki içerik paneli (kadranların üstünü örter) */
+    val CONTENT = RectF(130f, 180f, 2270f, 1045f)
+
+    /** (ölçek, x ofseti, y ofseti): resmi oranını koruyarak ekrana ortala */
+    fun fit(w: Int, h: Int): Triple<Float, Float, Float> {
+        val sc = min(w / W, h / H)
+        return Triple(sc, (w - W * sc) / 2, (h - H * sc) / 2)
+    }
+}
+
+/**
+ * Detay ve Geçmiş sekmelerinin zemini: Sürüş'le aynı tema resmi (üst çubuk, hava ve saat aynı yerde, aynı renkte),
+ * kadranların üstünde içerik için koyu (gündüz temasında açık) bir panel.
+ */
+@SuppressLint("ViewConstructor")  // yalnız koddan oluşturuluyor
+class ThemeBackdrop(ctx: Context, th: ImageTheme) : android.view.View(ctx) {
+    private val base: Bitmap = BitmapFactory.decodeResource(ctx.resources, th.base, BitmapFactory.Options().apply { inScaled = false })
+    private val edgeColor = base.getPixel(4, base.height / 2)
+    private val bmpP = Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG)
+    private val panelP = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = if (th.light) 0xFFE9EBEE.toInt() else 0xFF0D1014.toInt(); alpha = 238 }
+    private val edgeP = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; color = if (th.light) Color.BLACK else Color.WHITE; alpha = 34 }
+    private val dst = RectF()
+    private val panel = RectF()
+
+    override fun onDraw(c: Canvas) {
+        val (s, ox, oy) = DashImageGeom.fit(width, height)
+        c.drawColor(edgeColor)
+        dst.set(ox, oy, ox + DashImageGeom.W * s, oy + DashImageGeom.H * s)
+        c.drawBitmap(base, null, dst, bmpP)
+        val r = DashImageGeom.CONTENT
+        panel.set(ox + r.left * s, oy + r.top * s, ox + r.right * s, oy + r.bottom * s)
+        val rad = 56f * s
+        c.drawRoundRect(panel, rad, rad, panelP)
+        edgeP.strokeWidth = maxOf(1f, 2f * s)
+        c.drawRoundRect(panel, rad, rad, edgeP)
+    }
 }
 
 /** Resmi ekrana sığdırır (oranı korur, ortalar) ve çocuk görünümleri resimdeki yerlerine koyar. */
 @SuppressLint("ViewConstructor")  // yalnız koddan oluşturuluyor
-class DashImageLayout(ctx: Context, private val dials: DashImageDials) : FrameLayout(ctx) {
+class DashImageLayout(ctx: Context, background: android.view.View) : FrameLayout(ctx) {
     private val placed = ArrayList<Pair<android.view.View, RectF>>()
 
     init {
-        addView(dials, LayoutParams(-1, -1))
+        addView(background, LayoutParams(-1, -1))
     }
 
     /** [r] resim koordinatlarında; yerleşim sırasında ekrana çevrilir. */
@@ -86,7 +122,7 @@ class DashImageLayout(ctx: Context, private val dials: DashImageDials) : FrameLa
 
     override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
         super.onLayout(changed, l, t, r, b)
-        val (s, ox, oy) = dials.fit(width, height)
+        val (s, ox, oy) = DashImageGeom.fit(width, height)
         for ((v, rc) in placed) {
             val w = (rc.width() * s).toInt(); val h = (rc.height() * s).toInt()
             if (v.measuredWidth != w || v.measuredHeight != h) {
@@ -137,16 +173,11 @@ class DashImageDials(ctx: Context, spec: WidgetSpec, private val th: ImageTheme 
     override fun keys() = listOf("speed", "rpm", "gear", spec.bar ?: "coolant")
 
     /** (ölçek, x ofseti, y ofseti): resmi oranını koruyarak ortala. */
-    fun fit(w: Int, h: Int): Triple<Float, Float, Float> {
-        val sc = min(w / DashImageGeom.W, h / DashImageGeom.H)
-        return Triple(sc, (w - DashImageGeom.W * sc) / 2, (h - DashImageGeom.H * sc) / 2)
-    }
-
     override fun onDraw(c: Canvas) {
         val key = "$width/$height"
         if (key != fitKey) {
             fitKey = key
-            val (sc, x, y) = fit(width, height)
+            val (sc, x, y) = DashImageGeom.fit(width, height)
             s = sc; ox = x; oy = y
             dst.set(ox, oy, ox + DashImageGeom.W * s, oy + DashImageGeom.H * s)
             shaderM.setScale(s, s); shaderM.postTranslate(ox, oy)

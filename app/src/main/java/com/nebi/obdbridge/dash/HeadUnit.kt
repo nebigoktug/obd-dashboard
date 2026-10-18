@@ -748,6 +748,24 @@ class DtcBar(ctx: Context, private val summary: () -> Pair<String, Boolean>) : V
     }
 }
 
+/** Detay sekmesinde bir değer kutusunu cam kartın içine alır */
+@SuppressLint("ViewConstructor")  // yalnız koddan oluşturuluyor
+class GlassCell(ctx: Context, child: View) : android.widget.FrameLayout(ctx) {
+    private val rect = RectF()
+    private val dp = ctx.resources.displayMetrics.density
+
+    init {
+        setWillNotDraw(false)
+        val p = (14 * dp).toInt()
+        addView(child, LayoutParams(-1, -1).apply { setMargins(p, (10 * dp).toInt(), p, (6 * dp).toInt()) })
+    }
+
+    override fun onDraw(c: Canvas) {
+        rect.set(1f, 1f, width - 1f, height - 1f)
+        Glass.card(c, rect, 200 * dp)
+    }
+}
+
 // ---------------- Geçmiş sekmesi ----------------
 
 /** Geçmiş listesinde bir yolculuk satırı: tarih/saat, süre, km, tüketim, puan. */
