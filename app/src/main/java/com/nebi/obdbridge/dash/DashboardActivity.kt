@@ -263,14 +263,13 @@ class DashboardActivity : Activity(), SensorEventListener {
         turnMaps.clear()
         widgets.clear(); topBars.clear(); naviCards.clear(); mediaCards.clear(); pills.clear(); dialsList.clear()
         val land = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
-        val imageMode = tab == 0
-        val pad = if (imageMode) 0 else dp(if (land) 14 else 10)
-        panel = PanelLayout(this).apply { bone = land; theme = this@DashboardActivity.theme; shape = !imageMode }
-        root.addView(panel, FrameLayout.LayoutParams(-1, -1).apply { setMargins(pad, pad, pad, pad) })
+        // Bütün sekmeler tema resmi üstünde, tam ekran (Detay ve Geçmiş: ThemeBackdrop)
+        panel = PanelLayout(this).apply { bone = land; theme = this@DashboardActivity.theme; shape = false }
+        root.addView(panel, FrameLayout.LayoutParams(-1, -1))
 
         val content = when {
-            tab == 1 -> detailView(land)
-            tab == 2 -> historyView()
+            tab == 1 -> themedPage(detailView())
+            tab == 2 -> themedPage(historyView())
             else -> imageLayout()
         }
         panel.addView(content, FrameLayout.LayoutParams(-1, -1))
@@ -373,9 +372,7 @@ class DashboardActivity : Activity(), SensorEventListener {
         widgets += dials
         dialsList += dials
         val lay = DashImageLayout(this, dials)
-        lay.place(topBar().also { it.showTempClock = false }, DashImageGeom.TOPBAR)
-        lay.place(WeatherView(this, weather), DashImageGeom.WEATHER)
-        lay.place(ClockView(this), DashImageGeom.CLOCK)
+        header(lay)
         lay.place(NaviCard(this, prefs) { navMenu() }.also { naviCards += it }, DashImageGeom.NAV_CARD)
         lay.place(MediaCard(this, media).also { mediaCards += it }, DashImageGeom.MEDIA_CARD)
         val strip = ValueStrip(this, tiles.take(4))
@@ -401,10 +398,23 @@ class DashboardActivity : Activity(), SensorEventListener {
             .show()
     }
 
+    /** Sürüş'teki üst sıra: hava, sekmeler, saat (tema resminde aynı yerde) */
+    private fun header(lay: DashImageLayout) {
+        lay.place(topBar().also { it.showTempClock = false }, DashImageGeom.TOPBAR)
+        lay.place(WeatherView(this, weather), DashImageGeom.WEATHER)
+        lay.place(ClockView(this), DashImageGeom.CLOCK)
+    }
+
+    /** Detay ve Geçmiş: Sürüş'le aynı tema zemini ve üst sıra, içerik kadranların üstündeki panelde */
+    private fun themedPage(content: View): View {
+        val lay = DashImageLayout(this, ThemeBackdrop(this, imgTheme))
+        header(lay)
+        lay.place(content.apply { setPadding(dp(14), dp(10), dp(14), dp(10)) }, DashImageGeom.CONTENT)
+        return lay
+    }
+
     /** Detay sekmesi: kartlar, arıza şeridi ve bütün sinyaller (sürüşte değil). */
-    private fun detailView(land: Boolean): View {
-        val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(24), dp(8), dp(24), dp(8)) }
-        col.addView(topBar(), LinearLayout.LayoutParams(-1, dp(36)))
+    private fun detailView(): View {
         val list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         val cards = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         for ((t, rows) in listOf("YOLCULUK" to ::tripRows, "PERFORMANS" to ::perfRows, "SAĞLIK" to ::healthRows, "BAKIM" to ::maintRows)) {
@@ -413,19 +423,18 @@ class DashboardActivity : Activity(), SensorEventListener {
         list.addView(cards)
         list.addView(DtcBar(this, ::dtcSummary).apply { setOnClickListener { startActivity(android.content.Intent(this@DashboardActivity, DtcActivity::class.java)) } },
             LinearLayout.LayoutParams(-1, dp(56)).apply { setMargins(dp(6), dp(6), dp(6), dp(6)) })
-        val perRow = if (land) 4 else 2
+        val perRow = 4
         SignalCatalog.ALL.chunked(perRow).forEach { chunk ->
             val r = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
             chunk.forEach { def ->
                 val tile = ValueTile(this, WidgetSpec("tile", def.key), showStale = true)
                 widgets += tile
-                r.addView(tile, LinearLayout.LayoutParams(0, dp(78), 1f).apply { setMargins(dp(6), dp(6), dp(6), dp(6)) })
+                r.addView(GlassCell(this, tile), LinearLayout.LayoutParams(0, dp(84), 1f).apply { setMargins(dp(6), dp(6), dp(6), dp(6)) })
             }
             repeat(perRow - chunk.size) { r.addView(View(this), LinearLayout.LayoutParams(0, 1, 1f)) }
             list.addView(r)
         }
-        col.addView(ScrollView(this).apply { addView(list) }, LinearLayout.LayoutParams(-1, 0, 1f))
-        return col
+        return ScrollView(this).apply { isVerticalScrollBarEnabled = false; isVerticalFadingEdgeEnabled = true; setFadingEdgeLength(dp(28)); addView(list) }
     }
 
     private fun topBar() = TopBar(this, listOf("Sürüş", "Detay", "Geçmiş", "Ayarlar")) { onTab(it) }.also {
@@ -637,8 +646,6 @@ class DashboardActivity : Activity(), SensorEventListener {
 
     /** Solda haftalık karşılaştırma, sağda yolculuk listesi (son 30 gün). Özetler arka planda hesaplanır. */
     private fun historyView(): View {
-        val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(24), dp(8), dp(24), dp(8)) }
-        col.addView(topBar(), LinearLayout.LayoutParams(-1, dp(36)))
         val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         var weeks: Pair<WeekTotals, WeekTotals>? = null
         var count = -1
@@ -657,8 +664,7 @@ class DashboardActivity : Activity(), SensorEventListener {
             )
         }, LinearLayout.LayoutParams(0, -1, 0.85f).apply { setMargins(dp(6), dp(6), dp(6), dp(6)) })
         val list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        row.addView(ScrollView(this).apply { addView(list) }, LinearLayout.LayoutParams(0, -1, 1.6f))
-        col.addView(row, LinearLayout.LayoutParams(-1, 0, 1f))
+        row.addView(ScrollView(this).apply { isVerticalScrollBarEnabled = false; isVerticalFadingEdgeEnabled = true; setFadingEdgeLength(dp(28)); addView(list) }, LinearLayout.LayoutParams(0, -1, 1.6f))
 
         val dir = java.io.File(getExternalFilesDir(null), "logs")
         val gearsCopy = GearEstimator().apply { load(liveGears.save()) }   // özet hesabı canlı öğrenmeyi değiştirmesin
@@ -669,14 +675,14 @@ class DashboardActivity : Activity(), SensorEventListener {
                 weeks = HistoryIndex.weeks(trips, System.currentTimeMillis())
                 count = trips.size
                 if (trips.isEmpty()) list.addView(Ui(this).text("Henüz kayıtlı yolculuk yok. Adaptör bağlıyken yapılan her sürüş " +
-                    "burada görünecek.", 15f, Pal.DIM).apply { setPadding(dp(12), dp(12), dp(12), dp(12)) })
+                    "burada görünecek.", 15f, Glass.DIM).apply { setPadding(dp(12), dp(12), dp(12), dp(12)) })
                 for (t in trips) {
                     list.addView(TripRow(this, t).apply { setOnClickListener { showTrip(t) } },
                         LinearLayout.LayoutParams(-1, dp(64)).apply { setMargins(dp(6), dp(6), dp(6), 0) })
                 }
             }
         }, "history").start()
-        return col
+        return row
     }
 
     private fun showTrip(t: TripSummary) {
