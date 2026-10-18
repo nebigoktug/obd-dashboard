@@ -141,14 +141,7 @@ class SettingsActivity : Activity() {
                 }
                 setOnClickListener { done(t); dlg?.dismiss(); show(section) }
                 // Kendi temaları uzun basınca silinir
-                if (t.dir != null) setOnLongClickListener {
-                    dlg?.dismiss()
-                    confirm("\"${t.name}\" silinsin mi?", "Kendi eklediğin tema telefondan silinir.", "Sil") {
-                        if (dash.getString("theme", null) == t.id) dash.edit().putString("theme", DashboardActivity.DEFAULT_THEME).apply()
-                        UserThemes.delete(this@SettingsActivity, t)
-                    }
-                    true
-                }
+                if (t.dir != null) setOnLongClickListener { dlg?.dismiss(); deleteTheme(t); true }
             }
             cell.addView(android.widget.ImageView(this).apply {
                 if (t.dir != null) setImageBitmap(t.decode(resources, ImageTheme.Part.THUMB)) else setImageResource(t.thumb)
@@ -278,10 +271,12 @@ class SettingsActivity : Activity() {
         header("Görünüm")
         val themes = ImageTheme.all()
         val cur = ImageTheme.byId(dash.getString("theme", DashboardActivity.DEFAULT_THEME))
-        add(ui.item("Tema", "Göstergelerin görünümü" + if (ImageTheme.user.isNotEmpty()) ". Kendi temanı silmek için üstüne uzun bas" else "", { cur.name }) {
+        add(ui.item("Tema", "Göstergelerin görünümü", { cur.name }) {
             chooseTheme(themes, cur) { dash.edit().putString("theme", it.id).apply() }
         })
         add(ui.item("Kendi temanı ekle", "Şablonu bir yapay zekâya (Gemini, ChatGPT…) kendi tarzında çizdir, çıkan resmi ekle", null) { themeHelp() })
+        if (ImageTheme.user.isNotEmpty()) add(ui.item("Kendi temalarım", "Eklediğin temaları sil (tema seçicide üstüne uzun basmak da siler)",
+            { "${ImageTheme.user.size} tema" }) { manageThemes() })
         add(ui.toggle("Güneşte Gündüz temasına geç", "Ortam ışığı çok artınca okunurluk için açık temaya, kararınca seçili temaya döner",
             { dash.getBoolean("auto_day", true) }) { dash.edit().putBoolean("auto_day", it).apply() })
         add(ui.item("Alt şeritteki değerler", "Ana ekranda yol çiziminin iki yanındaki 4 değer. Dokununca ana ekrana döner ve seçim penceresi açılır (şeride uzun basmak da açar)", null) {
@@ -365,6 +360,23 @@ class SettingsActivity : Activity() {
             .setNegativeButton("Kapat", null)
             .show()
     }
+
+    /** Kendi temalarının listesi: dokununca silme onayı */
+    private fun manageThemes() {
+        val list = ImageTheme.user
+        if (list.isEmpty()) return
+        AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle("Kendi temalarım · silmek için dokun")
+            .setItems(list.map { it.name }.toTypedArray()) { _, i -> deleteTheme(list[i]) }
+            .setNegativeButton("Kapat", null)
+            .show()
+    }
+
+    private fun deleteTheme(t: ImageTheme) =
+        confirm("\"${t.name}\" silinsin mi?", "Kendi eklediğin tema telefondan silinir.", "Sil") {
+            if (dash.getString("theme", null) == t.id) dash.edit().putString("theme", DashboardActivity.DEFAULT_THEME).apply()
+            UserThemes.delete(this, t)
+        }
 
     private fun shareTemplate() {
         (getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager)
