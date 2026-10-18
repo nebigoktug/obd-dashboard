@@ -28,13 +28,17 @@ object YandexNav {
     private const val PREF_KEY = "yandex_key"
     private const val PREF_REJECTED = "yandex_rejected"      // reddedilen anahtar
     private const val PREF_REJECTED_AT = "yandex_rejected_at"
-    /** MapKit bu anahtarla başlatılıyor; süreç [ALIVE_MS] yaşarsa silinir. Açılışta duruyorsa MapKit çökmüştür */
+    /**
+     * Kullanıcının anahtarıyla MapKit başlatılıyor ("pid:anahtar"); süreç [ALIVE_MS] yaşarsa silinir.
+     * Geçersiz anahtarda MapKit hata döndürmeden yerel kodda çöküyor (QC 2026-10-18). Uygulamanın kendi anahtarı
+     * için işaret konmaz: o anahtar kilitlenmesin (QC2: uygulamayı kaydırıp kapatmak yanlış alarm veriyordu).
+     */
     private const val PREF_PENDING = "yandex_init_pending"
     private const val ALIVE_MS = 15_000L
     /** Reddedilen anahtar bu süre sonra yeniden denenir (sınır aşımı geçici olabilir) */
     private const val RETRY_MS = 6 * 3600_000L
 
-    private var inited = false
+    var inited = false; private set
     private var initedKey = ""
     private var router: DrivingRouter? = null
     private var session: DrivingSession? = null
@@ -60,8 +64,9 @@ object YandexNav {
     /** Navigasyon neden kapalı (null: açık) */
     fun unavailable(ctx: Context): String? = when {
         key(ctx).isEmpty() -> "Navigasyon bu sürümde kapalı (Yandex anahtarı yok)"
-        rejected(ctx) -> "Yandex şu an navigasyona izin vermiyor; birkaç saat sonra yeniden denenir. " +
-            "Ayarlar › Navigasyon ve medya'dan kendi Yandex anahtarını girebilirsin"
+        needsRestart(ctx) -> "Yandex anahtarı değişti. Navigasyon için uygulamayı kapatıp yeniden aç"
+        rejected(ctx) -> "Yandex şu an navigasyona izin vermiyor (günlük sınır ya da engel); birkaç saat sonra yeniden denenir. " +
+            "İstersen Ayarlar › Navigasyon ve medya'dan kendi ücretsiz Yandex anahtarını girebilirsin"
         else -> null
     }
 
@@ -70,48 +75,70 @@ object YandexNav {
     /** Anahtar değişti ama MapKit eskisiyle başlatıldı: uygulama yeniden başlamalı */
     fun needsRestart(ctx: Context) = inited && initedKey != key(ctx)
 
-    /** Yandex hatası: anahtar reddedildiyse (geçersiz, engelli ya da sınır aşıldı) bir süre denenmez */
+    /**
+     * Yandex hatası: anahtar reddedildi (geçersiz, engelli ya da sınır aşıldı). Kullanıcının anahtarıysa kaldırılır
+     * (sonraki açılışta uygulamanın anahtarı); uygulamanın anahtarıysa bir süre denenmez.
+     */
     fun onError(ctx: Context, e: com.yandex.runtime.Error) {
         if (e !is com.yandex.runtime.network.UnauthorizedError && e !is com.yandex.runtime.network.ForbiddenError) return
         Log.w(BridgeService.TAG, "Yandex anahtarı reddetti: ${e.javaClass.simpleName}")
-        prefs(ctx).edit().putString(PREF_REJECTED, key(ctx)).putLong(PREF_REJECTED_AT, System.currentTimeMillis()).apply()
+        val k = key(ctx)
+        if (k == userKey(ctx)) {
+            prefs(ctx).edit().remove(PREF_KEY).commit()
+            tell(ctx, "Girdiğin Yandex anahtarını Yandex reddetti ve kaldırıldı. Uygulamanın kendi anahtarı için uygulamayı kapatıp yeniden aç.")
+        } else prefs(ctx).edit().putString(PREF_REJECTED, k).putLong(PREF_REJECTED_AT, System.currentTimeMillis()).apply()
     }
 
-    fun init(ctx: Context) {
-        if (inited) return
+    /** MapKit'i başlatır; anahtar yoksa ya da reddedildiyse false (o zaman MapKit sınıfları kullanılmamalı) */
+    fun init(ctx: Context): Boolean {
+        if (inited) return true
         crashCheck(ctx)
         val k = key(ctx)
-        if (k.isEmpty() || rejected(ctx)) return
-        // Geçersiz anahtarda MapKit hata döndürmeden yerel kodda çöküyor (QC 2026-10-18): işaret bırak
-        prefs(ctx).edit().putString(PREF_PENDING, k).commit()
-        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({ prefs(ctx).edit().remove(PREF_PENDING).apply() }, ALIVE_MS)
+        if (k.isEmpty() || rejected(ctx)) return false
+        if (k == userKey(ctx)) {
+            prefs(ctx).edit().putString(PREF_PENDING, "${android.os.Process.myPid()}:$k").commit()
+            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({ prefs(ctx).edit().remove(PREF_PENDING).apply() }, ALIVE_MS)
+        }
         com.yandex.mapkit.MapKitFactory.setApiKey(k)
         com.yandex.mapkit.MapKitFactory.setLocale("tr_TR")
         com.yandex.mapkit.MapKitFactory.initialize(ctx.applicationContext)
         inited = true; initedKey = k
+        return true
     }
 
     /**
-     * Önceki MapKit başlatması çöktüyse: kullanıcının anahtarıysa kaldırılır (uygulamanınkine dönülür),
-     * uygulamanın anahtarıysa reddedilmiş sayılır. Kullanıcıya bir kez söylenir.
+     * Önceki süreç kullanıcının anahtarıyla MapKit başlatırken öldüyse: gerçekten yerel çökme mi (Android 11+ çıkış
+     * nedeni; daha eskide bilinemez, çökme sayılır)? Öyleyse kullanıcının anahtarı kaldırılır ve bir kez söylenir.
      */
     private fun crashCheck(ctx: Context) {
         val p = prefs(ctx)
-        val bad = p.getString(PREF_PENDING, null) ?: return
-        val e = p.edit().remove(PREF_PENDING)
-        val msg = if (bad == userKey(ctx)) {
-            e.remove(PREF_KEY); "Girdiğin Yandex anahtarı çalışmadı, kaldırıldı"
-        } else {
-            e.putString(PREF_REJECTED, bad).putLong(PREF_REJECTED_AT, System.currentTimeMillis()); "Yandex açılamadı; navigasyon sonra yeniden denenecek"
-        }
-        e.commit()
-        Log.w(BridgeService.TAG, "Yandex başlatması önceki açılışta çöktü")
-        android.widget.Toast.makeText(ctx, msg, android.widget.Toast.LENGTH_LONG).show()
+        val v = p.getString(PREF_PENDING, null) ?: return
+        p.edit().remove(PREF_PENDING).commit()
+        val pid = v.substringBefore(':').toIntOrNull() ?: return
+        val bad = v.substringAfter(':')
+        if (bad != userKey(ctx)) return
+        val crashed = if (android.os.Build.VERSION.SDK_INT >= 30) {
+            val am = ctx.getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
+            runCatching { am.getHistoricalProcessExitReasons(ctx.packageName, pid, 1).firstOrNull()?.reason }.getOrNull() ==
+                android.app.ApplicationExitInfo.REASON_CRASH_NATIVE
+        } else true
+        if (!crashed) return
+        p.edit().remove(PREF_KEY).commit()
+        Log.w(BridgeService.TAG, "Yandex başlatması kullanıcı anahtarıyla çöktü; anahtar kaldırıldı")
+        tell(ctx, "Girdiğin Yandex anahtarı çalışmadı ve kaldırıldı; uygulamanın kendi anahtarı kullanılıyor.")
+    }
+
+    /** Uzun mesaj: ekran varsa pencere (Toast kesiliyordu), yoksa uzun Toast */
+    fun tell(ctx: Context, msg: String) {
+        val a = ctx as? android.app.Activity
+        if (a != null && !a.isFinishing) {
+            android.app.AlertDialog.Builder(a, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle("Navigasyon").setMessage(msg).setPositiveButton("Tamam", null).show()
+        } else android.widget.Toast.makeText(ctx, msg, android.widget.Toast.LENGTH_LONG).show()
     }
 
     fun requestRoute(ctx: Context, from: LatLon, to: LatLon, azimuth: Double?, done: (NavRoute?) -> Unit) {
-        if (!available(ctx)) { done(null); return }
-        init(ctx)
+        if (!available(ctx) || !init(ctx)) { done(null); return }
         val r = router ?: DirectionsFactory.getInstance().createDrivingRouter(DrivingRouterType.ONLINE).also { router = it }
         val pts = listOf(
             RequestPoint(Point(from.lat, from.lon), RequestPointType.WAYPOINT, null, null, null),

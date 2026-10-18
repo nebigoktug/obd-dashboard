@@ -48,7 +48,11 @@ class PlaceSearchActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         ui = Ui(this)
-        YandexNav.init(this)
+        // MapKit başlamadıysa (anahtar yok/reddedildi) Yandex sınıflarına dokunmak çöker: ekran açılmaz
+        if (!YandexNav.init(this)) {
+            android.widget.Toast.makeText(this, YandexNav.unavailable(this) ?: "Adres arama şu an açılamıyor", android.widget.Toast.LENGTH_LONG).show()
+            finish(); return
+        }
         search = SearchFactory.getInstance().createSearchManager(SearchManagerType.ONLINE)
         suggest = search.createSuggestSession()
 
@@ -84,9 +88,9 @@ class PlaceSearchActivity : Activity() {
         input.postDelayed({ (getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager).showSoftInput(input, 0) }, 200)
     }
 
-    override fun onStart() { super.onStart(); com.yandex.mapkit.MapKitFactory.getInstance().onStart() }
-    override fun onStop() { com.yandex.mapkit.MapKitFactory.getInstance().onStop(); super.onStop() }
-    override fun onDestroy() { session?.cancel(); suggest.reset(); super.onDestroy() }
+    override fun onStart() { super.onStart(); if (YandexNav.inited) com.yandex.mapkit.MapKitFactory.getInstance().onStart() }
+    override fun onStop() { if (YandexNav.inited) com.yandex.mapkit.MapKitFactory.getInstance().onStop(); super.onStop() }
+    override fun onDestroy() { session?.cancel(); if (::suggest.isInitialized) suggest.reset(); super.onDestroy() }
 
     private fun area(): BoundingBox {
         val p = here ?: RouteTracker.LatLon(39.0, 35.0)       // konum yoksa Türkiye
@@ -192,10 +196,7 @@ class PlaceSearchActivity : Activity() {
         const val MODE_WORK = "work"
 
         fun open(ctx: Context, mode: String) {
-            YandexNav.unavailable(ctx)?.let {
-                android.widget.Toast.makeText(ctx, it, android.widget.Toast.LENGTH_LONG).show()
-                return
-            }
+            YandexNav.unavailable(ctx)?.let { YandexNav.tell(ctx, it); return }
             ctx.startActivity(Intent(ctx, PlaceSearchActivity::class.java).putExtra(EXTRA_MODE, mode))
         }
     }

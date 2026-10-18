@@ -44,9 +44,23 @@ class AdapterPicker(private val a: Activity, private val askPerms: (Array<String
     @SuppressLint("MissingPermission")
     private fun btPane(body: LinearLayout, close: () -> Unit) {
         if (!Conn.hasBt(a) || !Conn.hasScan(a)) {
+            // Bir kez sorulup "bir daha sorma" denildiyse sistem penceresi çıkmaz: Android ayarlarına yönlendir
+            val prefs = a.getSharedPreferences("dash", Activity.MODE_PRIVATE)
+            val blocked = prefs.getBoolean(PREF_ASKED, false) && Conn.scanPerms().none { a.shouldShowRequestPermissionRationale(it) }
+            if (blocked) {
+                body.addView(ui.text("Bluetooth izni kapalı. Adaptörü görmek için Android ayarlarında uygulamanın " +
+                    "izinlerinden \"Yakındaki cihazlar\" (ya da Konum) iznini aç.", 15f, Pal.DIM))
+                body.addView(ui.button("Uygulama ayarlarını aç", primary = true) {
+                    close()
+                    a.startActivity(android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                        android.net.Uri.fromParts("package", a.packageName, null)))
+                }, LinearLayout.LayoutParams(-2, -2).apply { topMargin = ui.dp(10) })
+                return
+            }
             body.addView(ui.text("Yakındaki adaptörleri görmek için Bluetooth izni gerekiyor.", 15f, Pal.DIM))
-            body.addView(ui.button("İzin ver", primary = true) { close(); askPerms(Conn.scanPerms()) },
-                LinearLayout.LayoutParams(-2, -2).apply { topMargin = ui.dp(10) })
+            body.addView(ui.button("İzin ver", primary = true) {
+                prefs.edit().putBoolean(PREF_ASKED, true).apply(); close(); askPerms(Conn.scanPerms())
+            }, LinearLayout.LayoutParams(-2, -2).apply { topMargin = ui.dp(10) })
             return
         }
         if (!Conn.btOn(a)) { body.addView(ui.text("Bluetooth kapalı. Açıp tekrar dene.", 15f, Pal.AMBER)); return }
@@ -54,7 +68,7 @@ class AdapterPicker(private val a: Activity, private val askPerms: (Array<String
         val status = ui.text("Yakındaki adaptörler aranıyor…", 13f, Pal.DIM)
         body.addView(status)
         body.addView(list, LinearLayout.LayoutParams(-1, -2).apply { topMargin = ui.dp(8) })
-        // OBD'ye benzemeyen BLE cihazları (TV, saat, kulaklık…) "Diğer cihazlar" altında, kapalı
+        // OBD'ye benzemeyen cihazlar (TV, kulaklık, aracın kendi Bluetooth'u…) "Diğer cihazlar" altında, kapalı
         val others = ui.column().apply { visibility = android.view.View.GONE }
         val othersBtn = ui.button("Diğer cihazları göster") {}.apply { visibility = android.view.View.GONE }
         othersBtn.setOnClickListener { others.visibility = android.view.View.VISIBLE; othersBtn.visibility = android.view.View.GONE }
@@ -70,10 +84,10 @@ class AdapterPicker(private val a: Activity, private val askPerms: (Array<String
                 addView(ui.text("$sub · $addr", 12f, Pal.DIM))
                 setOnClickListener { Conn.chooseBt(a, addr, name, leOnly); close() }
             }
-            // OBD'ye benzeyenler üstte; eşleşmemiş ve OBD'ye benzemeyen BLE cihazları ayrı listede
-            val obd = Regex("OBD|ELM|V-?LINK|VGATE|KONNWEI|VEEPEAK|ICAR|IOS-VLINK", RegexOption.IGNORE_CASE).containsMatchIn(name)
+            // Ana listede yalnız OBD'ye benzeyenler (eşleşmiş ya da yakında) ve seçili olan; diğerleri ayrı listede
+            val obd = OBD_NAME.containsMatchIn(name)
             val lp = LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = ui.dp(6) }
-            if (leOnly && !obd && !on) {
+            if (!obd && !on) {
                 others.addView(t, lp)
                 if (others.visibility != android.view.View.VISIBLE) othersBtn.visibility = android.view.View.VISIBLE
                 othersBtn.text = "Diğer cihazları göster (${others.childCount})"
@@ -83,7 +97,13 @@ class AdapterPicker(private val a: Activity, private val askPerms: (Array<String
         body.addView(othersBtn, LinearLayout.LayoutParams(-2, -2).apply { topMargin = ui.dp(4) })
         body.addView(others, LinearLayout.LayoutParams(-1, -2).apply { topMargin = ui.dp(6) })
         stopScan = Conn.scanBle(a) { addr, name -> row(addr, name, "yakında · BLE (deneysel)", leOnly = true) }
-        list.postDelayed({ status.text = if (list.childCount == 0) "Adaptör bulunamadı. Kontak açık ve adaptör takılı mı?" else "Adaptörünü seç" }, 10_000)
+        list.postDelayed({
+            status.text = when {
+                list.childCount > 0 -> "Adaptörünü seç"
+                others.childCount > 0 -> "OBD adaptörüne benzeyen cihaz yok. Adaptörün başka adla görünüyorsa \"Diğer cihazlar\"a bak"
+                else -> "Adaptör bulunamadı. Kontak açık ve adaptör takılı mı?"
+            }
+        }, 10_000)
         body.addView(ui.text("Listede yoksa: klasik Bluetooth adaptörleri önce telefonun Bluetooth ayarlarından eşleştir " +
             "(PIN genelde 1234 ya da 0000). BLE adaptörler eşleştirmeden burada görünür.", 13f, Pal.DIM)
             .apply { setPadding(0, ui.dp(10), 0, 0) })
@@ -112,5 +132,11 @@ class AdapterPicker(private val a: Activity, private val askPerms: (Array<String
             close()
         })
         body.addView(row, LinearLayout.LayoutParams(-2, -2).apply { topMargin = ui.dp(10) })
+    }
+
+    companion object {
+        private const val PREF_ASKED = "bt_perm_asked"
+        /** Bilinen ELM327 adaptör adları (eşleşmiş listede de) */
+        val OBD_NAME = Regex("OBD|ELM|V-?LINK|VGATE|KONNWEI|VEEPEAK|ICAR|CBT|SCAN|DIAG|CARISTA|THINKCAR", RegexOption.IGNORE_CASE)
     }
 }

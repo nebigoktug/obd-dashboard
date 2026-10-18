@@ -183,7 +183,7 @@ private class YandexBackend(ctx: Context, light: Boolean) : MapBackend() {
     private var line: com.yandex.mapkit.map.PolylineMapObject? = null
 
     init {
-        YandexNav.init(ctx)
+        check(YandexNav.init(ctx)) { "Yandex başlatılamadı" }   // useYandex yakalar, MapLibre'de kalınır
         mv = android.view.LayoutInflater.from(ctx).inflate(com.nebi.obdbridge.R.layout.yandex_map, FrameLayout(ctx), false) as com.yandex.mapkit.mapview.MapView
         val m = mv.mapWindow.map
         m.isNightModeEnabled = !light

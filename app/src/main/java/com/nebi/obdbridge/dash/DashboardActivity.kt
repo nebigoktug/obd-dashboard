@@ -117,8 +117,8 @@ class DashboardActivity : Activity(), SensorEventListener {
         applyVehicle()
         model = DashModel(pickSource(), liveGears)
         insights.load(prefs.getString("insights", null)); model.insights = ins
-        model.motion = motion
-        model.trip = trip
+        model.motion = curMotion
+        model.trip = curTrip
         applySpeedFactor()
         loadLayout()
         Nav.restore(this)
@@ -207,7 +207,12 @@ class DashboardActivity : Activity(), SensorEventListener {
         model.source = s
         model.gears = if (s is DemoSource) demoGears else liveGears
         model.insights = ins
+        model.trip = curTrip; model.motion = curMotion
     }
+
+    /** Demonun ayrı yolculuğu ve hava basıncı: demo kapanınca Detay'da demo kalıntısı kalmasın */
+    private val curTrip get() = if (model.source is DemoSource) demoTrip else trip
+    private val curMotion get() = if (model.source is DemoSource) demoMotion else motion
 
     /** Ekranın kullandığı öğrenme: demoda ayrı ve kaydedilmeyen */
     private val ins get() = if (model.source is DemoSource) demoInsights else insights
@@ -334,7 +339,7 @@ class DashboardActivity : Activity(), SensorEventListener {
                 YandexNav.unavailable(this)?.let { why ->
                     // Anahtar reddedildi: navigasyon biter, harita MapLibre'ye döner
                     Nav.stop(this); turnMaps.forEach { it.setRoute(null) }; shownRoute = null
-                    android.widget.Toast.makeText(this, why, android.widget.Toast.LENGTH_LONG).show()
+                    YandexNav.tell(this, why)
                     return@requestRoute
                 }
                 tr.onRoute(r?.points)
@@ -487,8 +492,8 @@ class DashboardActivity : Activity(), SensorEventListener {
         val ns = Nav.state() ?: if (Nav.active) NaviState("…", "Rota hesaplanıyor", null) else null
         for (n in naviCards) n.state = ns
         updateTurnMap()
-        trip.update(model.raw("speed"))
-        if (trip.startTs != tripStart) { tripStart = trip.startTs; ins.stats.reset() }
+        curTrip.update(model.raw("speed"))
+        if (curTrip.startTs != tripStart) { tripStart = curTrip.startTs; ins.stats.reset() }
         updateInsights()
         weather.refreshIfStale()
         val temp = weather.tempC
@@ -561,7 +566,7 @@ class DashboardActivity : Activity(), SensorEventListener {
         put("coast", if (ins.coasting) 1.0 else 0.0)
         put("alerts", ins.alerts.fold(0) { m, a -> m or (1 shl a.kind.ordinal) }.toDouble())
         // Hava basıncı: hava servisi ya da motor durmuşken MAP
-        if (src is DemoSource) motion.demo((now - demoT0) / 1000.0) else motion.baro.onCar(v("map"), v("rpm"), v("speed"))
+        if (src is DemoSource) demoMotion.demo((now - demoT0) / 1000.0) else motion.baro.onCar(v("map"), v("rpm"), v("speed"))
         weather.pressureHpa?.let { motion.baro.onWeather(it) }
         paceGps()
         put("baro", model.raw("baro")?.value)
@@ -694,14 +699,14 @@ class DashboardActivity : Activity(), SensorEventListener {
             val tot = g.sumOf { st.gearMs[it] }
             if (tot == 0L) "—" else g.joinToString(" ") { "$it:${st.gearMs[it] * 100 / tot}" }
         }
-        val avg = if (trip.km >= 0.5) "%.1f L/100".format(st.liters / trip.km * 100) else "—"
+        val avg = if (curTrip.km >= 0.5) "%.1f L/100".format(st.liters / curTrip.km * 100) else "—"
         return listOf(
-            "Süre" to mins(trip.durationMs),
-            "Mesafe" to "%.1f km".format(trip.km),
-            "Ort. / maks." to (if (trip.avgKmh > 0) "%.0f / %.0f km/h".format(trip.avgKmh, trip.maxKmh) else "—"),
+            "Süre" to mins(curTrip.durationMs),
+            "Mesafe" to "%.1f km".format(curTrip.km),
+            "Ort. / maks." to (if (curTrip.avgKmh > 0) "%.0f / %.0f km/h".format(curTrip.avgKmh, curTrip.maxKmh) else "—"),
             "Tahmini yakıt" to "%.2f L · %s".format(st.liters, avg),
-            "Sürüş puanı" to "${st.score(trip)}  (sert ${st.harshAccel}↑ ${st.harshBrake}↓)",
-            "Rölanti · boşta" to "${pct(st.idleMs, trip.durationMs)} · ${pct(st.coastMs, trip.durationMs)}",
+            "Sürüş puanı" to "${st.score(curTrip)}  (sert ${st.harshAccel}↑ ${st.harshBrake}↓)",
+            "Rölanti · boşta" to "${pct(st.idleMs, curTrip.durationMs)} · ${pct(st.coastMs, curTrip.durationMs)}",
             "Yakıt kesik" to "%.1f km".format(st.cutKm),
             "Vites (%)" to gears,
         )
@@ -738,7 +743,8 @@ class DashboardActivity : Activity(), SensorEventListener {
         val now = System.currentTimeMillis()
         if (now - connAt > 1000) {
             connAt = now
-            connText = if (model.source.online || prefs.getBoolean("demo", false)) null
+            // GPS varken de göster (QC2): arabada GPS hep var, adaptör bağlanmadıysa görünmeliydi. Yalnız OBD canlıyken gizli
+            connText = if (model.source.name == "Canlı" || prefs.getBoolean("demo", false)) null
             else when (val st = Conn.status(this)) {
                 "Canlı" -> null
                 "Bağlı değil" -> "Adaptör bağlı değil · bağlanmak için dokun"
@@ -893,6 +899,8 @@ class DashboardActivity : Activity(), SensorEventListener {
         val insights = Insights()
         /** Demo modunun ayrı, kaydedilmeyen öğrenmesi: sahte veri gerçek rekorları ve kalibrasyonu bozmasın */
         val demoInsights = Insights()
+        val demoTrip = Trip()
+        val demoMotion = Motion()
         /** Hava basıncı (hava servisi / motor durmuşken MAP) */
         val motion = Motion()
         private val demoT0 = System.currentTimeMillis()
