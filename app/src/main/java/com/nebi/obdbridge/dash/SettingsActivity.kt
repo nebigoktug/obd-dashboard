@@ -408,7 +408,7 @@ class SettingsActivity : Activity() {
                 override fun onStopTrackingTouch(sb: android.widget.SeekBar) { c.save(dash, t.id) }
             })
         })
-        row("Gösterge rakamları (hız, vites, devir)", { c.dial }) { c = c.copy(dial = it) }
+        row("Gösterge rakamları (hız, vites, devir, kadran ölçeği, alt şerit)", { c.dial }) { c = c.copy(dial = it) }
         row("Vurgu (seçili sekme, simgeler, çubuklar)", { c.accent }) { c = c.copy(accent = it) }
         row("Uyarı hapı zemini", { c.pill }) { c = c.copy(pill = it) }
         col.addView(ui.text("Değişiklikler ana ekrana dönünce görünür. Renkler yalnız \"${t.name}\" teması için.", 13f, Pal.DIM)
