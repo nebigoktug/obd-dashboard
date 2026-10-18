@@ -209,7 +209,7 @@ class NaviCard(ctx: Context, private val prefs: android.content.SharedPreference
                 when {
                     i == 2 -> PlaceSearchActivity.open(context, PlaceSearchActivity.MODE_NAV)
                     ll == null -> PlaceSearchActivity.open(context, key)
-                    !YandexNav.available -> PlaceSearchActivity.open(context, key)   // uyarıyı o gösterir
+                    !YandexNav.available(context) -> PlaceSearchActivity.open(context, key)   // uyarıyı o gösterir
                     else -> Nav.start(context, ll[0], ll[1], prefs.getString("place_${key}_name", null) ?: labels[i])
                 }
             }

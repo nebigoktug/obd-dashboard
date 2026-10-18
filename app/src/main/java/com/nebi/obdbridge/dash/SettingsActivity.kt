@@ -283,7 +283,7 @@ class SettingsActivity : Activity() {
 
     private fun naviMedia() {
         header("Navigasyon")
-        if (!YandexNav.available) note("Bu sürümde navigasyon kapalı: Yandex MapKit anahtarıyla derlenmedi.")
+        YandexNav.unavailable(this)?.let { note(it) }
         add(ui.toggle("Sesli yönlendirme", "Dönüşleri Türkçe söyler; konuşurken müzik kısılır. Telefonda Türkçe ses paketi gerekir",
             { dash.getBoolean("nav_voice", true) }) { dash.edit().putBoolean("nav_voice", it).apply() })
         header("Hızlı hedefler")
@@ -294,6 +294,9 @@ class SettingsActivity : Activity() {
             })
         }
         note("Rota, dönüşler ve adres arama Yandex'ten gelir; ayrı bir navigasyon uygulaması gerekmez.")
+        add(ui.item("Kendi Yandex anahtarım (isteğe bağlı)", "Uygulamanın anahtarı ücretsiz ve günlük kullanıcı sınırlı. " +
+            "Navigasyon kapanırsa developer.tech.yandex.com'dan ücretsiz bir MapKit anahtarı alıp buraya yapıştırabilirsin",
+            { if (YandexNav.userKey(this).isEmpty()) "Yok" else "Girildi ✓" }) { askYandexKey() })
         header("Medya")
         note("Müzik kontrolü izin istemez. Şarkı adı ve kapak, izin vermeden YouTube Music gibi kabul eden uygulamalardan gelir; " +
             "Spotify'da Ayarlar > \"Device Broadcast Status\" açılırsa Spotify'dan da.")
@@ -302,6 +305,36 @@ class SettingsActivity : Activity() {
             { if (NaviListener.hasAccess(this)) "Verildi ✓" else "Verilmedi" }) {
             startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
         })
+    }
+
+    private fun askYandexKey() {
+        val input = EditText(this).apply {
+            hint = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"; setSingleLine()
+            setText(YandexNav.userKey(this@SettingsActivity))
+        }
+        val save = { k: String ->
+            YandexNav.setUserKey(this, k)
+            if (YandexNav.needsRestart(this)) restartApp() else show(section)
+        }
+        AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle("Kendi Yandex anahtarım")
+            .setMessage("developer.tech.yandex.com › MapKit Mobile SDK'dan aldığın anahtarı yapıştır. Anahtar yalnız bu telefonda saklanır. " +
+                "Boş bırakırsan uygulamanın anahtarı kullanılır.")
+            .setView(input)
+            .setPositiveButton("Kaydet") { _, _ ->
+                val k = input.text.toString().trim()
+                if (k.isNotEmpty() && !YandexNav.validKey(k)) toast("Bu bir Yandex anahtarına benzemiyor") else save(k)
+            }
+            .setNeutralButton("Kaldır") { _, _ -> save("") }
+            .setNegativeButton("Vazgeç", null).show()
+    }
+
+    /** MapKit anahtarı süreç başına bir kez verilir: yeni anahtar için uygulama yeniden başlar */
+    private fun restartApp() {
+        toast("Yeni anahtar için uygulama yeniden başlıyor")
+        val i = packageManager.getLaunchIntentForPackage(packageName) ?: return
+        startActivity(i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK))
+        Runtime.getRuntime().exit(0)
     }
 
     private val ins get() = DashboardActivity.insights
@@ -533,8 +566,8 @@ class SettingsActivity : Activity() {
             "• Uygulama olduğu gibi sunulur; kullanımdan doğacak sonuçlardan geliştirici sorumlu değildir.")
         header("Gizlilik")
         note("Sürüş kayıtları ve bildirimler telefondan çıkmaz. Hava durumu için yaklaşık konum (yaklaşık 100 m) " +
-            "Open-Meteo'ya gönderilir. Harita, adres arama ve navigasyon Yandex'ten gelir: harita açıkken ve navigasyon " +
-            "sürerken konumunuz, aradığınız adres ve hedefiniz Yandex'e gider. Reklam ve takip yok. " +
+            "Open-Meteo'ya gönderilir. Adres arama ve navigasyon Yandex'ten gelir: navigasyon sürerken konumunuz, " +
+            "aradığınız adres ve hedefiniz Yandex'e gider. Navigasyon dışında harita OpenFreeMap'ten (OpenStreetMap) gelir. Reklam ve takip yok. " +
             "Sorun bildirimi yalnız sizin seçtiğiniz uygulamayla, sizin seçtiğiniz kişiye gider. " +
             "Güncelleme denetimi günde bir kez GitHub'a sorar (kapatılabilir).")
         add(ui.item("Kurulum sihirbazını yeniden başlat", null, null) {

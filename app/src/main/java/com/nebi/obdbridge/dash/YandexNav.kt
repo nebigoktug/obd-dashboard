@@ -18,25 +18,73 @@ import com.yandex.mapkit.directions.driving.VehicleOptions
 import com.yandex.mapkit.geometry.Point
 
 /**
- * Yandex MapKit (ücretsiz sürüm): yol tarifi, manevralar ve adres arama. Anahtar yoksa ([available] false)
- * navigasyon kapalıdır. MapKit ana iş parçacığından çağrılmalı; oturumlar tutulmazsa çöp toplayıcı iptal eder.
+ * Yandex MapKit (ücretsiz sürüm): yol tarifi, manevralar ve adres arama. Anahtar yoksa ya da Yandex reddettiyse
+ * ([available] false) navigasyon kapalıdır. MapKit ana iş parçacığından çağrılmalı; oturumlar tutulmazsa çöp toplayıcı iptal eder.
+ *
+ * Ücretsiz sürüm günlük kullanıcı sayar: MapKit yalnız navigasyon ve adres aramada başlatılır (harita normalde MapLibre).
+ * Kullanıcı Ayarlar'dan kendi anahtarını girebilir; yoksa derlemeye gömülen anahtar kullanılır.
  */
 object YandexNav {
-    val available get() = BuildConfig.YANDEX_MAPKIT_KEY.isNotEmpty()
+    private const val PREF_KEY = "yandex_key"
+    private const val PREF_REJECTED = "yandex_rejected"      // reddedilen anahtar
+    private const val PREF_REJECTED_AT = "yandex_rejected_at"
+    /** Reddedilen anahtar bu süre sonra yeniden denenir (sınır aşımı geçici olabilir) */
+    private const val RETRY_MS = 6 * 3600_000L
+
     private var inited = false
+    private var initedKey = ""
     private var router: DrivingRouter? = null
     private var session: DrivingSession? = null
 
+    private fun prefs(ctx: Context) = ctx.getSharedPreferences("dash", Context.MODE_PRIVATE)
+
+    /** Kullanıcının kendi anahtarı (boş: yok) */
+    fun userKey(ctx: Context) = prefs(ctx).getString(PREF_KEY, null).orEmpty()
+
+    fun setUserKey(ctx: Context, k: String) = prefs(ctx).edit().putString(PREF_KEY, k.trim()).apply()
+
+    /** Yandex anahtarları UUID biçiminde */
+    fun validKey(k: String) = Regex("[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}").matches(k.trim())
+
+    fun key(ctx: Context) = userKey(ctx).ifEmpty { BuildConfig.YANDEX_MAPKIT_KEY }
+
+    private fun rejected(ctx: Context): Boolean {
+        val p = prefs(ctx)
+        return p.getString(PREF_REJECTED, null) == key(ctx) && System.currentTimeMillis() - p.getLong(PREF_REJECTED_AT, 0) < RETRY_MS
+    }
+
+    /** Navigasyon neden kapalı (null: açık) */
+    fun unavailable(ctx: Context): String? = when {
+        key(ctx).isEmpty() -> "Navigasyon bu sürümde kapalı (Yandex anahtarı yok)"
+        rejected(ctx) -> "Yandex şu an navigasyona izin vermiyor; birkaç saat sonra yeniden denenir. " +
+            "Ayarlar › Navigasyon'dan kendi Yandex anahtarını girebilirsin"
+        else -> null
+    }
+
+    fun available(ctx: Context) = unavailable(ctx) == null
+
+    /** Anahtar değişti ama MapKit eskisiyle başlatıldı: uygulama yeniden başlamalı */
+    fun needsRestart(ctx: Context) = inited && initedKey != key(ctx)
+
+    /** Yandex hatası: anahtar reddedildiyse (geçersiz, engelli ya da sınır aşıldı) bir süre denenmez */
+    fun onError(ctx: Context, e: com.yandex.runtime.Error) {
+        if (e !is com.yandex.runtime.network.UnauthorizedError && e !is com.yandex.runtime.network.ForbiddenError) return
+        Log.w(BridgeService.TAG, "Yandex anahtarı reddetti: ${e.javaClass.simpleName}")
+        prefs(ctx).edit().putString(PREF_REJECTED, key(ctx)).putLong(PREF_REJECTED_AT, System.currentTimeMillis()).apply()
+    }
+
     fun init(ctx: Context) {
-        if (inited || !available) return
-        com.yandex.mapkit.MapKitFactory.setApiKey(BuildConfig.YANDEX_MAPKIT_KEY)
+        if (inited) return
+        val k = key(ctx)
+        if (k.isEmpty()) return
+        com.yandex.mapkit.MapKitFactory.setApiKey(k)
         com.yandex.mapkit.MapKitFactory.setLocale("tr_TR")
         com.yandex.mapkit.MapKitFactory.initialize(ctx.applicationContext)
-        inited = true
+        inited = true; initedKey = k
     }
 
     fun requestRoute(ctx: Context, from: LatLon, to: LatLon, azimuth: Double?, done: (NavRoute?) -> Unit) {
-        if (!available) { done(null); return }
+        if (!available(ctx)) { done(null); return }
         init(ctx)
         val r = router ?: DirectionsFactory.getInstance().createDrivingRouter(DrivingRouterType.ONLINE).also { router = it }
         val pts = listOf(
@@ -53,6 +101,7 @@ object YandexNav {
             override fun onDrivingRoutesError(e: com.yandex.runtime.Error) {
                 session = null
                 Log.w(BridgeService.TAG, "Yandex rota hatası: ${e.javaClass.simpleName}")
+                onError(ctx, e)
                 done(null)
             }
         })

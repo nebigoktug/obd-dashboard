@@ -331,6 +331,12 @@ class DashboardActivity : Activity(), SensorEventListener {
             tr.onRequested()
             YandexNav.requestRoute(this, p, dest, bearing?.toDouble()?.takeIf { (kmh ?: 0.0) > 6 }) { r ->
                 if (Nav.tracker.dest != dest) return@requestRoute   // bu arada hedef değişti/bitti
+                YandexNav.unavailable(this)?.let { why ->
+                    // Anahtar reddedildi: navigasyon biter, harita MapLibre'ye döner
+                    Nav.stop(this); turnMaps.forEach { it.setRoute(null) }; shownRoute = null
+                    android.widget.Toast.makeText(this, why, android.widget.Toast.LENGTH_LONG).show()
+                    return@requestRoute
+                }
                 tr.onRoute(r?.points)
                 if (r != null) { Nav.guidance = Guidance(r).also { g -> Nav.lastFix?.let(g::onFix) }; Nav.voice.reset() }
                 turnMaps.forEach { it.setRoute(tr.route) }
@@ -496,7 +502,9 @@ class DashboardActivity : Activity(), SensorEventListener {
             else Nav.guidance?.nextDistM?.let { Guidance.formatDist(it) }
         val kmh = model.raw("speed")?.value ?: gpsSpeed?.value
         turnWatch.update(navi, kmh)
-        for (m in turnMaps) m.update(turnWatch.visible, turnWatch.prepare, turnWatch.distanceM)
+        // Yandex yalnız navigasyonda (ücretsiz sürüm günlük kullanıcı sayar)
+        val yandex = Nav.active && YandexNav.available(this)
+        for (m in turnMaps) { m.useYandex(yandex); m.update(turnWatch.visible, turnWatch.prepare, turnWatch.distanceM) }
     }
 
     /**

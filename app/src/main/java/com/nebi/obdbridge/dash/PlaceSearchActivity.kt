@@ -100,7 +100,7 @@ class PlaceSearchActivity : Activity() {
         here?.let { opts.userPosition = Point(it.lat, it.lon) }
         suggest.suggest(q, area(), opts, object : SuggestSession.SuggestListener {
             override fun onResponse(r: SuggestResponse) { show(r.items) }
-            override fun onError(e: com.yandex.runtime.Error) { status.text = errText(e) }
+            override fun onError(e: com.yandex.runtime.Error) { YandexNav.onError(this@PlaceSearchActivity, e); status.text = errText(e) }
         })
     }
 
@@ -152,7 +152,7 @@ class PlaceSearchActivity : Activity() {
                 if (obj == null || p == null) { status.text = "Yer bulunamadı"; return }
                 done(p.latitude, p.longitude, name ?: obj.name.orEmpty())
             }
-            override fun onSearchError(e: com.yandex.runtime.Error) { status.text = errText(e) }
+            override fun onSearchError(e: com.yandex.runtime.Error) { YandexNav.onError(this@PlaceSearchActivity, e); status.text = errText(e) }
         })
     }
 
@@ -167,7 +167,12 @@ class PlaceSearchActivity : Activity() {
     }
 
     private fun errText(e: com.yandex.runtime.Error) =
-        if (e is com.yandex.runtime.network.NetworkError) "İnternet bağlantısı yok" else "Arama yapılamadı"
+        when (e) {
+            is com.yandex.runtime.network.NetworkError -> "İnternet bağlantısı yok"
+            is com.yandex.runtime.network.UnauthorizedError, is com.yandex.runtime.network.ForbiddenError ->
+                "Yandex aramaya izin vermedi (anahtar reddedildi). Ayarlar › Navigasyon'dan kendi anahtarını girebilirsin"
+            else -> "Arama yapılamadı"
+        }
 
     override fun onResume() {
         super.onResume()
@@ -186,8 +191,8 @@ class PlaceSearchActivity : Activity() {
         const val MODE_WORK = "work"
 
         fun open(ctx: Context, mode: String) {
-            if (!YandexNav.available) {
-                android.widget.Toast.makeText(ctx, "Navigasyon bu sürümde kapalı (Yandex anahtarı yok)", android.widget.Toast.LENGTH_LONG).show()
+            YandexNav.unavailable(ctx)?.let {
+                android.widget.Toast.makeText(ctx, it, android.widget.Toast.LENGTH_LONG).show()
                 return
             }
             ctx.startActivity(Intent(ctx, PlaceSearchActivity::class.java).putExtra(EXTRA_MODE, mode))
