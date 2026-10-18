@@ -39,7 +39,11 @@ class ShareProvider : ContentProvider() {
         return MatrixCursor(arrayOf(OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE)).apply { addRow(arrayOf(f.name, f.length())) }
     }
 
-    override fun getType(uri: Uri) = if (uri.lastPathSegment?.endsWith(".zip") == true) "application/zip" else "application/octet-stream"
+    override fun getType(uri: Uri) = when {
+        uri.lastPathSegment?.endsWith(".zip") == true -> "application/zip"
+        uri.lastPathSegment?.endsWith(".jpg") == true -> "image/jpeg"   // tema şablonu
+        else -> "application/octet-stream"
+    }
     override fun insert(uri: Uri, values: ContentValues?): Uri? = null
     override fun delete(uri: Uri, sel: String?, args: Array<out String>?) = 0
     override fun update(uri: Uri, values: ContentValues?, sel: String?, args: Array<out String>?) = 0

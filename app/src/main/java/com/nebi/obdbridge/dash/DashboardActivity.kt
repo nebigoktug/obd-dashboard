@@ -104,6 +104,7 @@ class DashboardActivity : Activity(), SensorEventListener {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        UserThemes.load(this)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         // Kamera çentiği alanına da uzan (yoksa kenarda siyah şerit kalıyor)
         if (Build.VERSION.SDK_INT >= 28) {

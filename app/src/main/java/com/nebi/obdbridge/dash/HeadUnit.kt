@@ -73,7 +73,7 @@ internal object Glass {
     fun use(t: ImageTheme, res: android.content.res.Resources) {
         inks.clear()
         luma = try {
-            android.graphics.BitmapFactory.decodeResource(res, t.base, android.graphics.BitmapFactory.Options().apply { inSampleSize = 16 })
+            t.decode(res, ImageTheme.Part.BASE, android.graphics.BitmapFactory.Options().apply { inSampleSize = 16 })
         } catch (_: Exception) { null }
         val l = t.light
         // Yarı şeffaf: tema resmi arkadan biraz görünsün; desenli temalarda (grafiti) yazı okunacak kadar koyu
