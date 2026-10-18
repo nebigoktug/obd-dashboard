@@ -615,7 +615,9 @@ class ValueStrip(ctx: Context, private val specs: List<WidgetSpec>) : DashWidget
             c.drawText(SHORT[spec.signal] ?: def.label.uppercase(java.util.Locale("tr")), cx, h * 0.3f, lp)
             val txt = d?.text ?: "—"
             // Soğuk (mavi) şeritte boyanmaz: mavi zeminli temalarda okunmuyordu; uyarı ve kritik boyanır
-            vp.color = if (d != null && d.level != Level.NORMAL && d.level != Level.COLD && !d.missing) theme.levelColor(d.level) else ink.text
+            vp.color = if (d != null && d.level != Level.NORMAL && d.level != Level.COLD && !d.missing) theme.levelColor(d.level) else Glass.DIAL ?: ink.text
+            // Kullanıcı rengi seçildiyse hâle o renge karşıt (zemine göre seçilmiş hâle açık renkte kayboluyordu)
+            Glass.DIAL?.let { vp.setShadowLayer(vp.textSize * 0.22f, 0f, 0f, if (ThemeColors.luma(it) > 0.5) 0xF0000000.toInt() else 0xF0FFFFFF.toInt()) }
             vp.alpha = alphaFor(d)
             val unit = if (d == null || d.missing) "" else def.unit
             val tw = vp.measureText(txt); val uw = if (unit.isEmpty()) 0f else up.measureText(" $unit")
