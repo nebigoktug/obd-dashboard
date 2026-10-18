@@ -76,7 +76,8 @@ internal object Glass {
             android.graphics.BitmapFactory.decodeResource(res, t.base, android.graphics.BitmapFactory.Options().apply { inSampleSize = 16 })
         } catch (_: Exception) { null }
         val l = t.light
-        fill.color = if (l) 0xFFFFFFFF.toInt() else 0xFF10141A.toInt(); fill.alpha = if (l) 150 else 140   // yarı şeffaf: tema resmi arkadan görünsün
+        // Yarı şeffaf: tema resmi arkadan biraz görünsün; desenli temalarda (grafiti) yazı okunacak kadar koyu
+        fill.color = if (l) 0xFFFFFFFF.toInt() else 0xFF10141A.toInt(); fill.alpha = if (l) 200 else 195
         EDGE = if (l) Color.BLACK else Color.WHITE
         edge.color = EDGE; edge.alpha = if (l) 30 else 38
         pressed.color = EDGE; pressed.alpha = if (l) 22 else 28
@@ -509,14 +510,14 @@ class MediaCard(ctx: Context, private val hub: MediaHub) : TouchCard(ctx) {
         val tw = w - tx - pad
         val src = hub.appLabel(now.pkg ?: hub.lastPackage)
         val title = now.title ?: when { playing -> "Çalıyor"; hub.lastPackage != null -> "Çalan yok"; else -> "Müzik" }
-        val artist = now.artist ?: when { now.title != null -> ""; playing -> "Şarkı adı için: Ayarlar › Medya"; else -> "▶ ile başlat" }
+        val artist = now.artist ?: when { now.title != null -> ""; playing -> "Şarkı adı: Ayarlar'dan izin ver"; else -> "▶ ile başlat" }
         val tp = Glass.text(pc, "r6", h * 0.15f)
         c.drawText(Glass.ellipsize(title, tp, tw), tx, art.top + h * 0.17f, tp)
         val ap = Glass.text(pc, "r7", h * 0.11f, Glass.DIM)
         c.drawText(Glass.ellipsize(artist, ap, tw), tx, art.top + h * 0.33f, ap)
         if (src.isNotEmpty()) {
             val sp = Glass.text(pc, "r8", h * 0.08f, Glass.ICE); sp.letterSpacing = 0.1f
-            c.drawText(Glass.ellipsize(src.uppercase(), sp, tw), tx, art.bottom - h * 0.02f, sp)
+            c.drawText(Glass.ellipsize(src.uppercase(java.util.Locale("tr")), sp, tw), tx, art.bottom - h * 0.02f, sp)
         }
 
         // İlerleme çubuğu
@@ -571,12 +572,12 @@ class MediaCard(ctx: Context, private val hub: MediaHub) : TouchCard(ctx) {
 class ValueStrip(ctx: Context, private val specs: List<WidgetSpec>) : DashWidget(ctx, specs.first()) {
     private val pc = HashMap<String, Paint>()
     override fun keys() = specs.map { it.signal }
-    private val gapFrac = 0.16f   // ortadaki araç çizimi için boşluk
+    private val gapFrac = 0.24f   // ortadaki araç ve yol çizimi için boşluk (0,16'da yol çizgileri rakamları kesiyordu)
 
     companion object {
         /** Şeritte dar yer: kısa etiketler */
         val SHORT = mapOf("boost" to "TURBO", "load" to "YÜK", "battery" to "AKÜ", "coolant" to "MOTOR", "iat" to "EMME",
-            "rail" to "RAİL", "map" to "MAP", "speed" to "HIZ", "rpm" to "DEVİR", "dtc_count" to "ARIZA",
+            "rail" to "YAKIT BAS.", "map" to "MAP", "speed" to "HIZ", "rpm" to "DEVİR", "dtc_count" to "ARIZA",
             "fuel_lph" to "L/SA", "fuel_l100" to "TÜKETİM", "fuel_avg" to "ORT. TÜK.")
         /** Şeridin iki yanı (yol çiziminin solu / sağı), resim koordinatında: yazı rengi ayrı ölçülür */
         private val STRIP_L = DashImageGeom.STRIP.let { RectF(it.left, it.top, it.left + it.width() * 0.42f, it.bottom) }
@@ -597,9 +598,10 @@ class ValueStrip(ctx: Context, private val specs: List<WidgetSpec>) : DashWidget
             val cx = if (i < 2) slot * (i + 0.5f) else w - side + slot * (i - 2 + 0.5f)
             val d = frame[spec.signal]
             val def = SignalCatalog[spec.signal] ?: return@forEachIndexed
-            c.drawText(SHORT[spec.signal] ?: def.label.uppercase(), cx, h * 0.3f, lp)
+            c.drawText(SHORT[spec.signal] ?: def.label.uppercase(java.util.Locale("tr")), cx, h * 0.3f, lp)
             val txt = d?.text ?: "—"
-            vp.color = if (d != null && d.level != Level.NORMAL && !d.missing) theme.levelColor(d.level) else ink.text
+            // Soğuk (mavi) şeritte boyanmaz: mavi zeminli temalarda okunmuyordu; uyarı ve kritik boyanır
+            vp.color = if (d != null && d.level != Level.NORMAL && d.level != Level.COLD && !d.missing) theme.levelColor(d.level) else ink.text
             vp.alpha = alphaFor(d)
             val unit = if (d == null || d.missing) "" else def.unit
             val tw = vp.measureText(txt); val uw = if (unit.isEmpty()) 0f else up.measureText(" $unit")
@@ -828,7 +830,8 @@ class ClockView(ctx: Context) : View(ctx) {
         val ink = Glass.ink(DashImageGeom.CLOCK)
         val tp = Glass.text(pc, "t", h * 0.62f, ink.text); tp.textAlign = Paint.Align.RIGHT; Glass.halo(tp, ink)
         c.drawText(hm.format(now), w, h * 0.62f, tp)
-        val dp = Glass.text(pc, "d", h * 0.22f, ink.dim); dp.textAlign = Paint.Align.RIGHT; dp.letterSpacing = 0.06f; Glass.halo(dp, ink)
+        val sub = Glass.ink(DashImageGeom.CLOCK_SUB)
+        val dp = Glass.text(pc, "d", h * 0.22f, sub.text); dp.textAlign = Paint.Align.RIGHT; dp.letterSpacing = 0.06f; Glass.halo(dp, sub)
         c.drawText(day.format(now), w, h * 0.95f, dp)
         postInvalidateDelayed(1000 - now.time % 1000)
     }
@@ -869,7 +872,9 @@ class WeatherView(ctx: Context, private val weather: Weather) : View(ctx) {
         val ink = Glass.ink(DashImageGeom.WEATHER)
         val tp = Glass.text(pc, "t", h * 0.62f, ink.text); Glass.halo(tp, ink)
         c.drawText(t?.let { "${Math.round(it)}°" } ?: "—°", x, h * 0.62f, tp)
-        val dp = Glass.text(pc, "d", h * 0.22f, ink.dim); dp.letterSpacing = 0.06f; Glass.halo(dp, ink)
+        // Alt satırın rengi kendi altındaki zemine göre (mermerde köşe koyu, yazının altı beyaz)
+        val sub = Glass.ink(DashImageGeom.WEATHER_SUB)
+        val dp = Glass.text(pc, "d", h * 0.22f, sub.text); dp.letterSpacing = 0.06f; Glass.halo(dp, sub)
         c.drawText(Glass.ellipsize(text(code), dp, width - x), x, h * 0.95f, dp)
     }
 

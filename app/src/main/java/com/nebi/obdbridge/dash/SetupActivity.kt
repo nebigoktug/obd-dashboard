@@ -35,10 +35,15 @@ class SetupActivity : Activity() {
         dots = ui.row().apply { gravity = Gravity.CENTER; setPadding(0, ui.dp(14), 0, 0) }
         root.addView(dots, LinearLayout.LayoutParams(-1, -2))
         body = ui.column().apply { setPadding(ui.dp(64), ui.dp(12), ui.dp(64), ui.dp(12)) }
-        root.addView(ScrollView(this).apply { addView(body) }, LinearLayout.LayoutParams(-1, 0, 1f))
+        // Araç adımı ekrana sığmıyor: kaydırılabildiği belli olsun (solma ve sürekli görünen kaydırma çubuğu)
+        root.addView(ScrollView(this).apply {
+            isVerticalFadingEdgeEnabled = true; setFadingEdgeLength(ui.dp(40)); isScrollbarFadingEnabled = false
+            addView(body)
+        }, LinearLayout.LayoutParams(-1, 0, 1f))
         foot = ui.row().apply { gravity = Gravity.END or Gravity.CENTER_VERTICAL; setPadding(ui.dp(48), ui.dp(8), ui.dp(48), ui.dp(16)) }
         root.addView(foot, LinearLayout.LayoutParams(-1, -2))
         setContentView(root)
+        fillCutout(root)
         show(0)
     }
 

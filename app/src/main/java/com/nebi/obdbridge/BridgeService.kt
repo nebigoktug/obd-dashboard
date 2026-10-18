@@ -174,15 +174,15 @@ class BridgeService : Service() {
             return START_NOT_STICKY
         }
 
-        // Ham TCP köprüsü isteğe bağlı (Torque/RealDash denemesi, laptoptan adb ile doğrudan komut)
-        if (getSharedPreferences(PREFS, MODE_PRIVATE).getBoolean(PREF_RAW_TCP, true)) {
+        // Ham TCP köprüsü (uygulama köprü olarak başladı): Torque/RealDash, laptoptan adb ile doğrudan komut.
+        // Varsayılan KAPALI (QC 2026-10-18): telefondaki her uygulama adaptöre yazma komutu dahil ham komut gönderebilir.
+        // Yalnız geliştirici ekranından açılır; port doluysa köprüsüz devam edilir.
+        if (getSharedPreferences(PREFS, MODE_PRIVATE).getBoolean(PREF_RAW_TCP, false)) {
             try {
                 // Sadece loopback: telefon dışından erişilemez
                 server = ServerSocket(PORT, 1, InetAddress.getByName("127.0.0.1")).apply { reuseAddress = true }
             } catch (e: IOException) {
-                setStatus("Başlatılamadı · uygulamayı kapatıp yeniden aç")
-                stopSelf()
-                return START_NOT_STICKY
+                Log.w(TAG, "TCP köprüsü açılamadı (port dolu?), köprüsüz devam", e)
             }
         }
 

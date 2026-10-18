@@ -116,7 +116,7 @@ class DashboardActivity : Activity(), SensorEventListener {
         }
         applyVehicle()
         model = DashModel(pickSource(), liveGears)
-        model.insights = insights.apply { load(prefs.getString("insights", null)) }
+        insights.load(prefs.getString("insights", null)); model.insights = ins
         model.motion = motion
         model.trip = trip
         applySpeedFactor()
@@ -175,7 +175,7 @@ class DashboardActivity : Activity(), SensorEventListener {
         }
         if (applyVehicle()) { model.gears = liveGears; build() }
         if (prefs.getBoolean("gears_reset", false)) { liveGears.reset(); prefs.edit().putBoolean("gears_reset", false).apply() }
-        model.insights = insights.apply { load(prefs.getString("insights", null)) }
+        insights.load(prefs.getString("insights", null)); model.insights = ins
         applySpeedFactor()
         if (prefs.getBoolean("open_strip", false)) { prefs.edit().remove("open_strip").apply(); root.post { chooseStripSlot() } }
         if (prefs.getBoolean("autoconnect", true) && !BridgeService.running && !prefs.getBoolean("demo", false)) Conn.start(this)
@@ -206,7 +206,11 @@ class DashboardActivity : Activity(), SensorEventListener {
     private fun setSource(s: SignalSource) {
         model.source = s
         model.gears = if (s is DemoSource) demoGears else liveGears
+        model.insights = ins
     }
+
+    /** Ekranın kullandığı öğrenme: demoda ayrı ve kaydedilmeyen */
+    private val ins get() = if (model.source is DemoSource) demoInsights else insights
 
     /** Kullanıcı demo seçmediyse canlı (OBD ya da GPS). */
     private fun pickSource(): SignalSource =
@@ -248,6 +252,7 @@ class DashboardActivity : Activity(), SensorEventListener {
 
     override fun onRequestPermissionsResult(code: Int, perms: Array<out String>, res: IntArray) {
         super.onRequestPermissionsResult(code, perms, res)
+        if (code == REQ_PICKER) { pickAdapter(); return }
         startGps()
     }
 
@@ -427,7 +432,8 @@ class DashboardActivity : Activity(), SensorEventListener {
                 widgets += tile
                 r.addView(GlassCell(this, tile), LinearLayout.LayoutParams(0, dp(84), 1f).apply { setMargins(dp(6), dp(6), dp(6), dp(6)) })
             }
-            repeat(perRow - chunk.size) { r.addView(View(this), LinearLayout.LayoutParams(0, 1, 1f)) }
+            // Boş yuvalar da aynı kenar boşluğuyla: son satır üstteki ızgarayla hizalı kalsın
+            repeat(perRow - chunk.size) { r.addView(View(this), LinearLayout.LayoutParams(0, 1, 1f).apply { setMargins(dp(6), dp(6), dp(6), dp(6)) }) }
             list.addView(r)
         }
         return ScrollView(this).apply { isVerticalScrollBarEnabled = false; isVerticalFadingEdgeEnabled = true; setFadingEdgeLength(dp(28)); addView(list) }
@@ -482,7 +488,7 @@ class DashboardActivity : Activity(), SensorEventListener {
         for (n in naviCards) n.state = ns
         updateTurnMap()
         trip.update(model.raw("speed"))
-        if (trip.startTs != tripStart) { tripStart = trip.startTs; insights.stats.reset() }
+        if (trip.startTs != tripStart) { tripStart = trip.startTs; ins.stats.reset() }
         updateInsights()
         weather.refreshIfStale()
         val temp = weather.tempC
@@ -540,20 +546,20 @@ class DashboardActivity : Activity(), SensorEventListener {
         val src = model.source
         val obd = src.name == "Canlı" || src is DemoSource   // demoda da uyarılar/yakıt görünsün (tasarım için)
         fun v(k: String) = (if (k == "speed") src.sample(k) else model.raw(k))?.takeIf { System.currentTimeMillis() - it.ts < 5000 }?.value
-        insights.update(Inputs(System.currentTimeMillis(), v("rpm"), v("speed"), v("load"), v("map"), v("coolant"),
+        ins.update(Inputs(System.currentTimeMillis(), v("rpm"), v("speed"), v("load"), v("map"), v("coolant"),
             v("battery"), v("rail"), model.raw("gear")?.value?.toInt(),
             gpsSpeed?.takeIf { System.currentTimeMillis() - it.ts < 3000 }?.value, obd, v("maf"), v("fuel_rate")))
-        val shown = insights.alerts.filter { prefs.getBoolean("alert_${it.kind.name}", true) }
+        val shown = ins.alerts.filter { prefs.getBoolean("alert_${it.kind.name}", true) }
         // Sürüş kaydı için ekranın gösterdikleri (servis 2 Hz'de kaydeder)
         val now = System.currentTimeMillis()
         val d = BridgeService.derived
         fun put(k: String, v: Double?) { if (v == null) d.remove(k) else d[k] = com.nebi.obdbridge.obd.Sample(k, v, now) }
         put("gear", model.raw("gear")?.value)
         put("gps_speed", gpsSpeed?.takeIf { now - it.ts < 3000 }?.value)
-        put("fuel_lph", insights.fuelLph)
-        put("fuel_cut", if (insights.fuelCut) 1.0 else 0.0)
-        put("coast", if (insights.coasting) 1.0 else 0.0)
-        put("alerts", insights.alerts.fold(0) { m, a -> m or (1 shl a.kind.ordinal) }.toDouble())
+        put("fuel_lph", ins.fuelLph)
+        put("fuel_cut", if (ins.fuelCut) 1.0 else 0.0)
+        put("coast", if (ins.coasting) 1.0 else 0.0)
+        put("alerts", ins.alerts.fold(0) { m, a -> m or (1 shl a.kind.ordinal) }.toDouble())
         // Hava basıncı: hava servisi ya da motor durmuşken MAP
         if (src is DemoSource) motion.demo((now - demoT0) / 1000.0) else motion.baro.onCar(v("map"), v("rpm"), v("speed"))
         weather.pressureHpa?.let { motion.baro.onWeather(it) }
@@ -562,13 +568,13 @@ class DashboardActivity : Activity(), SensorEventListener {
         val all = (shown + listOfNotNull(milAlert(), connAlert())).sortedBy { it.priority }
         for (p in pills) p.alerts = all
         val note = if (!prefs.getBoolean("note_fuelcut", true)) null
-            else when { insights.fuelCut -> "yakıt kesik"; insights.coasting && Vehicle.current.manual -> "boşta"; else -> null }
+            else when { ins.fuelCut -> "yakıt kesik"; ins.coasting && Vehicle.current.manual -> "boşta"; else -> null }
         for (d in dialsList) d.note = note
     }
 
     private fun applySpeedFactor() {
-        val e = insights.health.speedoError
-        model.speedFactor = if (prefs.getBoolean("speed_corr", false) && e != null && insights.health.speedoN >= 200) 1 + e else 1.0
+        val e = ins.health.speedoError
+        model.speedFactor = if (prefs.getBoolean("speed_corr", false) && e != null && ins.health.speedoN >= 200) 1 + e else 1.0
     }
 
     // ---------- Tema ----------
@@ -639,7 +645,7 @@ class DashboardActivity : Activity(), SensorEventListener {
 
         val dir = java.io.File(getExternalFilesDir(null), "logs")
         val gearsCopy = GearEstimator().apply { load(liveGears.save()) }   // özet hesabı canlı öğrenmeyi değiştirmesin
-        val k = insights.fuel.k
+        val k = ins.fuel.k
         Thread({
             val trips = try { HistoryIndex(dir).load(gearsCopy, k) } catch (e: Exception) { emptyList() }
             runOnUiThread {
@@ -683,7 +689,7 @@ class DashboardActivity : Activity(), SensorEventListener {
     private fun pct(part: Long, total: Long) = if (total <= 0) "—" else "%${part * 100 / total}"
 
     private fun tripRows(): List<Pair<String, String>> {
-        val st = insights.stats
+        val st = ins.stats
         val gears = (1..Vehicle.current.gears).filter { st.gearMs.getOrElse(it) { 0 } > 0 }.let { g ->
             val tot = g.sumOf { st.gearMs[it] }
             if (tot == 0L) "—" else g.joinToString(" ") { "$it:${st.gearMs[it] * 100 / tot}" }
@@ -702,7 +708,7 @@ class DashboardActivity : Activity(), SensorEventListener {
     }
 
     private fun perfRows(): List<Pair<String, String>> {
-        val p = insights.perf
+        val p = ins.perf
         fun t(v: Double?) = v?.let { "%.1f sn".format(it) } ?: "—"
         return listOf(
             "Durum" to when (p.state) { "hazır" -> "Hazır (kalkışta başlar)"; "ölçülüyor" -> "Ölçülüyor…"; else -> "Durunca hazır" },
@@ -759,9 +765,17 @@ class DashboardActivity : Activity(), SensorEventListener {
     }
 
     private fun connectOrSettings() {
-        if (!BridgeService.running && Conn.start(this)) toast("Bağlanıyor…")
-        else startActivity(android.content.Intent(this, SettingsActivity::class.java))
+        when {
+            !BridgeService.running && Conn.start(this) -> toast("Bağlanıyor…")
+            !Conn.configured(this) -> pickAdapter()   // seçilmediyse doğrudan seçici (Ayarlar'a gitmeden)
+            else -> startActivity(android.content.Intent(this, SettingsActivity::class.java))
+        }
     }
+
+    /** Adaptör seçici; seçilince hemen bağlanır. İzin istenirse izin sonrası yeniden açılır */
+    private fun pickAdapter() = AdapterPicker(this, { requestPermissions(it, REQ_PICKER) }) {
+        if (Conn.configured(this) && !BridgeService.running && Conn.start(this)) toast("Bağlanıyor…")
+    }.show()
 
     /** Detay'daki arıza şeridi: canlı 0101 (lamba, sayı) ve son okuma; dokununca DtcActivity. (metin, uyarı mı) */
     private fun dtcSummary(): Pair<String, Boolean> {
@@ -777,7 +791,7 @@ class DashboardActivity : Activity(), SensorEventListener {
     }
 
     private fun healthRows(): List<Pair<String, String>> {
-        val h = insights.health
+        val h = ins.health
         val v = Vehicle.current
         val bat = model.raw("battery")?.value
         val turboLearned = h.boostN.count { it >= 100 }
@@ -789,8 +803,8 @@ class DashboardActivity : Activity(), SensorEventListener {
         if (v.fuel == Fuel.DIESEL) rows += "DPF temizlenme" to "${if (h.dpfActive) "ŞU AN · " else ""}${h.dpfCount} kez"
         if (v.turbo) rows += "Turbo" to (if (h.turboLow) "normalden düşük" else if (turboLearned >= 3) "normal" else "öğreniliyor ($turboLearned/11)")
         rows += "Hız göstergesi" to (h.speedoError?.let { if (h.speedoN >= 200) "%+.1f%% (GPS'e göre)".format(it * 100) else "ölçülüyor" } ?: "GPS + OBD gerekli")
-        rows += "Yakıt kaynağı" to insights.fuel.source(model.raw("maf") != null, model.raw("fuel_rate") != null, v.fuel)
-        rows += "Yakıt kalibrasyonu" to (if (insights.fuel.calibrations == 0) "yok (Ayarlar > Yakıt)" else "${insights.fuel.calibrations} dolum")
+        rows += "Yakıt kaynağı" to ins.fuel.source(model.raw("maf") != null, model.raw("fuel_rate") != null, v.fuel)
+        rows += "Yakıt kalibrasyonu" to (if (ins.fuel.calibrations == 0) "yok (Ayarlar > Yakıt)" else "${ins.fuel.calibrations} dolum")
         return rows
     }
 
@@ -877,10 +891,13 @@ class DashboardActivity : Activity(), SensorEventListener {
         /** Süreç boyunca tek yolculuk (sekme/yön değişince sıfırlanmasın) */
         val trip = Trip()
         val insights = Insights()
+        /** Demo modunun ayrı, kaydedilmeyen öğrenmesi: sahte veri gerçek rekorları ve kalibrasyonu bozmasın */
+        val demoInsights = Insights()
         /** Hava basıncı (hava servisi / motor durmuşken MAP) */
         val motion = Motion()
         private val demoT0 = System.currentTimeMillis()
         /** Araç ekranı referans görselle açılır (HEADUNIT.md) */
         const val DEFAULT_THEME = "image"
+        private const val REQ_PICKER = 41
     }
 }

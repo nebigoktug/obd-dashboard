@@ -68,7 +68,7 @@ object Updates {
         AlertDialog.Builder(a, android.R.style.Theme_DeviceDefault_Dialog_Alert)
             .setTitle("Yeni sürüm: ${r.version}")
             .setMessage((if (r.notes.isNotBlank()) r.notes + "\n\n" else "") +
-                "Sürüm sayfası açılır; APK'yı indirip kurun. Ayarlarınız ve kayıtlarınız korunur.")
+                "Sürüm sayfası açılır; APK'yı indirip kur (çoğu telefon: arm64-v8a). Ayarların ve kayıtların korunur.")
             .setPositiveButton("İndir") { _, _ -> open(a, r.url) }
             .setNeutralButton("Bu sürümü atla") { _, _ ->
                 a.getSharedPreferences("dash", Context.MODE_PRIVATE).edit().putString("upd_skip", r.version).apply()

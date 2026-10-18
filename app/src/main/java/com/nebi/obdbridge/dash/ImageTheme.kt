@@ -41,7 +41,7 @@ data class ImageTheme(
     companion object {
         private const val DARK_TXT = 0xFF20252B
         val ALL = listOf(
-            ImageTheme("image", "Görsel (referans)", R.drawable.dash_base, R.drawable.dash_lit, R.drawable.theme_image_thumb, 211f, 355f,
+            ImageTheme("image", "Varsayılan", R.drawable.dash_base, R.drawable.dash_lit, R.drawable.theme_image_thumb, 211f, 355f,
                 0xFF2A2F36.toInt(), 0xFFB4BCC4.toInt(), speedLitLabel = 0xFFC4CBD2.toInt(), accent = 0xFF7FB5DD.toInt()),
             ImageTheme("sport", "Spor", R.drawable.theme_sport_base, R.drawable.theme_sport_lit, R.drawable.theme_sport_thumb, 206f, 347f,
                 0xFFFFF2EC.toInt(), 0xFFB0A8A4.toInt(), accent = 0xFFFF6A45.toInt()),

@@ -13,7 +13,7 @@
     <!-- Wi-Fi adaptörü: soketi internetsiz Wi-Fi ağına bağlamak için ağları listelemek -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.INTERNET" />
-    <!-- OBD yokken hız GPS'ten; ileride hava durumu için konum -->
+    <!-- Konum: navigasyon, OBD yokken GPS hızı, hava durumu (yaklaşık konum) -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />

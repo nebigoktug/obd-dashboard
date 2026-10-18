@@ -28,6 +28,9 @@ object YandexNav {
     private const val PREF_KEY = "yandex_key"
     private const val PREF_REJECTED = "yandex_rejected"      // reddedilen anahtar
     private const val PREF_REJECTED_AT = "yandex_rejected_at"
+    /** MapKit bu anahtarla başlatılıyor; süreç [ALIVE_MS] yaşarsa silinir. Açılışta duruyorsa MapKit çökmüştür */
+    private const val PREF_PENDING = "yandex_init_pending"
+    private const val ALIVE_MS = 15_000L
     /** Reddedilen anahtar bu süre sonra yeniden denenir (sınır aşımı geçici olabilir) */
     private const val RETRY_MS = 6 * 3600_000L
 
@@ -41,7 +44,8 @@ object YandexNav {
     /** Kullanıcının kendi anahtarı (boş: yok) */
     fun userKey(ctx: Context) = prefs(ctx).getString(PREF_KEY, null).orEmpty()
 
-    fun setUserKey(ctx: Context, k: String) = prefs(ctx).edit().putString(PREF_KEY, k.trim()).apply()
+    /** commit: ardından uygulama yeniden başlatılıyor, yazı diske inmeden süreç ölmesin */
+    fun setUserKey(ctx: Context, k: String) = prefs(ctx).edit().putString(PREF_KEY, k.trim()).remove(PREF_PENDING).commit()
 
     /** Yandex anahtarları UUID biçiminde */
     fun validKey(k: String) = Regex("[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}").matches(k.trim())
@@ -57,7 +61,7 @@ object YandexNav {
     fun unavailable(ctx: Context): String? = when {
         key(ctx).isEmpty() -> "Navigasyon bu sürümde kapalı (Yandex anahtarı yok)"
         rejected(ctx) -> "Yandex şu an navigasyona izin vermiyor; birkaç saat sonra yeniden denenir. " +
-            "Ayarlar › Navigasyon'dan kendi Yandex anahtarını girebilirsin"
+            "Ayarlar › Navigasyon ve medya'dan kendi Yandex anahtarını girebilirsin"
         else -> null
     }
 
@@ -75,12 +79,34 @@ object YandexNav {
 
     fun init(ctx: Context) {
         if (inited) return
+        crashCheck(ctx)
         val k = key(ctx)
-        if (k.isEmpty()) return
+        if (k.isEmpty() || rejected(ctx)) return
+        // Geçersiz anahtarda MapKit hata döndürmeden yerel kodda çöküyor (QC 2026-10-18): işaret bırak
+        prefs(ctx).edit().putString(PREF_PENDING, k).commit()
+        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({ prefs(ctx).edit().remove(PREF_PENDING).apply() }, ALIVE_MS)
         com.yandex.mapkit.MapKitFactory.setApiKey(k)
         com.yandex.mapkit.MapKitFactory.setLocale("tr_TR")
         com.yandex.mapkit.MapKitFactory.initialize(ctx.applicationContext)
         inited = true; initedKey = k
+    }
+
+    /**
+     * Önceki MapKit başlatması çöktüyse: kullanıcının anahtarıysa kaldırılır (uygulamanınkine dönülür),
+     * uygulamanın anahtarıysa reddedilmiş sayılır. Kullanıcıya bir kez söylenir.
+     */
+    private fun crashCheck(ctx: Context) {
+        val p = prefs(ctx)
+        val bad = p.getString(PREF_PENDING, null) ?: return
+        val e = p.edit().remove(PREF_PENDING)
+        val msg = if (bad == userKey(ctx)) {
+            e.remove(PREF_KEY); "Girdiğin Yandex anahtarı çalışmadı, kaldırıldı"
+        } else {
+            e.putString(PREF_REJECTED, bad).putLong(PREF_REJECTED_AT, System.currentTimeMillis()); "Yandex açılamadı; navigasyon sonra yeniden denenecek"
+        }
+        e.commit()
+        Log.w(BridgeService.TAG, "Yandex başlatması önceki açılışta çöktü")
+        android.widget.Toast.makeText(ctx, msg, android.widget.Toast.LENGTH_LONG).show()
     }
 
     fun requestRoute(ctx: Context, from: LatLon, to: LatLon, azimuth: Double?, done: (NavRoute?) -> Unit) {

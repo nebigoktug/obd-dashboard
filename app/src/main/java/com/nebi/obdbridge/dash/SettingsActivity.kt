@@ -249,7 +249,7 @@ class SettingsActivity : Activity() {
             choose("Hız göstergesi (km/h)", opts.map { "$it km/h" }, opts.indexOf(v.speedMax)) { vehicle = v.copy(speedMax = opts[it]) }
         })
         add(ui.item("Ekran yazısı", "Görsel temalarda üst ortada (ör. araç modeli). Boş bırakılırsa yazı olmaz", { v.badge.ifBlank { "yok" } }) {
-            val input = EditText(this).apply {
+            val input = EditText(this).noFullscreen().apply {
                 hint = "ör. S40"; setText(v.badge); filters = arrayOf(android.text.InputFilter.LengthFilter(Vehicle.MAX_BADGE))
             }
             val box = android.widget.FrameLayout(this).apply { setPadding(ui.dp(20), 0, ui.dp(20), 0); addView(input) }
@@ -272,7 +272,7 @@ class SettingsActivity : Activity() {
         })
         add(ui.toggle("Güneşte Gündüz temasına geç", "Ortam ışığı çok artınca okunurluk için açık temaya, kararınca seçili temaya döner",
             { dash.getBoolean("auto_day", true) }) { dash.edit().putBoolean("auto_day", it).apply() })
-        add(ui.item("Alt şeritteki değerler", "Ana ekranda yol çiziminin iki yanındaki 4 değer. Ana ekranda şeride uzun basarak da değişir", null) {
+        add(ui.item("Alt şeritteki değerler", "Ana ekranda yol çiziminin iki yanındaki 4 değer. Dokununca ana ekrana döner ve seçim penceresi açılır (şeride uzun basmak da açar)", null) {
             dash.edit().putBoolean("open_strip", true).apply(); finish()
         })
         header("Deneme")
@@ -297,8 +297,8 @@ class SettingsActivity : Activity() {
             "Navigasyon kapanırsa developer.tech.yandex.com'dan ücretsiz bir MapKit anahtarı alıp buraya yapıştırabilirsin",
             { if (YandexNav.userKey(this).isEmpty()) "Yok" else "Girildi ✓" }) { askYandexKey() })
         header("Medya")
-        note("Müzik kontrolü izin istemez. Şarkı adı ve kapak, izin vermeden YouTube Music gibi kabul eden uygulamalardan gelir; " +
-            "Spotify'da Ayarlar > \"Device Broadcast Status\" açılırsa Spotify'dan da.")
+        note("Müzik kontrolü izin istemez. İzin vermeden şarkı adı ve kapak yalnız buna açık uygulamalardan gelir (ör. YouTube); " +
+            "Spotify'da Ayarlar > \"Device Broadcast Status\" açılırsa Spotify'dan da. YouTube Music ve çoğu uygulama için aşağıdaki bildirim erişimi gerekir.")
         add(ui.item("Şarkı adı her uygulamada (isteğe bağlı)", "Bildirim erişimi verirsen bütün uygulamaların çalanı görünür. " +
             "Uygulama hiçbir bildirimi almaz (Android 13+ izin sayfasında bütün bildirim türleri kapalı görünür), yalnız çalan müziği görür; istemezsen verme",
             { if (NaviListener.hasAccess(this)) "Verildi ✓" else "Verilmedi" }) {
@@ -307,7 +307,7 @@ class SettingsActivity : Activity() {
     }
 
     private fun askYandexKey() {
-        val input = EditText(this).apply {
+        val input = EditText(this).noFullscreen().apply {
             hint = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"; setSingleLine()
             setText(YandexNav.userKey(this@SettingsActivity))
         }
@@ -319,7 +319,7 @@ class SettingsActivity : Activity() {
             .setTitle("Kendi Yandex anahtarım")
             .setMessage("developer.tech.yandex.com › MapKit Mobile SDK'dan aldığın anahtarı yapıştır. Anahtar yalnız bu telefonda saklanır. " +
                 "Boş bırakırsan uygulamanın anahtarı kullanılır.")
-            .setView(input)
+            .setView(boxed(input))
             .setPositiveButton("Kaydet") { _, _ ->
                 val k = input.text.toString().trim()
                 if (k.isNotEmpty() && !YandexNav.validKey(k)) toast("Bu bir Yandex anahtarına benzemiyor") else save(k)
@@ -338,6 +338,14 @@ class SettingsActivity : Activity() {
 
     private val ins get() = DashboardActivity.insights
 
+    /** Yatay ekranda klavye tam ekran olup pencereyi (ve Kaydet'i) örtmesin */
+    private fun EditText.noFullscreen() = apply {
+        imeOptions = imeOptions or android.view.inputmethod.EditorInfo.IME_FLAG_NO_EXTRACT_UI or android.view.inputmethod.EditorInfo.IME_FLAG_NO_FULLSCREEN
+    }
+
+    /** Penceredeki yazı kutusu kenara yapışmasın */
+    private fun boxed(v: android.view.View) = android.widget.FrameLayout(this).apply { setPadding(ui.dp(20), 0, ui.dp(20), 0); addView(v) }
+
     private fun fuel() {
         note("Çoğu araç yakıt tüketimini OBD'den vermez. Uygulama benzinlide hava debisinden (MAF), dizelde motor yükünden " +
             "tahmin eder. Birkaç depo dolumu girersen tahmin aracına göre düzelir.")
@@ -355,14 +363,14 @@ class SettingsActivity : Activity() {
     }
 
     private fun askFill() {
-        val input = EditText(this).apply {
+        val input = EditText(this).noFullscreen().apply {
             hint = "Litre (ör. 42,5)"
             inputType = android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
         }
         AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
             .setTitle("Depo doldurdum")
             .setMessage("Depoyu tam doldurduktan sonra pompadaki litreyi gir. İlk tam dolum yalnız başlangıç noktasıdır.")
-            .setView(input)
+            .setView(boxed(input))
             .setPositiveButton("Kaydet") { _, _ ->
                 val l = input.text.toString().replace(',', '.').toDoubleOrNull()
                 toast(if (l != null && ins.fuel.fillUp(l)) "Yakıt tahmini düzeltildi" else "Başlangıç kaydedildi")
@@ -424,13 +432,13 @@ class SettingsActivity : Activity() {
 
     /** Not iste, paketi arka planda hazırla (log okuma ~1 sn), paylaşım menüsünü aç. */
     private fun reportProblem() {
-        val input = EditText(this).apply { hint = "Ne oldu? (ör. bağlanmıyor, devir yanlış gösteriliyor)"; minLines = 2 }
+        val input = EditText(this).noFullscreen().apply { hint = "Ne oldu? (ör. bağlanmıyor, devir yanlış gösteriliyor)"; minLines = 2 }
         val box = android.widget.FrameLayout(this).apply { setPadding(ui.dp(20), 0, ui.dp(20), 0); addView(input) }
         AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
             .setTitle("Sorun bildir")
             .setMessage(if (ProblemReport.SUPPORT_EMAIL.isNotEmpty())
-                "Kısaca ne olduğunu yazın. Sonra e-posta uygulamanızı seçin; alıcı (${ProblemReport.SUPPORT_EMAIL}) hazır gelir."
-                else "Kısaca ne olduğunu yazın. Sonra gönderme yolunu (e-posta, WhatsApp, Telegram…) siz seçersiniz.")
+                "Kısaca ne olduğunu yaz. Sonra e-posta uygulamanı seç; alıcı (${ProblemReport.SUPPORT_EMAIL}) hazır gelir."
+                else "Kısaca ne olduğunu yaz. Sonra gönderme yolunu (e-posta, WhatsApp, Telegram…) sen seçersin.")
             .setView(box)
             .setPositiveButton("Hazırla") { _, _ ->
                 val note = input.text.toString()
@@ -469,7 +477,7 @@ class SettingsActivity : Activity() {
     private fun about() {
         val ver = try { packageManager.getPackageInfo(packageName, 0).versionName } catch (_: Exception) { "?" }
         header("Uygulama")
-        add(ui.item("OBD Dashboard", "ELM327 Bluetooth adaptörüyle araç göstergesi, navigasyon ve medya ekranı", null, onClick = null))
+        add(ui.item("OBD Dashboard", "ELM327 adaptörüyle (Bluetooth ya da Wi-Fi) araç göstergesi, navigasyon ve medya ekranı", null, onClick = null))
         add(ui.item("Sürüm", null, { ver }) {
             if (dash.getBoolean("dev", false)) return@item
             if (++devTaps >= 7) { dash.edit().putBoolean("dev", true).apply(); toast("Gelişmiş ayarlar açıldı"); buildNav() }
@@ -485,7 +493,7 @@ class SettingsActivity : Activity() {
                     when {
                         r == null -> toast("Denetlenemedi (internet?)")
                         Updates.newer(r.version, ver ?: "0") -> { dash.edit().putString("upd_latest", r.version).apply(); Updates.offer(this, r) }
-                        else -> { dash.edit().putString("upd_latest", r.version).apply(); toast("Güncel sürümü kullanıyorsunuz") }
+                        else -> { dash.edit().putString("upd_latest", r.version).apply(); toast("Güncel sürümü kullanıyorsun") }
                     }
                     rows.forEach { it.refresh() }
                 }
@@ -500,17 +508,21 @@ class SettingsActivity : Activity() {
         add(ui.item("Harita ve yol tarifi: Yandex Haritalar", "Kullanım koşulları (yandex.com/legal/maps_termsofuse)", null) {
             try { startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://yandex.com/legal/maps_termsofuse/"))) } catch (_: Exception) {}
         })
+        add(ui.item("Harita: OpenFreeMap · MapLibre", "Harita verisi © OpenStreetMap katkıcıları (ODbL) · © OpenMapTiles · OpenFreeMap · MapLibre (BSD)", null) {
+            try { startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://www.openstreetmap.org/copyright"))) } catch (_: Exception) {}
+        })
         note("Hava durumu: Open-Meteo (open-meteo.com, CC BY 4.0) · Hava simgeleri: Meteocons, Bas Milius (MIT lisansı)")
         header("Önemli")
-        note("• Sürüş sırasında uygulamayla uğraşmayın; ayarları araç dururken yapın.\n" +
+        note("• Sürüş sırasında uygulamayla uğraşma; ayarları araç dururken yap.\n" +
             "• Gösterilen değerler araç beyninden okunur, yakıt ve uyarılar tahmindir. Aracın kendi göstergeleri ve uyarı ışıkları esastır.\n" +
-            "• Uygulama araca yalnız okuma istekleri gönderir. Arıza kodu silme gibi yazma işlemleri yalnız sizin onayınızla yapılır.\n" +
+            "• Uygulama araca yalnız okuma istekleri gönderir. Arıza kodu silme gibi yazma işlemleri yalnız senin onayınla yapılır.\n" +
             "• Uygulama olduğu gibi sunulur; kullanımdan doğacak sonuçlardan geliştirici sorumlu değildir.")
         header("Gizlilik")
-        note("Sürüş kayıtları ve bildirimler telefondan çıkmaz. Hava durumu için yaklaşık konum (yaklaşık 100 m) " +
-            "Open-Meteo'ya gönderilir. Adres arama ve navigasyon Yandex'ten gelir: navigasyon sürerken konumunuz, " +
-            "aradığınız adres ve hedefiniz Yandex'e gider. Navigasyon dışında harita OpenFreeMap'ten (OpenStreetMap) gelir. Reklam ve takip yok. " +
-            "Sorun bildirimi yalnız sizin seçtiğiniz uygulamayla, sizin seçtiğiniz kişiye gider. " +
+        note("Sürüş kayıtları ve bildirimler telefondan çıkmaz. Hava durumu için yaklaşık konum (yaklaşık 100\u00A0m) " +
+            "Open-Meteo'ya gönderilir. Adres arama ve navigasyon Yandex'ten gelir: navigasyon sürerken konumun, " +
+            "aradığın adres ve hedefin Yandex'e gider. Navigasyon dışında harita OpenFreeMap'ten (OpenStreetMap) gelir. Reklam ve takip yok. " +
+            "Sorun bildirimi yalnız senin seçtiğin uygulamayla, senin seçtiğin kişiye gider. " +
+            "Telefonun Android yedeği açıksa ayarlar (Ev/İş adresleri dahil) Google yedeğine gidebilir. " +
             "Güncelleme denetimi günde bir kez GitHub'a sorar (kapatılabilir).")
         add(ui.item("Kurulum sihirbazını yeniden başlat", null, null) {
             startActivity(Intent(this, SetupActivity::class.java)); finish()

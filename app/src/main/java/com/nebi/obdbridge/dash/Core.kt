@@ -67,7 +67,7 @@ object SignalCatalog {
         SignalDef("load", "Motor yükü", "%", 0.0, 100.0, staleMs = 2500, tickStep = 25.0),
         SignalDef("boost", "Turbo", "bar", -0.2, 1.5, decimals = 2, staleMs = 2500, tickStep = 0.5),
         SignalDef("map", "Emme basıncı", "kPa", 0.0, 250.0, staleMs = 2500, tickStep = 50.0),
-        SignalDef("rail", "Rail basıncı", "bar", 0.0, 1600.0, scale = 0.01, staleMs = 2500, tickStep = 400.0),
+        SignalDef("rail", "Yakıt basıncı", "bar", 0.0, 1600.0, scale = 0.01, staleMs = 2500, tickStep = 400.0),
         SignalDef("battery", "Akü", "V", 10.0, 16.0, decimals = 1, warnAbove = 14.8, critAbove = 15.2,
             warnBelow = 12.4, critBelow = 11.8, staleMs = 6000, minTauMs = 300, maxTauMs = 800, tickStep = 2.0),
         SignalDef("dtc_count", "Arıza kodu", "", 0.0, 10.0, warnAbove = 1.0, staleMs = 120_000),
