@@ -1,6 +1,6 @@
 # Yapılacaklar
 
-OpenOBD (github.com/Foadsf/OpenOBD) ile karşılaştırmada eksik görülen üç teşhis özelliği (2026-11-03).
+1-3: OpenOBD (github.com/Foadsf/OpenOBD) ile karşılaştırmada eksik görülen teşhis özellikleri (2026-11-03).
 Hepsi standart OBD-II, düz ELM327 ile yapılabilir. Uygulamanın "araca yalnız okuma" ilkesi korunmalı.
 
 ## 1. Freeze frame (Mode 02)
@@ -32,3 +32,17 @@ Ayarlar > Hakkında altında gizli ya da "Geliştirici" başlıklı bir ekran: k
 - Komut geçmişi, cevabı kopyala/paylaş, isteğe bağlı oturum kaydı (.txt).
 - `ObdEngine.request` üzerinden; canlı gösterge akışıyla çakışmaması için terminal açıkken sorgu döngüsü duraklatılmalı.
 - **Güvenlik:** yazma ve sıfırlama komutları engellenmeli ya da ayrıca onay istemeli: `04`/`14` (kod silme), `2E` (veri yazma), `31` (rutin çalıştırma), `10` (oturum değiştirme), `11` (ECU sıfırlama), `3B`, `AT` ile adaptör ayarlarını kalıcı değiştiren komutlar (`ATPP`).
+
+## 4. Dil desteği
+
+Arayüz şu an yalnız Türkçe ve yazılar Kotlin koduna gömülü (`res/values` yok; Türkçe karakterli 700'ü aşkın dizgi). İlk hedef İngilizce.
+
+- **Dizgileri taşı:** `res/values/strings.xml` (Türkçe, varsayılan) + `res/values-en/strings.xml`. Sayı ve birim içerenlerde biçim parametreleri (`%1$s`), adet içerenlerde `plurals`.
+- **Uygulama içi dil seçimi:** Android 13+ uygulama başına dil (`locales_config.xml` + `AppCompatDelegate.setApplicationLocales`), eski sürümlerde Ayarlar > Ekran'da seçici. Varsayılan: telefonun dili, desteklenmiyorsa Türkçe.
+- **Sesli yönlendirme (`Guidance.kt`):** cümleler Türkçe eklerle kuruluyor; her dil için ayrı cümle kurucu gerekir, yalnız çeviri yetmez. TextToSpeech dili de seçilen dile göre.
+- **Arıza kodu açıklamaları:** `assets/dtc_tr.tsv` yanına `dtc_en.tsv` (kaynak zaten SAE J2012 İngilizce başlıkları).
+- **Yerel ayara bağlı yerler:** `Locale("tr")` ile büyük harf ve tarih biçimleri (DashImage, HeadUnit, DashboardActivity, Guidance) seçilen dile bağlanmalı; Türkçe i/İ dönüşümü yalnız Türkçede.
+- **Dış servisler:** Yandex adres arama ve rota dili, hava durumu açıklamaları.
+- **Görseller:** temalarda ya da rozetlerde yazı varsa dile göre ayrı ya da yazısız sürüm.
+- **Belgeler:** README'ye İngilizce bölüm, sürüm notlarında iki dil.
+- Birimler (km/mil, °C/°F, L/100 km–mpg) ayrı bir ayar olarak dilden bağımsız tutulmalı.
