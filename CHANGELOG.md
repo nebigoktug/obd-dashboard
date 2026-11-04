@@ -2,9 +2,9 @@
 
 ## Yayınlanmamış
 
-- Dil desteği: Türkçe ve İngilizce (Ayarlar > Ekran > Dil; varsayılan telefonun dili). Sesli yönlendirme, arıza kodu açıklamaları, tarih biçimleri, harita ve adres arama da seçilen dilde.
+- Dil desteği: Türkçe ve İngilizce (Ayarlar > Ekran > Dil; telefon Türkçeyse Türkçe, değilse İngilizce açılır). Sesli yönlendirme, arıza kodu açıklamaları, tarih biçimleri, harita ve adres arama da seçilen dilde.
 - Kendi dil paketin: çeviri şablonunu kaydet, çevir, uygulamaya ekle ([docs/DIL.md](docs/DIL.md)).
-- *Language support: Turkish and English (Settings > Display > Language), plus user language packs.*
+- *Language support: Turkish and English (Settings > Display > Language; English unless the phone is set to Turkish), plus user language packs.*
 
 ## 1.0 (ilk yayın)
 

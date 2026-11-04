@@ -3,7 +3,7 @@
 Ucuz bir ELM327 OBD-II adaptörüyle telefonu ya da tableti araç göstergesine çeviren Android uygulaması.
 Hız, devir, vites, turbo, motor sıcaklığı, tahmini yakıt tüketimi, navigasyon dönüşleri ve müzik kontrolü tek ekranda.
 
-*An Android head-unit / dashboard app for cheap ELM327 OBD-II adapters. Turkish and English UI; you can add your own language pack ([docs/DIL.md](docs/DIL.md)).*
+*English below: [English](#english)*
 
 ## Özellikler
 
@@ -13,11 +13,11 @@ Hız, devir, vites, turbo, motor sıcaklığı, tahmini yakıt tüketimi, naviga
 - **Uyarılar:** Arıza lambası, DPF temizlenmesi (dizel), düşük turbo, şarj sorunu, soğuk motorda yüksek devir.
 - **Arıza kodları:** Okuma, Türkçe açıklama, paylaşma, onaylı silme.
 - **Sürüş geçmişi:** Her sürüş otomatik kaydedilir (yalnız telefonda, 30 gün).
-- **Navigasyon ve medya:** uygulamanın kendi navigasyonu (Yandex adres arama ve rota, dönüş kartı, Türkçe sesli yönlendirme; dönüşe yaklaşınca devir göstergesinin yerinde yuvarlak harita), çalan müziğin kontrolü (izinsiz; şarkı adı için isteğe bağlı bildirim erişimi). Ayrı bir navigasyon uygulaması gerekmez.
+- **Navigasyon ve medya:** uygulamanın kendi navigasyonu (Yandex adres arama ve rota, dönüş kartı, Türkçe ve İngilizce sesli yönlendirme; dönüşe yaklaşınca devir göstergesinin yerinde yuvarlak harita), çalan müziğin kontrolü (izinsiz; şarkı adı için isteğe bağlı bildirim erişimi). Ayrı bir navigasyon uygulaması gerekmez.
 
 Herhangi bir OBD-II araçta çalışır (Avrupa'da benzinli 2001+, dizel 2004+). Geliştirildiği araç: 2010 Volvo S40 1.6D.
 
-- **Dil:** Türkçe ve İngilizce; kendi dil paketini ekleyebilirsin ([docs/DIL.md](docs/DIL.md)).
+- **Dil:** Türkçe ve İngilizce. Telefon Türkçeyse Türkçe, değilse İngilizce açılır; Ayarlar > Ekran > Dil'den değiştirilebilir. Kendi dil paketini de ekleyebilirsin ([docs/DIL.md](docs/DIL.md)).
 
 ## Kurulum
 
@@ -60,3 +60,44 @@ Uygulama **GPL-3.0** lisanslıdır ([LICENSE](LICENSE)).
 - Arıza kodu açıklamaları SAE J2012 genel kod başlıklarından Türkçeye derlendi.
 
 Volvo ve diğer marka adları sahiplerinin ticari markalarıdır; bu proje hiçbir üreticiyle bağlantılı değildir.
+
+## English
+
+An Android dashboard / head-unit app that turns a phone or tablet into a car display using a cheap ELM327 OBD-II adapter.
+Speed, RPM, gear, boost, coolant temperature, estimated fuel use, turn-by-turn navigation and music control on one screen.
+
+**Language:** the app opens in English unless the phone is set to Turkish; change it in Settings > Display > Language.
+You can add your own language pack: save the translation template in the app, translate it and load it back ([docs/DIL.md](docs/DIL.md#translating-for-users)).
+
+### Features
+
+- **Dashboard:** 30 image themes, automatic day theme in sunlight, per-theme colors for cards, text, accent and warning pills. **Your own theme:** have an AI image tool (Gemini, ChatGPT…) redraw the template in your style and add the result (Settings > Display).
+- **Gear estimate** for manual gearboxes from the RPM/speed ratio; learns your ratios as you drive.
+- **Estimated fuel use** from engine load when there is no fuel-rate PID, calibrated with your fill-ups.
+- **Warnings:** check-engine lamp, DPF regeneration (diesel), low boost, charging problems, high RPM on a cold engine.
+- **Fault codes:** read, descriptions, share, clear with confirmation.
+- **Trip history:** every drive is saved automatically (on the phone only, 30 days).
+- **Navigation and media:** built-in navigation (Yandex address search and routing, turn card, voice guidance, a round map in place of the RPM dial near turns) and control of the music that is playing. No separate navigation app needed.
+
+Works with any OBD-II car (in Europe: petrol 2001+, diesel 2004+). Developed on a 2010 Volvo S40 1.6D.
+
+### Install
+
+1. Download the APK from [Releases](https://github.com/nebigoktug/obd-dashboard/releases/latest) and install it (allow unknown sources):
+   - `app-arm64-v8a-release.apk` — **most phones and tablets** (2017 and later)
+   - `app-armeabi-v7a-release.apk` — older 32-bit phones and most Android car head units. If unsure, try arm64 first; if it says "app not installed", use this one.
+2. Plug the adapter into the car's OBD socket, turn the ignition on and pair it in the phone's Bluetooth settings (PIN is usually `1234` or `0000`).
+3. Open the app; the setup wizard asks for the adapter and vehicle details.
+
+**Adapter:** classic Bluetooth (SPP) ELM327 is the best tested. Bluetooth LE and Wi-Fi adapters are **experimental**.
+
+### Safety and privacy
+
+- Don't operate the app while driving. Values are estimates; the car's own instruments are what count.
+- The app only sends read requests to the car. Fault codes are cleared only after you confirm.
+- Your data stays on the phone. Network requests: weather (approximate location, Open-Meteo), map tiles (OpenFreeMap), address search and routing (Yandex MapKit, only while navigating; location and destination go to Yandex) and a daily update check (GitHub). The "Report a problem" package goes only to whoever you send it to; VIN and adapter address are masked.
+
+### Issues and building
+
+Use [Issues](https://github.com/nebigoktug/obd-dashboard/issues) for bugs and ideas; Settings > About > **Report a problem** prepares a file with the connection summary and recent drives.
+Building needs JDK 17 and the Android SDK: `./gradlew assembleDebug`. Licensed under **GPL-3.0**; credits are listed above.

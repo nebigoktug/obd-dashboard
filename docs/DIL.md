@@ -1,7 +1,7 @@
 # Dil desteği / Languages
 
 Uygulamanın kaynak dili Türkçe. Yerleşik diller: **Türkçe**, **English**. Kullanıcı kendi dil paketini ekleyebilir.
-Seçim: Ayarlar > Ekran > Dil. Varsayılan telefonun dili (desteklenmiyorsa Türkçe). Dil değişince uygulama yeniden başlar.
+Seçim: Ayarlar > Ekran > Dil. Varsayılan: telefon Türkçeyse Türkçe, değilse İngilizce. Dil değişince uygulama yeniden başlar.
 
 ## Nasıl çalışır (geliştirici)
 

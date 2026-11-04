@@ -37,7 +37,8 @@ object L {
         val app = ctx.applicationContext
         choice = app.getSharedPreferences("dash", Context.MODE_PRIVATE).getString("lang", SYSTEM) ?: SYSTEM
         val want = when (choice) {
-            SYSTEM -> Locale.getDefault().language.takeIf { it in BUILT_IN } ?: "tr"
+            // Telefon Türkçeyse Türkçe, değilse İngilizce
+            SYSTEM -> if (Locale.getDefault().language == "tr") "tr" else "en"
             else -> choice
         }
         load(app, want)
