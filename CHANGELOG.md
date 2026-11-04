@@ -1,6 +1,6 @@
 # Sürüm notları
 
-## Yayınlanmamış
+## 1.1
 
 - Dil desteği: Türkçe ve İngilizce (Ayarlar > Ekran > Dil; telefon Türkçeyse Türkçe, değilse İngilizce açılır). Sesli yönlendirme, arıza kodu açıklamaları, tarih biçimleri, harita ve adres arama da seçilen dilde.
 - Kendi dil paketin: çeviri şablonunu kaydet, çevir, uygulamaya ekle ([docs/DIL.md](docs/DIL.md)).
