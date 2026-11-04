@@ -33,11 +33,40 @@ Ayarlar > Hakkında altında gizli ya da "Geliştirici" başlıklı bir ekran: k
 - `ObdEngine.request` üzerinden; canlı gösterge akışıyla çakışmaması için terminal açıkken sorgu döngüsü duraklatılmalı.
 - **Güvenlik:** yazma ve sıfırlama komutları engellenmeli ya da ayrıca onay istemeli: `04`/`14` (kod silme), `2E` (veri yazma), `31` (rutin çalıştırma), `10` (oturum değiştirme), `11` (ECU sıfırlama), `3B`, `AT` ile adaptör ayarlarını kalıcı değiştiren komutlar (`ATPP`).
 
-## 4. Dil desteği
+## 4. Dil desteği — YAPILDI (v1.1, 2026-11-04)
 
-Yapıldı (2026-11-04): Türkçe + İngilizce, kullanıcı dil paketi, sesli yönlendirme ve arıza kodları dahil. Ayrıntı: [DIL.md](DIL.md).
+Türkçe + İngilizce, kullanıcı dil paketi, sesli yönlendirme kalıpları, `dtc_en.tsv`, İngilizce README. Ayrıntı: [DIL.md](DIL.md).
 
-Kalanlar:
-- Birimler (km/mil, °C/°F, L/100 km–mpg) dilden bağımsız ayrı bir ayar olarak.
-- Hava durumu sağlayıcısı dil almıyor; açıklamalar zaten uygulamada çevriliyor. Tema görsellerinde yazı yok, ayrı sürüm gerekmedi.
-- Android 13+ sistem ayarlarındaki "uygulama dili" listesine kayıt (`locales_config.xml`); şimdilik seçim yalnız uygulamanın içinde.
+Kalan:
+- Birimler (km/mil, °C/°F, L/100 km–mpg) dilden bağımsız ayrı bir ayar olarak yok; şu an hep metrik.
+
+---
+
+5-9: r/OBD2'deki benzer uygulamalarla (OpenOBD, OBD Tally) karşılaştırmadan (2026-11-04).
+
+## 5. Araç kimliği (Mode 09)
+
+- `0902` VIN, `0904` kalibrasyon kimlikleri (CALID), `0906` CVN, `090A` ECU adı. Çok çerçeveli cevap (ISO-TP), ELM327 birleştirir.
+- Arıza kodları ekranında "Araç bilgisi" bölümü; "Sorun bildir" paketine eklenmeli (hangi ECU yazılımı olduğunu bilmek hata ayıklamada işe yarar).
+- VIN kişisel veri sayılabilir: paylaşımda son 6 haneyi gizleme seçeneği.
+
+## 6. Desteklenen PID listesi
+
+- `0100`, `0120`, `0140`… bit maskelerinden aracın desteklediği tüm Mode 01 PID'leri; her biri adı, birimi ve canlı değeriyle liste.
+- Göstergelerde olmayan değerleri görmek ve "bu araç neyi veriyor" sorusuna cevap için. Sorgu yükü için yalnız ekran açıkken ve sırayla.
+
+## 7. Gerçek DPF verisi (Volvo 1.6D)
+
+- Şu an DPF temizlenmesi tahminle bulunuyor (`Insights.kt`: rölanti devri/yükü 20 sn yüksek). Motor beyni Mode 22 ile kurum yükü, DPF fark basıncı ya da egzoz sıcaklıkları veriyorsa gerçek değeri kullan.
+- DID tarayıcısıyla ara (OBDb/Volvo listesi + tarama); bulunursa uyarı tahmin yerine bu değere dayansın, tahmin yedek kalsın.
+- Gösterge: kurum yükü %, son temizlenmeden beri km.
+
+## 8. Bulunan DID'den gösterge (kullanıcı PID profili)
+
+- DID tarayıcısında bulunan bir değeri göstergeye ya da alt şeride ekleme: istek (`22xxxx` + gerekirse `ATSH`), bayt seçimi, formül (A*256+B)/x, birim, ad.
+- Profil araç başına JSON olarak saklanır, dışa/içe aktarılabilir (başka araç sahipleriyle paylaşım).
+
+## 9. Ayarlanabilir uyarı eşikleri
+
+- Eşikler şu an kodda sabit ("S40 1.6D için ilk tahmin", `Insights.kt`). Başka araçlarda yanlış uyarı verebilir.
+- Ayarlar'da: soğutma suyu, (varsa) yağ sıcaklığı, soğuk motorda devir sınırı, şarj voltajı aralığı, düşük turbo eşiği; varsayılana dön düğmesi.
