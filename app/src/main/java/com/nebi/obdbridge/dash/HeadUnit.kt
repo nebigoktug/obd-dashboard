@@ -202,7 +202,7 @@ class NaviCard(ctx: Context, private val prefs: android.content.SharedPreference
         val pad = h * 0.1f
         val title = Glass.text(pc, "r3", h * 0.11f, Glass.DIM)
         title.letterSpacing = 0.12f
-        c.drawText("NEREYE?", pad * 1.2f, pad + h * 0.11f, title)
+        c.drawText(t("NEREYE?"), pad * 1.2f, pad + h * 0.11f, title)
         val top = pad + h * 0.2f
         val bw = (w - pad * 4) / 3
         val labels = arrayOf(t("Ev"), t("İş"), t("Ara"))
@@ -762,10 +762,11 @@ class DtcBar(ctx: Context, private val summary: () -> Pair<String, Boolean>) : V
         val pad = 14 * dp
         val tp = Glass.text(pc, "t", 12 * dp, Glass.ICE); tp.letterSpacing = 0.15f
         val base = h / 2 + 5 * dp
-        c.drawText("ARIZA KODLARI", pad, base, tp)
+        val title = t("ARIZA KODLARI")
+        c.drawText(title, pad, base, tp)
         val (s, warn) = summary()
         val vp = Glass.text(pc, "v", 16 * dp, if (warn) Glass.AMBER else Glass.TEXT); vp.color = if (warn) Glass.AMBER else Glass.TEXT
-        val x = pad + tp.measureText("ARIZA KODLARI") + 20 * dp
+        val x = pad + tp.measureText(title) + 20 * dp
         c.drawText(Glass.ellipsize(s, vp, w - x - 40 * dp), x, base, vp)
         val ap = Glass.text(pc, "a", 22 * dp, Glass.DIM); ap.textAlign = Paint.Align.RIGHT
         c.drawText("›", w - pad, base + 2 * dp, ap)

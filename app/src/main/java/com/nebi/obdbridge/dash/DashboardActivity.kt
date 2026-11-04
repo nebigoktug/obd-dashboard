@@ -426,7 +426,7 @@ class DashboardActivity : Activity(), SensorEventListener {
     private fun detailView(): View {
         val list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         val cards = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        for ((t, rows) in listOf("YOLCULUK" to ::tripRows, "PERFORMANS" to ::perfRows, t("SAĞLIK") to ::healthRows)) {
+        for ((t, rows) in listOf(t("YOLCULUK") to ::tripRows, t("PERFORMANS") to ::perfRows, t("SAĞLIK") to ::healthRows)) {
             cards.addView(InfoCard(this, t, rows), LinearLayout.LayoutParams(0, dp(250), 1f).apply { setMargins(dp(6), dp(6), dp(6), dp(6)) })
         }
         list.addView(cards)
@@ -802,7 +802,7 @@ class DashboardActivity : Activity(), SensorEventListener {
         val n = model.raw("dtc_count")?.value
         val last = DtcActivity.last
         val parts = listOfNotNull(
-            when (mil) { null -> null; 0.0 -> t("lamba sönük"); else -> "LAMBA YANIYOR" },
+            when (mil) { null -> null; 0.0 -> t("lamba sönük"); else -> t("LAMBA YANIYOR") },
             n?.let { t("%.0f kayıtlı kod").format(it) },
             last?.let { t("son okuma ") + java.text.SimpleDateFormat("HH:mm", com.nebi.obdbridge.L.locale).format(java.util.Date(it.ts)) },
         )
