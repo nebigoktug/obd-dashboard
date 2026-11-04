@@ -1,5 +1,6 @@
 package com.nebi.obdbridge.dash
 
+import com.nebi.obdbridge.t
 import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Canvas
@@ -127,7 +128,7 @@ abstract class DashWidget(ctx: Context, val spec: WidgetSpec) : View(ctx) {
     }
 }
 
-private val TR = Locale("tr")
+private val TR get() = com.nebi.obdbridge.L.locale
 
 /** Bilgi kutucuğu: etiket, büyük değer, birim; uyarıda renk ve kısa metin (renk körü sürücü için). */
 @SuppressLint("ViewConstructor")  // yalnız koddan oluşturuluyor
@@ -143,7 +144,7 @@ class ValueTile(ctx: Context, spec: WidgetSpec, private val showStale: Boolean =
         val y = label.textSize + big.textSize * 1.0f
         c.drawText(d.text, 0f, y, big)
         val unit = paint("unit", theme.dim, label.textSize)
-        val tag = when (d.level) { Level.CRIT -> "  YÜKSEK"; Level.WARN -> "  DİKKAT"; Level.COLD -> "  SOĞUK"; else -> "" }
+        val tag = when (d.level) { Level.CRIT -> t("  YÜKSEK"); Level.WARN -> t("  DİKKAT"); Level.COLD -> t("  SOĞUK"); else -> "" }
         val unitText = d.def.unit + tag
         c.drawText(unitText, big.measureText(d.text) + 6 * dp, y, unit)
         if (theme.refined) {
@@ -153,7 +154,7 @@ class ValueTile(ctx: Context, spec: WidgetSpec, private val showStale: Boolean =
         // Yaş yalnız değer eskiyse (her kutuda "… ms önce" sürücüye bir şey söylemiyordu)
         if (showStale && d.stale && !d.missing) {
             val sub = paint("sub", theme.dim, label.textSize * 0.85f)
-            c.drawText("eski veri", 0f, y + sub.textSize * 1.5f, sub)
+            c.drawText(t("eski veri"), 0f, y + sub.textSize * 1.5f, sub)
         }
     }
 }

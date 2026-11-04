@@ -1,5 +1,6 @@
 package com.nebi.obdbridge.dash
 
+import com.nebi.obdbridge.t
 import android.content.Context
 import android.util.Log
 import com.nebi.obdbridge.BridgeService
@@ -63,10 +64,10 @@ object YandexNav {
 
     /** Navigasyon neden kapalı (null: açık) */
     fun unavailable(ctx: Context): String? = when {
-        key(ctx).isEmpty() -> "Navigasyon bu sürümde kapalı (Yandex anahtarı yok)"
-        needsRestart(ctx) -> "Yandex anahtarı değişti. Navigasyon için uygulamayı kapatıp yeniden aç"
-        rejected(ctx) -> "Yandex şu an navigasyona izin vermiyor (günlük sınır ya da engel); birkaç saat sonra yeniden denenir. " +
-            "İstersen Ayarlar › Navigasyon ve medya'dan kendi ücretsiz Yandex anahtarını girebilirsin"
+        key(ctx).isEmpty() -> t("Navigasyon bu sürümde kapalı (Yandex anahtarı yok)")
+        needsRestart(ctx) -> t("Yandex anahtarı değişti. Navigasyon için uygulamayı kapatıp yeniden aç")
+        rejected(ctx) -> t("Yandex şu an navigasyona izin vermiyor (günlük sınır ya da engel); birkaç saat sonra yeniden denenir. " +
+            "İstersen Ayarlar › Navigasyon ve medya'dan kendi ücretsiz Yandex anahtarını girebilirsin")
         else -> null
     }
 
@@ -85,7 +86,7 @@ object YandexNav {
         val k = key(ctx)
         if (k == userKey(ctx)) {
             prefs(ctx).edit().remove(PREF_KEY).commit()
-            tell(ctx, "Girdiğin Yandex anahtarını Yandex reddetti ve kaldırıldı. Uygulamanın kendi anahtarı için uygulamayı kapatıp yeniden aç.")
+            tell(ctx, t("Girdiğin Yandex anahtarını Yandex reddetti ve kaldırıldı. Uygulamanın kendi anahtarı için uygulamayı kapatıp yeniden aç."))
         } else prefs(ctx).edit().putString(PREF_REJECTED, k).putLong(PREF_REJECTED_AT, System.currentTimeMillis()).apply()
     }
 
@@ -100,7 +101,8 @@ object YandexNav {
             android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({ prefs(ctx).edit().remove(PREF_PENDING).apply() }, ALIVE_MS)
         }
         com.yandex.mapkit.MapKitFactory.setApiKey(k)
-        com.yandex.mapkit.MapKitFactory.setLocale("tr_TR")
+        // Yer adları, adres arama ve manevra sokak adları bu dilde gelir
+        com.yandex.mapkit.MapKitFactory.setLocale(com.nebi.obdbridge.L.region)
         com.yandex.mapkit.MapKitFactory.initialize(ctx.applicationContext)
         inited = true; initedKey = k
         return true
@@ -125,7 +127,7 @@ object YandexNav {
         if (!crashed) return
         p.edit().remove(PREF_KEY).commit()
         Log.w(BridgeService.TAG, "Yandex başlatması kullanıcı anahtarıyla çöktü; anahtar kaldırıldı")
-        tell(ctx, "Girdiğin Yandex anahtarı çalışmadı ve kaldırıldı; uygulamanın kendi anahtarı kullanılıyor.")
+        tell(ctx, t("Girdiğin Yandex anahtarı çalışmadı ve kaldırıldı; uygulamanın kendi anahtarı kullanılıyor."))
     }
 
     /** Uzun mesaj: ekran varsa pencere (Toast kesiliyordu), yoksa uzun Toast */
@@ -133,7 +135,7 @@ object YandexNav {
         val a = ctx as? android.app.Activity
         if (a != null && !a.isFinishing) {
             android.app.AlertDialog.Builder(a, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                .setTitle("Navigasyon").setMessage(msg).setPositiveButton("Tamam", null).show()
+                .setTitle(t("Navigasyon")).setMessage(msg).setPositiveButton(t("Tamam"), null).show()
         } else android.widget.Toast.makeText(ctx, msg, android.widget.Toast.LENGTH_LONG).show()
     }
 

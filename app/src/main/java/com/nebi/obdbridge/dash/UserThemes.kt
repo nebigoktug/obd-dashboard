@@ -1,5 +1,6 @@
 package com.nebi.obdbridge.dash
 
+import com.nebi.obdbridge.t
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -26,9 +27,9 @@ import kotlin.math.hypot
 object UserThemes {
     const val TEMPLATE_ASSET = "theme_template.jpg"
     /** Şablonla birlikte yapay zekâya gönderilen istek (kullanıcı [TARZINI YAZ] yerine tarzını yazar) */
-    const val PROMPT = "Bu araç gösterge paneli resmini şu tarzda yeniden çiz: [TARZINI YAZ]. " +
+    val PROMPT get() = t("Bu araç gösterge paneli resmini şu tarzda yeniden çiz: [TARZINI YAZ]. " +
         "İki yuvarlak kadranın yerini, boyutunu ve halka kalınlığını aynen koru; resmin oranı ve dış çerçevesi aynı kalsın. " +
-        "Halkalar dolu ve parlak olsun. Rakam, yazı, ibre ya da logo ekleme. Ortadaki küçük araba ve yol çizgileri kalabilir."
+        "Halkalar dolu ve parlak olsun. Rakam, yazı, ibre ya da logo ekleme. Ortadaki küçük araba ve yol çizgileri kalabilir.")
 
     // Referans çerçeve (1376x768) ve uygulamanın kestiği bölüm: make_theme.py ile aynı
     private const val FW = 1376; private const val FH = 768
@@ -145,12 +146,12 @@ object UserThemes {
     private fun frame(ctx: Context, uri: Uri): Bitmap {
         val o = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         ctx.contentResolver.openInputStream(uri)!!.use { BitmapFactory.decodeStream(it, null, o) }
-        require(o.outWidth > 0 && o.outHeight > 0) { "Resim okunamadı" }
+        require(o.outWidth > 0 && o.outHeight > 0) { t("Resim okunamadı") }
         var sample = 1
         while (o.outWidth / (sample * 2) >= 1376) sample *= 2
         val src = ctx.contentResolver.openInputStream(uri)!!.use {
             BitmapFactory.decodeStream(it, null, BitmapFactory.Options().apply { inSampleSize = sample })
-        } ?: error("Resim okunamadı")
+        } ?: error(t("Resim okunamadı"))
         val out = Bitmap.createBitmap(2400, 1080, Bitmap.Config.ARGB_8888)
         val c = Canvas(out); val p = Paint(Paint.FILTER_BITMAP_FLAG)
         val ar = src.width.toFloat() / src.height

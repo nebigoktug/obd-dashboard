@@ -1,5 +1,6 @@
 package com.nebi.obdbridge.dash
 
+import com.nebi.obdbridge.t
 import kotlin.math.sin
 
 // Hava basıncı ve GPS sıklığı (Android'e bağlı değil, birim testli; ağ ve konum DashboardActivity'de).
@@ -13,7 +14,7 @@ import kotlin.math.sin
  * MAP ile servis karşılaştırılarak MAP sensörünün kayması da izlenir.
  */
 class Baro(private val clock: () -> Long = System::currentTimeMillis) {
-    enum class Src(val label: String) { CAR("araç MAP"), WEATHER("hava servisi") }
+    enum class Src(val label: String) { CAR(t("araç MAP")), WEATHER(t("hava servisi")) }
     private var car = Double.NaN; private var carTs = 0L; private var carN = 0
     private var weather = Double.NaN; private var weatherTs = 0L
 

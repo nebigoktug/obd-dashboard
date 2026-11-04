@@ -1,6 +1,8 @@
 package com.nebi.obdbridge.dash
 
+import com.nebi.obdbridge.L
 import com.nebi.obdbridge.dash.RouteTracker.Companion.dist
+import com.nebi.obdbridge.t
 import com.nebi.obdbridge.dash.RouteTracker.LatLon
 import kotlin.math.cos
 import kotlin.math.roundToInt
@@ -82,7 +84,7 @@ class Guidance(val route: NavRoute) {
         /** Ekran: "80 m", "350 m", "1,2 km", "12 km" (TurnWatch.parseDistance okur) */
         fun formatDist(m: Double): String = when {
             m < 1000 -> "${((m / 10).roundToInt() * 10).coerceAtLeast(0)} m"
-            m < 10_000 -> "%.1f km".format(java.util.Locale.ROOT, m / 1000).replace('.', ',')
+            m < 10_000 -> "%.1f km".format(java.util.Locale.ROOT, m / 1000).let { if (L.turkish) it.replace('.', ',') else it }
             else -> "${(m / 1000).roundToInt()} km"
         }
     }
@@ -177,40 +179,42 @@ class VoicePlanner {
         }
         if (!farDone && distM <= far && distM > near + 100) {
             farDone = true
-            return "${spokenDist(distM)} sonra ${phrase(m)}"
+            return t("%1\$s sonra %2\$s", spokenDist(distM), phrase(m))
         }
         return null
     }
 
     companion object {
+        // Cümleler Türkçe anahtarlı kalıplar: dil paketi sırayı %1$s/%2$s ile değiştirebilir (I18n.kt)
         fun phrase(m: Maneuver): String = when (m.turn) {
-            Turn.STRAIGHT -> "düz devam edin"
-            Turn.SLIGHT_LEFT -> "hafif sola dönün"
-            Turn.SLIGHT_RIGHT -> "hafif sağa dönün"
-            Turn.LEFT -> "sola dönün"
-            Turn.RIGHT -> "sağa dönün"
-            Turn.HARD_LEFT -> "keskin sola dönün"
-            Turn.HARD_RIGHT -> "keskin sağa dönün"
-            Turn.FORK_LEFT -> "ayrımda soldan devam edin"
-            Turn.FORK_RIGHT -> "ayrımda sağdan devam edin"
-            Turn.UTURN_LEFT, Turn.UTURN_RIGHT -> "U dönüşü yapın"
-            Turn.ROUNDABOUT -> m.exit?.let { "göbekte ${ordinal(it)} çıkıştan çıkın" } ?: "göbeğe girin"
-            Turn.LEAVE_ROUNDABOUT -> "göbekten çıkın"
-            Turn.EXIT_LEFT -> "soldaki çıkışı kullanın"
-            Turn.EXIT_RIGHT -> "sağdaki çıkışı kullanın"
-            Turn.FINISH -> "hedefe varacaksınız"
+            Turn.STRAIGHT -> t("düz devam edin")
+            Turn.SLIGHT_LEFT -> t("hafif sola dönün")
+            Turn.SLIGHT_RIGHT -> t("hafif sağa dönün")
+            Turn.LEFT -> t("sola dönün")
+            Turn.RIGHT -> t("sağa dönün")
+            Turn.HARD_LEFT -> t("keskin sola dönün")
+            Turn.HARD_RIGHT -> t("keskin sağa dönün")
+            Turn.FORK_LEFT -> t("ayrımda soldan devam edin")
+            Turn.FORK_RIGHT -> t("ayrımda sağdan devam edin")
+            Turn.UTURN_LEFT, Turn.UTURN_RIGHT -> t("U dönüşü yapın")
+            Turn.ROUNDABOUT -> m.exit?.let { t("göbekte %s çıkıştan çıkın", ordinal(it)) } ?: t("göbeğe girin")
+            Turn.LEAVE_ROUNDABOUT -> t("göbekten çıkın")
+            Turn.EXIT_LEFT -> t("soldaki çıkışı kullanın")
+            Turn.EXIT_RIGHT -> t("sağdaki çıkışı kullanın")
+            Turn.FINISH -> t("hedefe varacaksınız")
         }
 
         fun nearText(m: Maneuver): String {
             val s = speakStreet(m.street)
-            return phrase(m).replaceFirstChar { it.uppercase(java.util.Locale("tr")) } + if (s.isNotEmpty()) ", $s" else ""
+            val p = phrase(m).replaceFirstChar { it.uppercase(L.locale) }
+            return if (s.isNotEmpty()) t("%1\$s, %2\$s", p, s) else p
         }
 
         /** 50 m'ye yuvarlanmış "300 metre", "1,5 kilometre" */
-        fun spokenDist(m: Double): String = if (m < 950) "${((m / 50).roundToInt() * 50).coerceAtLeast(50)} metre"
-            else "%.1f".format(java.util.Locale.ROOT, m / 1000).removeSuffix(".0").replace('.', ',') + " kilometre"
+        fun spokenDist(m: Double): String = if (m < 950) t("%d metre", ((m / 50).roundToInt() * 50).coerceAtLeast(50))
+            else t("%s kilometre", "%.1f".format(java.util.Locale.ROOT, m / 1000).removeSuffix(".0").let { if (L.turkish) it.replace('.', ',') else it })
 
-        private fun ordinal(n: Int) = listOf("birinci", "ikinci", "üçüncü", "dördüncü", "beşinci", "altıncı").getOrNull(n - 1) ?: "$n."
+        private fun ordinal(n: Int) = listOf(t("birinci"), t("ikinci"), t("üçüncü"), t("dördüncü"), t("beşinci"), t("altıncı")).getOrNull(n - 1) ?: "$n."
 
         /** Kısaltmalar seslendirmede açık okunsun */
         fun speakStreet(s: String): String = s

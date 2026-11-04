@@ -1,5 +1,6 @@
 package com.nebi.obdbridge.dash
 
+import com.nebi.obdbridge.t
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
@@ -50,7 +51,7 @@ class PlaceSearchActivity : Activity() {
         ui = Ui(this)
         // MapKit başlamadıysa (anahtar yok/reddedildi) Yandex sınıflarına dokunmak çöker: ekran açılmaz
         if (!YandexNav.init(this)) {
-            android.widget.Toast.makeText(this, YandexNav.unavailable(this) ?: "Adres arama şu an açılamıyor", android.widget.Toast.LENGTH_LONG).show()
+            android.widget.Toast.makeText(this, YandexNav.unavailable(this) ?: t("Adres arama şu an açılamıyor"), android.widget.Toast.LENGTH_LONG).show()
             finish(); return
         }
         search = SearchFactory.getInstance().createSearchManager(SearchManagerType.ONLINE)
@@ -60,7 +61,7 @@ class PlaceSearchActivity : Activity() {
         val bar = ui.row()
         bar.addView(ui.text("‹", 30f, Pal.ICE).apply { setPadding(ui.dp(4), 0, ui.dp(16), 0); setOnClickListener { finish() } })
         input = EditText(this).apply {
-            hint = when (mode) { MODE_HOME -> "Ev adresi"; MODE_WORK -> "İş adresi"; else -> "Nereye? Adres ya da yer adı" }
+            hint = when (mode) { MODE_HOME -> t("Ev adresi"); MODE_WORK -> t("İş adresi"); else -> t("Nereye? Adres ya da yer adı") }
             setTextColor(Pal.TEXT); setHintTextColor(Pal.DIM); textSize = 20f
             background = ui.bg(Pal.CARD, 12)
             setPadding(ui.dp(16), ui.dp(12), ui.dp(16), ui.dp(12))
@@ -83,7 +84,7 @@ class PlaceSearchActivity : Activity() {
         root.addView(ScrollView(this).apply { addView(list) }, LinearLayout.LayoutParams(-1, 0, 1f))
         setContentView(root)
         fillCutout(root)
-        if (here == null) status.text = "Konum henüz yok: sonuçlar yakından sıralanmayabilir"
+        if (here == null) status.text = t("Konum henüz yok: sonuçlar yakından sıralanmayabilir")
         input.requestFocus()
         input.postDelayed({ (getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager).showSoftInput(input, 0) }, 200)
     }
@@ -109,7 +110,7 @@ class PlaceSearchActivity : Activity() {
     }
 
     private fun show(items: List<SuggestItem>) {
-        status.text = if (items.isEmpty()) "Sonuç yok" else ""
+        status.text = if (items.isEmpty()) t("Sonuç yok") else ""
         list.removeAllViews()
         for (it in items.take(8)) {
             val row = ui.column().apply {
@@ -149,12 +150,12 @@ class PlaceSearchActivity : Activity() {
     }
 
     private fun resolve(name: String?, run: (Session.SearchListener) -> Unit) {
-        status.text = "Aranıyor…"
+        status.text = t("Aranıyor…")
         run(object : Session.SearchListener {
             override fun onSearchResponse(r: Response) {
                 val obj = r.collection.children.firstOrNull()?.obj
                 val p = obj?.geometry?.firstNotNullOfOrNull { g -> g.point }
-                if (obj == null || p == null) { status.text = "Yer bulunamadı"; return }
+                if (obj == null || p == null) { status.text = t("Yer bulunamadı"); return }
                 done(p.latitude, p.longitude, name ?: obj.name.orEmpty())
             }
             override fun onSearchError(e: com.yandex.runtime.Error) { YandexNav.onError(this@PlaceSearchActivity, e); status.text = errText(e) }
@@ -173,10 +174,10 @@ class PlaceSearchActivity : Activity() {
 
     private fun errText(e: com.yandex.runtime.Error) =
         when (e) {
-            is com.yandex.runtime.network.NetworkError -> "İnternet bağlantısı yok"
+            is com.yandex.runtime.network.NetworkError -> t("İnternet bağlantısı yok")
             is com.yandex.runtime.network.UnauthorizedError, is com.yandex.runtime.network.ForbiddenError ->
-                "Yandex aramaya izin vermedi (anahtar reddedildi). Ayarlar › Navigasyon ve medya'dan kendi anahtarını girebilirsin"
-            else -> "Arama yapılamadı"
+                t("Yandex aramaya izin vermedi (anahtar reddedildi). Ayarlar › Navigasyon ve medya'dan kendi anahtarını girebilirsin")
+            else -> t("Arama yapılamadı")
         }
 
     override fun onResume() {

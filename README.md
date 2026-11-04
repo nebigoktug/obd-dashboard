@@ -3,7 +3,7 @@
 Ucuz bir ELM327 OBD-II adaptörüyle telefonu ya da tableti araç göstergesine çeviren Android uygulaması.
 Hız, devir, vites, turbo, motor sıcaklığı, tahmini yakıt tüketimi, navigasyon dönüşleri ve müzik kontrolü tek ekranda.
 
-*An Android head-unit / dashboard app for cheap ELM327 OBD-II adapters. UI is Turkish.*
+*An Android head-unit / dashboard app for cheap ELM327 OBD-II adapters. Turkish and English UI; you can add your own language pack ([docs/DIL.md](docs/DIL.md)).*
 
 ## Özellikler
 
@@ -16,6 +16,8 @@ Hız, devir, vites, turbo, motor sıcaklığı, tahmini yakıt tüketimi, naviga
 - **Navigasyon ve medya:** uygulamanın kendi navigasyonu (Yandex adres arama ve rota, dönüş kartı, Türkçe sesli yönlendirme; dönüşe yaklaşınca devir göstergesinin yerinde yuvarlak harita), çalan müziğin kontrolü (izinsiz; şarkı adı için isteğe bağlı bildirim erişimi). Ayrı bir navigasyon uygulaması gerekmez.
 
 Herhangi bir OBD-II araçta çalışır (Avrupa'da benzinli 2001+, dizel 2004+). Geliştirildiği araç: 2010 Volvo S40 1.6D.
+
+- **Dil:** Türkçe ve İngilizce; kendi dil paketini ekleyebilirsin ([docs/DIL.md](docs/DIL.md)).
 
 ## Kurulum
 

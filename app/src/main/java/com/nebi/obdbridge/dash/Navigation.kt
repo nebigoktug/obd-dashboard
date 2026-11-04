@@ -1,5 +1,6 @@
 package com.nebi.obdbridge.dash
 
+import com.nebi.obdbridge.t
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -63,9 +64,9 @@ object Nav {
         val g = guidance ?: return null
         val m = g.next ?: return null
         val d = g.nextDistM ?: return null
-        val street = if (m.turn == Turn.FINISH) destName.ifEmpty { "Varış" } else m.street
+        val street = if (m.turn == Turn.FINISH) destName.ifEmpty { t("Varış") } else m.street
         val eta = g.remainingS?.let {
-            java.text.SimpleDateFormat("HH:mm", java.util.Locale("tr")).format(java.util.Date(System.currentTimeMillis() + (it * 1000).toLong()))
+            java.text.SimpleDateFormat("HH:mm", com.nebi.obdbridge.L.locale).format(java.util.Date(System.currentTimeMillis() + (it * 1000).toLong()))
         }
         return NaviState(Guidance.formatDist(d), street, ManeuverIcon.get(m.turn),
             listOfNotNull(eta, Guidance.formatDist(g.remainingM)).joinToString(" · "))
@@ -160,9 +161,9 @@ class NavVoice(ctx: Context) {
         tts = TextToSpeech(ctx.applicationContext) { status ->
             val t = tts ?: return@TextToSpeech
             if (status != TextToSpeech.SUCCESS) { Log.w(BridgeService.TAG, "TTS açılamadı"); return@TextToSpeech }
-            val r = t.setLanguage(java.util.Locale("tr", "TR"))
+            val r = t.setLanguage(com.nebi.obdbridge.L.locale)
             ready = r != TextToSpeech.LANG_MISSING_DATA && r != TextToSpeech.LANG_NOT_SUPPORTED
-            if (!ready) Log.w(BridgeService.TAG, "Türkçe TTS sesi yok ($r)")
+            if (!ready) Log.w(BridgeService.TAG, "TTS sesi yok: ${com.nebi.obdbridge.L.locale} ($r)")
             t.setAudioAttributes(attrs)
             t.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
                 override fun onStart(id: String?) {}

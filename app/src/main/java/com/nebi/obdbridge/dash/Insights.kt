@@ -1,5 +1,6 @@
 package com.nebi.obdbridge.dash
 
+import com.nebi.obdbridge.t
 import com.nebi.obdbridge.obd.Sample
 import kotlin.math.abs
 import kotlin.math.max
@@ -69,18 +70,18 @@ class Insights {
     private fun buildAlerts(i: Inputs, running: Boolean): List<Alert> {
         val out = ArrayList<Alert>(3)
         val v = Vehicle.current
-        if (health.dpfActive && v.fuel == Fuel.DIESEL) out += Alert(AlertKind.DPF, "DPF temizleniyor olabilir · motoru kapatma", Level.WARN, 0)
-        if (health.turboLow && v.turbo) out += Alert(AlertKind.TURBO_LOW, "Turbo basıncı normalden düşük", Level.WARN, 1)
+        if (health.dpfActive && v.fuel == Fuel.DIESEL) out += Alert(AlertKind.DPF, t("DPF temizleniyor olabilir · motoru kapatma"), Level.WARN, 0)
+        if (health.turboLow && v.turbo) out += Alert(AlertKind.TURBO_LOW, t("Turbo basıncı normalden düşük"), Level.WARN, 1)
         when (health.charge) {
-            Health.Charge.LOW -> out += Alert(AlertKind.CHARGE_LOW, "Şarj düşük · %.1f V".format(i.battery ?: 0.0), Level.CRIT, 2)
-            Health.Charge.HIGH -> out += Alert(AlertKind.CHARGE_HIGH, "Şarj voltajı yüksek · %.1f V".format(i.battery ?: 0.0), Level.WARN, 3)
-            Health.Charge.WEAK -> out += Alert(AlertKind.BATTERY_WEAK, "Akü zayıf · %.1f V".format(i.battery ?: 0.0), Level.WARN, 4)
+            Health.Charge.LOW -> out += Alert(AlertKind.CHARGE_LOW, t("Şarj düşük · %.1f V").format(i.battery ?: 0.0), Level.CRIT, 2)
+            Health.Charge.HIGH -> out += Alert(AlertKind.CHARGE_HIGH, t("Şarj voltajı yüksek · %.1f V").format(i.battery ?: 0.0), Level.WARN, 3)
+            Health.Charge.WEAK -> out += Alert(AlertKind.BATTERY_WEAK, t("Akü zayıf · %.1f V").format(i.battery ?: 0.0), Level.WARN, 4)
             Health.Charge.OK -> {}
         }
         val c = i.coolant
         // Yalnız yapılacak bir şey varken: ısınma süresince sürekli duran hap gerçek uyarıları gölgeliyordu
         if (running && c != null && c < COLD_C && (i.rpm ?: 0.0) > COLD_RPM)
-            out += Alert(AlertKind.COLD, "Motor soğuk · devri düşür", Level.WARN, 1)
+            out += Alert(AlertKind.COLD, t("Motor soğuk · devri düşür"), Level.WARN, 1)
         return out.sortedBy { it.priority }
     }
 
@@ -332,7 +333,7 @@ class FuelModel {
 
     /** Hangi kaynak kullanılıyor (Ayarlar/Detay'da gösterilir) */
     fun source(maf: Boolean, rate: Boolean, f: Fuel) = when {
-        rate -> "yakıt debisi (OBD)"; f == Fuel.PETROL && maf -> "hava debisi (MAF)"; else -> "motor yükü tahmini"
+        rate -> t("yakıt debisi (OBD)"); f == Fuel.PETROL && maf -> t("hava debisi (MAF)"); else -> t("motor yükü tahmini")
     }
 
     fun accumulate(ts: Long, lph: Double?, speed: Double?) {

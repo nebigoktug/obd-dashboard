@@ -91,7 +91,7 @@ class BridgeService : Service() {
 
         // Activity bunları okuyup ekranı günceller (thread'ler değil, onlar kendi `active` bayrağına bakar)
         @Volatile var running = false
-        @Volatile var status = "Bağlı değil"
+        @Volatile var status = t("Bağlı değil")
         // OBD motorunun son değerleri ve durumu (ekranlar buradan okur)
         val latest = ConcurrentHashMap<String, Sample>()
         /** Ekranın hesapladıkları (gösterilen vites, GPS hızı, yakıt tahmini, notlar, uyarılar): sürüş kaydına girer */
@@ -215,7 +215,7 @@ class BridgeService : Service() {
         current = null
         sniffRunning = false
         scanRunning = false
-        if (wasRunning) setStatus("Bağlı değil")  // değilse hata mesajı ekranda kalsın
+        if (wasRunning) setStatus(t("Bağlı değil"))  // değilse hata mesajı ekranda kalsın
         else sendBroadcast(Intent(ACTION_STATUS).setPackage(packageName))
         super.onDestroy()
     }
@@ -284,12 +284,12 @@ class BridgeService : Service() {
         val buf = ByteArray(1024)
         val what = if (spec.type == LinkType.WIFI) "Wi-Fi" else "Bluetooth"
         while (active) {
-            setStatus("Adaptöre bağlanıyor…")
+            setStatus(t("Adaptöre bağlanıyor…"))
             try {
                 val link = connect(spec, device)
                 bt = link
                 if (!active) break
-                setStatus("$what bağlı")
+                setStatus(t("%s bağlı", what))
                 val eng = startEngine(link, spec.key)
                 while (active) {
                     val n = link.read(buf)
@@ -305,7 +305,7 @@ class BridgeService : Service() {
                 }
             } catch (e: Exception) {
                 Log.w(TAG, "$what hatası: ${e.message}")
-                if (active) setStatus("Adaptöre ulaşılamadı · takılı ve kontak açık mı?")
+                if (active) setStatus(t("Adaptöre ulaşılamadı · takılı ve kontak açık mı?"))
             }
             // Bağlantı koptu: motoru durdur, istemciyi de kapat ki karşı taraf durumu anlasın
             engine?.stop(); engine = null; current = null
@@ -313,7 +313,7 @@ class BridgeService : Service() {
             client?.let { dropClient(it) }
             if (!active) break
             try { Thread.sleep(RETRY_MS) } catch (_: InterruptedException) { break }
-            setStatus("Adaptöre yeniden bağlanıyor…")
+            setStatus(t("Adaptöre yeniden bağlanıyor…"))
         }
     }
 
@@ -476,11 +476,11 @@ class BridgeService : Service() {
 
     /** Bildirim/ekran metni; yalnız durum değişince güncellenir (Hz her saniye değişir, bildirim titremesin). */
     private fun engineStatusText(s: EngineStatus): String? = when (s.state) {
-        EngineState.INIT -> "Adaptör bağlı · araç hazırlanıyor"
-        EngineState.SEARCHING -> "Araç aranıyor"
-        EngineState.LIVE -> "Canlı"
-        EngineState.NO_ECU -> "Araç cevap vermiyor · kontak açık mı?"
-        EngineState.PROBING -> s.msg ?: "Araç testi"
+        EngineState.INIT -> t("Adaptör bağlı · araç hazırlanıyor")
+        EngineState.SEARCHING -> t("Araç aranıyor")
+        EngineState.LIVE -> t("Canlı")
+        EngineState.NO_ECU -> t("Araç cevap vermiyor · kontak açık mı?")
+        EngineState.PROBING -> s.msg ?: t("Araç testi")
         EngineState.PAUSED, EngineState.STOPPED -> null
     }
 
@@ -500,7 +500,7 @@ class BridgeService : Service() {
             client?.let { dropClient(it) }  // tek istemci: yeni gelen eskisinin yerini alır
             engine?.pause()  // süren OBD isteği bitsin, adaptör ham istemciye kalsın
             client = s
-            setStatus("Başka bir uygulama adaptörü kullanıyor")
+            setStatus(t("Başka bir uygulama adaptörü kullanıyor"))
             Thread({ tcpToBt(s, sock) }, "tcp->bt").start()
         }
     }
@@ -525,7 +525,7 @@ class BridgeService : Service() {
         if (client === s) {
             client = null
             if (active && bt != null) {
-                setStatus("Adaptör bağlı")
+                setStatus(t("Adaptör bağlı"))
                 engine?.resume()
             }
         }
@@ -536,13 +536,13 @@ class BridgeService : Service() {
     private fun startInForeground(): Boolean {
         val nm = getSystemService(NotificationManager::class.java)
         nm.createNotificationChannel(
-            NotificationChannel(CHANNEL, "OBD köprüsü", NotificationManager.IMPORTANCE_LOW)
+            NotificationChannel(CHANNEL, t("OBD köprüsü"), NotificationManager.IMPORTANCE_LOW)
         )
         return try {
             if (Build.VERSION.SDK_INT >= 29) {
-                startForeground(NOTIF_ID, buildNotif("Başlatılıyor"), ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE)
+                startForeground(NOTIF_ID, buildNotif(t("Başlatılıyor")), ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE)
             } else {
-                startForeground(NOTIF_ID, buildNotif("Başlatılıyor"))
+                startForeground(NOTIF_ID, buildNotif(t("Başlatılıyor")))
             }
             true
         } catch (e: Exception) {
@@ -565,7 +565,7 @@ class BridgeService : Service() {
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setContentIntent(open)
-            .addAction(Notification.Action.Builder(null, "Durdur", stop).build())
+            .addAction(Notification.Action.Builder(null, t("Durdur"), stop).build())
             .build()
     }
 

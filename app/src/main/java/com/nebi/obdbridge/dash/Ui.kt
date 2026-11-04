@@ -1,5 +1,6 @@
 package com.nebi.obdbridge.dash
 
+import com.nebi.obdbridge.t
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
@@ -51,7 +52,7 @@ class Ui(private val ctx: Context) {
             typeface = Typeface.create(if (light) "sans-serif-light" else "sans-serif", if (bold) Typeface.BOLD else Typeface.NORMAL)
         }
 
-    fun caps(s: String, color: Int = Pal.ICE) = text(s.uppercase(java.util.Locale("tr")), 12f, color).apply { letterSpacing = 0.15f }
+    fun caps(s: String, color: Int = Pal.ICE) = text(s.uppercase(com.nebi.obdbridge.L.locale), 12f, color).apply { letterSpacing = 0.15f }
 
     fun column(pad: Int = 0) = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(pad), dp(pad), dp(pad), dp(pad)) }
     fun row() = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
@@ -253,10 +254,10 @@ object Conn {
 
     /** Kullanıcıya gösterilecek kısa bağlantı durumu */
     fun status(ctx: Context): String = when {
-        type(ctx) != LinkType.WIFI && !hasBt(ctx) -> "Bluetooth izni yok"
-        type(ctx) != LinkType.WIFI && !btOn(ctx) && !BridgeService.running -> "Bluetooth kapalı"
-        type(ctx) != LinkType.WIFI && address(ctx) == null -> "Adaptör seçilmedi"
-        !BridgeService.running -> "Bağlı değil"
+        type(ctx) != LinkType.WIFI && !hasBt(ctx) -> t("Bluetooth izni yok")
+        type(ctx) != LinkType.WIFI && !btOn(ctx) && !BridgeService.running -> t("Bluetooth kapalı")
+        type(ctx) != LinkType.WIFI && address(ctx) == null -> t("Adaptör seçilmedi")
+        !BridgeService.running -> t("Bağlı değil")
         else -> BridgeService.status
     }
 

@@ -1,5 +1,7 @@
 package com.nebi.obdbridge.dash
 
+import com.nebi.obdbridge.L
+import com.nebi.obdbridge.t
 import android.annotation.SuppressLint
 import android.content.ComponentName
 import android.content.Context
@@ -203,7 +205,7 @@ class NaviCard(ctx: Context, private val prefs: android.content.SharedPreference
         c.drawText("NEREYE?", pad * 1.2f, pad + h * 0.11f, title)
         val top = pad + h * 0.2f
         val bw = (w - pad * 4) / 3
-        val labels = arrayOf("Ev", "İş", "Ara")
+        val labels = arrayOf(t("Ev"), t("İş"), t("Ara"))
         val rad = h * 0.07f
         for (i in 0 until 3) {
             val r = btns[i]
@@ -521,15 +523,15 @@ class MediaCard(ctx: Context, private val hub: MediaHub) : TouchCard(ctx) {
         val tx = art.right + pad
         val tw = w - tx - pad
         val src = hub.appLabel(now.pkg ?: hub.lastPackage)
-        val title = now.title ?: when { playing -> "Çalıyor"; hub.lastPackage != null -> "Çalan yok"; else -> "Müzik" }
-        val artist = now.artist ?: when { now.title != null -> ""; playing -> "Şarkı adı: Ayarlar'dan izin ver"; else -> "▶ ile başlat" }
+        val title = now.title ?: when { playing -> t("Çalıyor"); hub.lastPackage != null -> t("Çalan yok"); else -> t("Müzik") }
+        val artist = now.artist ?: when { now.title != null -> ""; playing -> t("Şarkı adı: Ayarlar'dan izin ver"); else -> t("▶ ile başlat") }
         val tp = Glass.text(pc, "r6", h * 0.15f)
         c.drawText(Glass.ellipsize(title, tp, tw), tx, art.top + h * 0.17f, tp)
         val ap = Glass.text(pc, "r7", h * 0.11f, Glass.DIM)
         c.drawText(Glass.ellipsize(artist, ap, tw), tx, art.top + h * 0.33f, ap)
         if (src.isNotEmpty()) {
             val sp = Glass.text(pc, "r8", h * 0.08f, Glass.ICE); sp.letterSpacing = 0.1f
-            c.drawText(Glass.ellipsize(src.uppercase(java.util.Locale("tr")), sp, tw), tx, art.bottom - h * 0.02f, sp)
+            c.drawText(Glass.ellipsize(src.uppercase(com.nebi.obdbridge.L.locale), sp, tw), tx, art.bottom - h * 0.02f, sp)
         }
 
         // İlerleme çubuğu
@@ -588,9 +590,9 @@ class ValueStrip(ctx: Context, private val specs: List<WidgetSpec>) : DashWidget
 
     companion object {
         /** Şeritte dar yer: kısa etiketler */
-        val SHORT = mapOf("boost" to "TURBO", "load" to "YÜK", "battery" to "AKÜ", "coolant" to "MOTOR", "iat" to "EMME",
-            "rail" to "YAKIT BAS.", "map" to "MAP", "speed" to "HIZ", "rpm" to "DEVİR", "dtc_count" to "ARIZA",
-            "fuel_lph" to "L/SA", "fuel_l100" to "TÜKETİM", "fuel_avg" to "ORT. TÜK.", "baro" to "BASINÇ")
+        val SHORT = mapOf("boost" to t("TURBO"), "load" to t("YÜK"), "battery" to t("AKÜ"), "coolant" to t("MOTOR"), "iat" to t("EMME"),
+            "rail" to t("YAKIT BAS."), "map" to "MAP", "speed" to t("HIZ"), "rpm" to t("DEVİR"), "dtc_count" to t("ARIZA"),
+            "fuel_lph" to t("L/SA"), "fuel_l100" to t("TÜKETİM"), "fuel_avg" to t("ORT. TÜK."), "baro" to t("BASINÇ"))
         /** Şeridin iki yanı (yol çiziminin solu / sağı), resim koordinatında: yazı rengi ayrı ölçülür */
         private val STRIP_L = DashImageGeom.STRIP.let { RectF(it.left, it.top, it.left + it.width() * 0.42f, it.bottom) }
         private val STRIP_R = DashImageGeom.STRIP.let { RectF(it.right - it.width() * 0.42f, it.top, it.right, it.bottom) }
@@ -612,7 +614,7 @@ class ValueStrip(ctx: Context, private val specs: List<WidgetSpec>) : DashWidget
             val cx = if (i < 2) slot * (i + 0.5f) else w - side + slot * (i - 2 + 0.5f)
             val d = frame[spec.signal]
             val def = SignalCatalog[spec.signal] ?: return@forEachIndexed
-            c.drawText(SHORT[spec.signal] ?: def.label.uppercase(java.util.Locale("tr")), cx, h * 0.3f, lp)
+            c.drawText(SHORT[spec.signal] ?: def.label.uppercase(com.nebi.obdbridge.L.locale), cx, h * 0.3f, lp)
             val txt = d?.text ?: "—"
             // Soğuk (mavi) şeritte boyanmaz: mavi zeminli temalarda okunmuyordu; uyarı ve kritik boyanır
             vp.color = if (d != null && d.level != Level.NORMAL && d.level != Level.COLD && !d.missing) theme.levelColor(d.level) else Glass.DIAL ?: ink.text
@@ -797,15 +799,15 @@ class TripRow(ctx: Context, private val t: TripSummary) : View(ctx) {
     private val pc = HashMap<String, Paint>()
     private val rect = RectF()
     private val dp = ctx.resources.displayMetrics.density
-    private val day = java.text.SimpleDateFormat("d MMM EEE", java.util.Locale("tr"))
-    private val hour = java.text.SimpleDateFormat("HH:mm", java.util.Locale("tr"))
+    private val day = java.text.SimpleDateFormat("d MMM EEE", com.nebi.obdbridge.L.locale)
+    private val hour = java.text.SimpleDateFormat("HH:mm", com.nebi.obdbridge.L.locale)
     private val dayText = day.format(java.util.Date(t.start))
     private val hourText = "${hour.format(java.util.Date(t.start))}–${hour.format(java.util.Date(t.start + t.durationMs))}"
     private val cols = listOf(
-        "%.1f km".format(t.km) to "mesafe",
-        (t.durationMs / 60_000).let { if (it >= 60) "${it / 60} sa ${it % 60} dk" else "$it dk" } to "süre",
-        (t.l100?.let { "%.1f".format(it) } ?: "—") to "L/100 (tahmini)",
-        "${t.score}" to "puan",
+        "%.1f km".format(t.km) to L.t("mesafe"),
+        (t.durationMs / 60_000).let { if (it >= 60) L.t("%d sa %d dk", it / 60, it % 60) else L.t("%d dk", it) } to L.t("süre"),
+        (t.l100?.let { "%.1f".format(it) } ?: "—") to L.t("L/100 (tahmini)"),
+        "${t.score}" to L.t("puan"),
     )
 
     init { isClickable = true }
@@ -841,8 +843,8 @@ class TripRow(ctx: Context, private val t: TripSummary) : View(ctx) {
 /** Sağ üst: büyük saat, altında tarih. */
 class ClockView(ctx: Context) : View(ctx) {
     private val pc = HashMap<String, Paint>()
-    private val hm = java.text.SimpleDateFormat("HH:mm", java.util.Locale("tr"))
-    private val day = java.text.SimpleDateFormat("EEE d MMM", java.util.Locale("tr"))
+    private val hm = java.text.SimpleDateFormat("HH:mm", com.nebi.obdbridge.L.locale)
+    private val day = java.text.SimpleDateFormat("EEE d MMM", com.nebi.obdbridge.L.locale)
     private val now = java.util.Date()
 
     override fun onDraw(c: Canvas) {
@@ -922,8 +924,8 @@ class WeatherView(ctx: Context, private val weather: Weather) : View(ctx) {
 
     /** WMO kodu → kısa Türkçe açıklama */
     private fun text(c: Int?) = when (c) {
-        null -> "Hava bilgisi yok"; 0 -> if (weather.isDay) "Güneşli" else "Açık"; 1 -> "Az bulutlu"; 2 -> "Parçalı bulutlu"; 3 -> "Kapalı"
-        45, 48 -> "Sisli"; in 51..57 -> "Çisenti"; in 61..65 -> "Yağmurlu"; 66, 67 -> "Dondurucu yağmur"
-        in 71..77 -> "Karlı"; in 80..82 -> "Sağanak"; 85, 86 -> "Kar sağanağı"; in 95..99 -> "Gök gürültülü"; else -> ""
+        null -> t("Hava bilgisi yok"); 0 -> if (weather.isDay) t("Güneşli") else t("Açık"); 1 -> t("Az bulutlu"); 2 -> t("Parçalı bulutlu"); 3 -> t("Kapalı")
+        45, 48 -> t("Sisli"); in 51..57 -> t("Çisenti"); in 61..65 -> t("Yağmurlu"); 66, 67 -> t("Dondurucu yağmur")
+        in 71..77 -> t("Karlı"); in 80..82 -> t("Sağanak"); 85, 86 -> t("Kar sağanağı"); in 95..99 -> t("Gök gürültülü"); else -> ""
     }
 }

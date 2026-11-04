@@ -1,5 +1,6 @@
 package com.nebi.obdbridge.dash
 
+import com.nebi.obdbridge.t
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.AlertDialog
@@ -29,12 +30,12 @@ class AdapterPicker(private val a: Activity, private val askPerms: (Array<String
             body.removeAllViews()
             if (wifi) wifiPane(body) { dlg.dismiss() } else btPane(body) { dlg.dismiss() }
         }
-        root.addView(ui.chips(listOf(false to "Bluetooth", true to "Wi-Fi (deneysel)"), wifi) { wifi = it; render() })
+        root.addView(ui.chips(listOf(false to t("Bluetooth"), true to t("Wi-Fi (deneysel)")), wifi) { wifi = it; render() })
         root.addView(body, LinearLayout.LayoutParams(-1, -2).apply { topMargin = ui.dp(12) })
         dlg = AlertDialog.Builder(a, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-            .setTitle("OBD adaptörü")
+            .setTitle(t("OBD adaptörü"))
             .setView(ScrollView(a).apply { addView(root) })
-            .setNegativeButton("Kapat", null)
+            .setNegativeButton(t("Kapat"), null)
             .setOnDismissListener { stopScan(); done() }
             .create()
         render()
@@ -48,32 +49,32 @@ class AdapterPicker(private val a: Activity, private val askPerms: (Array<String
             val prefs = a.getSharedPreferences("dash", Activity.MODE_PRIVATE)
             val blocked = prefs.getBoolean(PREF_ASKED, false) && Conn.scanPerms().none { a.shouldShowRequestPermissionRationale(it) }
             if (blocked) {
-                body.addView(ui.text("Bluetooth izni kapalı. Adaptörü görmek için Android ayarlarında uygulamanın " +
-                    "izinlerinden \"Yakındaki cihazlar\" (ya da Konum) iznini aç.", 15f, Pal.DIM))
-                body.addView(ui.button("Uygulama ayarlarını aç", primary = true) {
+                body.addView(ui.text(t("Bluetooth izni kapalı. Adaptörü görmek için Android ayarlarında uygulamanın " +
+                    "izinlerinden \"Yakındaki cihazlar\" (ya da Konum) iznini aç."), 15f, Pal.DIM))
+                body.addView(ui.button(t("Uygulama ayarlarını aç"), primary = true) {
                     close()
                     a.startActivity(android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
                         android.net.Uri.fromParts("package", a.packageName, null)))
                 }, LinearLayout.LayoutParams(-2, -2).apply { topMargin = ui.dp(10) })
                 return
             }
-            body.addView(ui.text("Yakındaki adaptörleri görmek için Bluetooth izni gerekiyor.", 15f, Pal.DIM))
-            body.addView(ui.button("İzin ver", primary = true) {
+            body.addView(ui.text(t("Yakındaki adaptörleri görmek için Bluetooth izni gerekiyor."), 15f, Pal.DIM))
+            body.addView(ui.button(t("İzin ver"), primary = true) {
                 prefs.edit().putBoolean(PREF_ASKED, true).apply(); close(); askPerms(Conn.scanPerms())
             }, LinearLayout.LayoutParams(-2, -2).apply { topMargin = ui.dp(10) })
             return
         }
-        if (!Conn.btOn(a)) { body.addView(ui.text("Bluetooth kapalı. Açıp tekrar dene.", 15f, Pal.AMBER)); return }
+        if (!Conn.btOn(a)) { body.addView(ui.text(t("Bluetooth kapalı. Açıp tekrar dene."), 15f, Pal.AMBER)); return }
         val list = ui.column()
-        val status = ui.text("Yakındaki adaptörler aranıyor…", 13f, Pal.DIM)
+        val status = ui.text(t("Yakındaki adaptörler aranıyor…"), 13f, Pal.DIM)
         body.addView(status)
         body.addView(list, LinearLayout.LayoutParams(-1, -2).apply { topMargin = ui.dp(8) })
         // OBD'ye benzemeyen cihazlar (TV, kulaklık, aracın kendi Bluetooth'u…) "Diğer cihazlar" altında, kapalı
         val others = ui.column().apply {
             visibility = android.view.View.GONE
-            addView(ui.caps("Diğer cihazlar", Pal.DIM).apply { setPadding(0, ui.dp(6), 0, ui.dp(8)) })
+            addView(ui.caps(t("Diğer cihazlar"), Pal.DIM).apply { setPadding(0, ui.dp(6), 0, ui.dp(8)) })
         }
-        val othersBtn = ui.button("Diğer cihazları göster") {}.apply { visibility = android.view.View.GONE }
+        val othersBtn = ui.button(t("Diğer cihazları göster")) {}.apply { visibility = android.view.View.GONE }
         othersBtn.setOnClickListener { others.visibility = android.view.View.VISIBLE; othersBtn.visibility = android.view.View.GONE }
         val shown = HashSet<String>()
         val cur = Conn.address(a)
@@ -93,43 +94,43 @@ class AdapterPicker(private val a: Activity, private val askPerms: (Array<String
             if (!obd && !on) {
                 others.addView(t, lp)
                 if (others.visibility != android.view.View.VISIBLE) othersBtn.visibility = android.view.View.VISIBLE
-                othersBtn.text = "Diğer cihazları göster (${others.childCount - 1})"
+                othersBtn.text = t("Diğer cihazları göster (%d)", others.childCount - 1)
             } else list.addView(t, if (obd) 0 else list.childCount, lp)
         }
-        for (d in Conn.devices(a)) row(d.address, Conn.label(d), "eşleşmiş", leOnly = false)
+        for (d in Conn.devices(a)) row(d.address, Conn.label(d), t("eşleşmiş"), leOnly = false)
         body.addView(othersBtn, LinearLayout.LayoutParams(-2, -2).apply { topMargin = ui.dp(4) })
         body.addView(others, LinearLayout.LayoutParams(-1, -2).apply { topMargin = ui.dp(6) })
-        stopScan = Conn.scanBle(a) { addr, name -> row(addr, name, "yakında · BLE (deneysel)", leOnly = true) }
+        stopScan = Conn.scanBle(a) { addr, name -> row(addr, name, t("yakında · BLE (deneysel)"), leOnly = true) }
         list.postDelayed({
             status.text = when {
-                list.childCount > 0 -> "Adaptörünü seç"
-                others.childCount > 1 -> "OBD adaptörüne benzeyen cihaz yok. Adaptörün başka adla görünüyorsa \"Diğer cihazlar\"a bak"
-                else -> "Adaptör bulunamadı. Kontak açık ve adaptör takılı mı?"
+                list.childCount > 0 -> t("Adaptörünü seç")
+                others.childCount > 1 -> t("OBD adaptörüne benzeyen cihaz yok. Adaptörün başka adla görünüyorsa \"Diğer cihazlar\"a bak")
+                else -> t("Adaptör bulunamadı. Kontak açık ve adaptör takılı mı?")
             }
         }, 10_000)
-        body.addView(ui.text("Listede yoksa: klasik Bluetooth adaptörleri önce telefonun Bluetooth ayarlarından eşleştir " +
-            "(PIN genelde 1234 ya da 0000). BLE adaptörler eşleştirmeden burada görünür.", 13f, Pal.DIM)
+        body.addView(ui.text(t("Listede yoksa: klasik Bluetooth adaptörleri önce telefonun Bluetooth ayarlarından eşleştir " +
+            "(PIN genelde 1234 ya da 0000). BLE adaptörler eşleştirmeden burada görünür."), 13f, Pal.DIM)
             .apply { setPadding(0, ui.dp(10), 0, 0) })
-        body.addView(ui.button("Bluetooth ayarlarını aç") { Conn.openBtSettings(a) },
+        body.addView(ui.button(t("Bluetooth ayarlarını aç")) { Conn.openBtSettings(a) },
             LinearLayout.LayoutParams(-2, -2).apply { topMargin = ui.dp(8); bottomMargin = ui.dp(12) })
     }
 
     private fun wifiPane(body: LinearLayout, close: () -> Unit) {
-        body.addView(ui.text("Deneysel: Wi-Fi adaptörlerle henüz gerçek araçta denenmedi. Sorun olursa Ayarlar > Hakkında > Sorun bildir.",
+        body.addView(ui.text(t("Deneysel: Wi-Fi adaptörlerle henüz gerçek araçta denenmedi. Sorun olursa Ayarlar > Hakkında > Sorun bildir."),
             13f, Pal.AMBER).apply { setPadding(0, 0, 0, ui.dp(8)) })
-        body.addView(ui.text("1. Telefonu adaptörün Wi-Fi ağına bağla (ör. \"WiFi_OBDII\", \"V-LINK\").\n" +
+        body.addView(ui.text(t("1. Telefonu adaptörün Wi-Fi ağına bağla (ör. \"WiFi_OBDII\", \"V-LINK\").\n" +
             "2. \"İnternet yok\" uyarısı çıkarsa \"Bağlı kal\"ı seç.\n" +
-            "3. Adres genelde 192.168.0.10:35000; adaptörün kutusunda farklı yazıyorsa onu gir.", 14f, Pal.DIM))
+            "3. Adres genelde 192.168.0.10:35000; adaptörün kutusunda farklı yazıyorsa onu gir."), 14f, Pal.DIM))
         val input = EditText(a).apply {
             setText(Conn.wifiHost(a)); setTextColor(Pal.TEXT); textSize = 18f; isSingleLine = true
             gravity = Gravity.CENTER_VERTICAL
         }
         body.addView(input, LinearLayout.LayoutParams(-1, -2).apply { topMargin = ui.dp(10) })
         val row = ui.row()
-        row.addView(ui.button("Varsayılan") { input.setText(TcpLink.DEFAULT) }, LinearLayout.LayoutParams(-2, -2).apply { marginEnd = ui.dp(8) })
-        row.addView(ui.button("Kaydet", primary = true) {
+        row.addView(ui.button(t("Varsayılan")) { input.setText(TcpLink.DEFAULT) }, LinearLayout.LayoutParams(-2, -2).apply { marginEnd = ui.dp(8) })
+        row.addView(ui.button(t("Kaydet"), primary = true) {
             val v = input.text.toString().trim()
-            if (!Regex("^[\\w.-]+(:\\d{1,5})?$").matches(v)) { input.error = "ör. 192.168.0.10:35000"; return@button }
+            if (!Regex("^[\\w.-]+(:\\d{1,5})?$").matches(v)) { input.error = t("ör. 192.168.0.10:35000"); return@button }
             Conn.setWifiHost(a, if (':' in v) v else "$v:35000")
             Conn.setType(a, LinkType.WIFI)
             close()

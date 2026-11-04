@@ -1,5 +1,6 @@
 package com.nebi.obdbridge.obd
 
+import com.nebi.obdbridge.t
 import java.io.IOException
 
 data class Sample(val key: String, val value: Double, val ts: Long)
@@ -256,7 +257,7 @@ class ObdEngine(
         while (running) {
             if (pauseWanted) {
                 paused = true
-                setStatus(EngineStatus(EngineState.PAUSED, protocol, mode, maxMulti, msg = "Harici uygulama bağlı"))
+                setStatus(EngineStatus(EngineState.PAUSED, protocol, mode, maxMulti, msg = t("Harici uygulama bağlı")))
                 while (pauseWanted && running) Thread.sleep(20)
                 paused = false
                 // Harici istemci ELM ayarlarını değiştirmiş olabilir: ayarları yeniden gönder,
@@ -294,7 +295,7 @@ class ObdEngine(
             val dtcDone = dtcWanted
             if (dtcDone != null) {
                 dtcWanted = null
-                dtcDone(if (needInit) DtcReport(emptyList(), emptyList(), null, null, null, null, error = "Araca bağlı değil", ts = clock())
+                dtcDone(if (needInit) DtcReport(emptyList(), emptyList(), null, null, null, null, error = t("Araca bağlı değil"), ts = clock())
                     else DtcReader(::request, protocol in setOf("6", "7", "8", "9"), clock).run(dtcClear))
                 lastMil = 0L  // gösterge kutucuğundaki arıza sayısı hemen yenilensin
                 continue
@@ -315,17 +316,17 @@ class ObdEngine(
 
     /** Adaptörü hazırlar, protokolü bulur, yetenekleri test eder. ECU yoksa false. */
     private fun init(cachedProtocol: String?): Boolean {
-        setStatus(EngineStatus(EngineState.INIT, msg = "Adaptör hazırlanıyor"))
+        setStatus(EngineStatus(EngineState.INIT, msg = t("Adaptör hazırlanıyor")))
         adapterId = request("ATZ", 3000).lineSequence().map { it.trim() }.lastOrNull { it.isNotEmpty() && it != TIMEOUT } ?: "?"
         for (c in listOf("ATE0", "ATL0", "ATS0", "ATH0", "ATAT1")) checked(c, 1000)
         checked("ATSP" + (cachedProtocol ?: "0"), 1000)
 
-        setStatus(EngineStatus(EngineState.SEARCHING, msg = "Araç aranıyor"))
+        setStatus(EngineStatus(EngineState.SEARCHING, msg = t("Araç aranıyor")))
         val first = checked("0100", 15000)
         val firstFrames = ElmParser.frames(first)
         val mask0 = ElmParser.mode01(firstFrames, setOf(0x00))[0x00]
         if (ElmParser.error(first) != null || mask0 == null) {
-            setStatus(EngineStatus(EngineState.NO_ECU, msg = ElmParser.error(first) ?: "Cevap yok"))
+            setStatus(EngineStatus(EngineState.NO_ECU, msg = ElmParser.error(first) ?: t("Cevap yok")))
             return false
         }
         protocol = checked("ATDPN", 1000).trim().removePrefix("A")
@@ -369,7 +370,7 @@ class ObdEngine(
 
     /** Harici istemciden sonra: ATZ ve keşif olmadan ayarları geri yükler. Test sorgusu tutmazsa false. */
     private fun lightInit(): Boolean {
-        setStatus(EngineStatus(EngineState.INIT, protocol, mode, maxMulti, msg = "Ayarlar geri yükleniyor"))
+        setStatus(EngineStatus(EngineState.INIT, protocol, mode, maxMulti, msg = t("Ayarlar geri yükleniyor")))
         for (c in listOf("ATE0", "ATL0", "ATS0", "ATH0", "ATAT1")) checked(c, 1000)
         checked("ATSP" + (protocol ?: "0"), 1000)
         header?.let { checked("ATSH$it", 1000) }
@@ -476,12 +477,12 @@ class ObdEngine(
                 publish(samples)
             }
             "NO DATA" -> { timeoutsInRow = 0; batch.forEach { miss(it, now) } }
-            "?" -> downgrade("adaptör komutu tanımadı")
+            "?" -> downgrade(t("adaptör komutu tanımadı"))
             "BUFFER FULL" -> downgrade("BUFFER FULL")
             TIMEOUT, "STOPPED" -> {
                 if (!running) return true
                 interrupt()
-                if (++timeoutsInRow >= 3) throw LinkLostException("adaptör 3 kez cevap vermedi")
+                if (++timeoutsInRow >= 3) throw LinkLostException(t("adaptör 3 kez cevap vermedi"))
             }
             else -> {  // CAN ERROR, UNABLE TO CONNECT, BUS INIT...: kontak kapanmış olabilir
                 if (++busErrorsInRow >= 3) {
@@ -572,7 +573,7 @@ class ObdEngine(
     /** Hatası olsa da devam edilen kurulum komutu. */
     private fun checked(cmd: String, timeoutMs: Long): String {
         val r = request(cmd, timeoutMs)
-        if (r == TIMEOUT && ++timeoutsInRow >= 3) throw LinkLostException("adaptör kurulumda cevap vermiyor")
+        if (r == TIMEOUT && ++timeoutsInRow >= 3) throw LinkLostException(t("adaptör kurulumda cevap vermiyor"))
         if (r != TIMEOUT) timeoutsInRow = 0
         return r
     }

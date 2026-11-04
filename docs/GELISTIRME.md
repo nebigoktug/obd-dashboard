@@ -168,5 +168,6 @@ app/src/main/java/com/nebi/obdbridge/obd/              OBD motoru, ELM ayrışt�
 app/src/test/...                                      ayrıştırıcı + motor testleri (emülatörle)
 tools/                                                geliştirme araçları (Python)
 dashboard/DESIGN.md, mockup.html, data/               tasarım, görsel taslak, Volvo DID ve DTC verisi
-docs/YAPILACAKLAR.md                                  bekleyen işler (freeze frame, Mode 06, ham terminal, dil desteği)
+docs/YAPILACAKLAR.md                                  bekleyen işler (freeze frame, Mode 06, ham terminal)
+docs/DIL.md                                           dil desteği: t(), paket biçimi, tools/i18n.py
 ```

@@ -193,7 +193,7 @@ class DashImageDials(ctx: Context, spec: WidgetSpec, private val th: ImageTheme 
         if (v.badge.isNotBlank()) {
             val r = DashImageGeom.LOGO
             badgeP.textSize = 34f * s
-            c.drawText(v.badge.uppercase(java.util.Locale("tr")), ox + r.centerX() * s, oy + (r.centerY() + 12f) * s, badgeP)
+            c.drawText(v.badge.uppercase(com.nebi.obdbridge.L.locale), ox + r.centerX() * s, oy + (r.centerY() + 12f) * s, badgeP)
         }
         dial(c, DashImageGeom.SPEED_C, frame["speed"], centerKey = null)
         // Otomatik vites: vites tahmini yok, ortada devir yazar

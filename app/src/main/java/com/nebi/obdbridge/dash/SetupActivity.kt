@@ -1,5 +1,6 @@
 package com.nebi.obdbridge.dash
 
+import com.nebi.obdbridge.t
 import android.Manifest
 import android.app.Activity
 import android.content.Intent
@@ -73,9 +74,9 @@ class SetupActivity : Activity() {
 
     private fun label(s: String) = body.addView(ui.caps(s).apply { setPadding(0, ui.dp(14), 0, ui.dp(8)) })
 
-    private fun nav(next: String = "Devam", back: Boolean = true, skip: String? = null, onSkip: () -> Unit = { show(step + 1) },
+    private fun nav(next: String = t("Devam"), back: Boolean = true, skip: String? = null, onSkip: () -> Unit = { show(step + 1) },
                     onNext: () -> Unit = { show(step + 1) }) {
-        if (back && step > 0) foot.addView(ui.button("Geri") { show(step - 1) }, LinearLayout.LayoutParams(-2, -2).apply { marginEnd = ui.dp(10) })
+        if (back && step > 0) foot.addView(ui.button(t("Geri")) { show(step - 1) }, LinearLayout.LayoutParams(-2, -2).apply { marginEnd = ui.dp(10) })
         foot.addView(View(this), LinearLayout.LayoutParams(0, 1, 1f))
         skip?.let { foot.addView(ui.button(it, onClick = onSkip), LinearLayout.LayoutParams(-2, -2).apply { marginEnd = ui.dp(10) }) }
         foot.addView(ui.button(next, primary = true, onClick = onNext))
@@ -84,55 +85,55 @@ class SetupActivity : Activity() {
     // ---------- adımlar ----------
 
     private fun welcome() {
-        title("OBD Dashboard'a hoş geldin",
-            "Telefonunu araç göstergesine çevirir: hız, devir, vites, turbo, sıcaklık; yanında navigasyon ve müzik kontrolü.")
-        label("Gerekenler")
-        body.addView(ui.text("• ELM327 OBD adaptörü (Bluetooth ya da Wi-Fi)\n• 2001 sonrası benzinli ya da 2004 sonrası dizel, OBD-II'li araç\n" +
-            "• Telefon tutucusu (yatay)", 15f))
-        label("Önemli")
-        body.addView(ui.text("Sürüş sırasında uygulamayla uğraşma; ayarları araç dururken yap. Yakıt ve uyarılar tahmindir, " +
-            "aracın kendi göstergeleri ve uyarı ışıkları esastır. Uygulama araca yalnız okuma istekleri gönderir.", 15f, Pal.DIM))
-        nav("Anladım, başlayalım", back = false)
+        title(t("OBD Dashboard'a hoş geldin"),
+            t("Telefonunu araç göstergesine çevirir: hız, devir, vites, turbo, sıcaklık; yanında navigasyon ve müzik kontrolü."))
+        label(t("Gerekenler"))
+        body.addView(ui.text(t("• ELM327 OBD adaptörü (Bluetooth ya da Wi-Fi)\n• 2001 sonrası benzinli ya da 2004 sonrası dizel, OBD-II'li araç\n" +
+            "• Telefon tutucusu (yatay)"), 15f))
+        label(t("Önemli"))
+        body.addView(ui.text(t("Sürüş sırasında uygulamayla uğraşma; ayarları araç dururken yap. Yakıt ve uyarılar tahmindir, " +
+            "aracın kendi göstergeleri ve uyarı ışıkları esastır. Uygulama araca yalnız okuma istekleri gönderir."), 15f, Pal.DIM))
+        nav(t("Anladım, başlayalım"), back = false)
     }
 
     private fun adapter() {
-        title("Adaptörü seç", "Adaptörü aracın OBD soketine tak ve kontağı aç. Bluetooth ya da Wi-Fi olabilir.")
+        title(t("Adaptörü seç"), t("Adaptörü aracın OBD soketine tak ve kontağı aç. Bluetooth ya da Wi-Fi olabilir."))
         val cur = Conn.label(this)
         val card = ui.column().apply {
             background = ui.bg(if (cur != null) Pal.CARD_ON else Pal.CARD, 14, if (cur != null) Pal.ICE else Pal.EDGE)
             setPadding(ui.dp(18), ui.dp(14), ui.dp(18), ui.dp(14))
-            addView(ui.text(cur ?: "Henüz seçilmedi", 18f))
-            addView(ui.text(if (cur == null) "Aşağıdaki düğmeyle adaptörünü bul" else if (Conn.isWifi(this@SetupActivity)) "Wi-Fi" else "Bluetooth",
+            addView(ui.text(cur ?: t("Henüz seçilmedi"), 18f))
+            addView(ui.text(if (cur == null) t("Aşağıdaki düğmeyle adaptörünü bul") else if (Conn.isWifi(this@SetupActivity)) t("Wi-Fi") else t("Bluetooth"),
                 13f, Pal.DIM))
         }
         body.addView(card, LinearLayout.LayoutParams(-1, -2))
-        body.addView(ui.button(if (cur == null) "Adaptör bul" else "Değiştir", primary = cur == null) {
+        body.addView(ui.button(if (cur == null) t("Adaptör bul") else t("Değiştir"), primary = cur == null) {
             picker()
         }, wrap().apply { topMargin = ui.dp(12) })
-        nav(skip = "Adaptörsüz dene (demo)", onSkip = { dash.edit().putBoolean("demo", true).apply(); show(step + 1) }) {
-            if (!Conn.configured(this)) return@nav toastNeed("Önce adaptör seç")
+        nav(skip = t("Adaptörsüz dene (demo)"), onSkip = { dash.edit().putBoolean("demo", true).apply(); show(step + 1) }) {
+            if (!Conn.configured(this)) return@nav toastNeed(t("Önce adaptör seç"))
             dash.edit().putBoolean("demo", false).apply(); show(step + 1)
         }
     }
 
     private fun vehicle() {
-        title("Aracın", "Göstergelerin ölçeği, vites tahmini ve uyarılar buna göre ayarlanır. Sonra Ayarlar > Araç'tan değiştirilebilir.")
-        label("Yakıt")
-        body.addView(ui.chips(listOf(Fuel.DIESEL to "Dizel", Fuel.PETROL to "Benzin"), v.fuel) {
+        title(t("Aracın"), t("Göstergelerin ölçeği, vites tahmini ve uyarılar buna göre ayarlanır. Sonra Ayarlar > Araç'tan değiştirilebilir."))
+        label(t("Yakıt"))
+        body.addView(ui.chips(listOf(Fuel.DIESEL to t("Dizel"), Fuel.PETROL to t("Benzin")), v.fuel) {
             v = v.copy(fuel = it, redline = if (it == Fuel.DIESEL) 4500 else 6500); show(step)
         })
-        label("Turbo")
-        body.addView(ui.chips(listOf(true to "Var", false to "Yok"), v.turbo) { v = v.copy(turbo = it) })
-        label("Şanzıman")
-        body.addView(ui.chips(listOf(Gearbox.MANUAL to "Manuel", Gearbox.AUTO to "Otomatik"), v.gearbox) { v = v.copy(gearbox = it); show(step) })
+        label(t("Turbo"))
+        body.addView(ui.chips(listOf(true to t("Var"), false to t("Yok")), v.turbo) { v = v.copy(turbo = it) })
+        label(t("Şanzıman"))
+        body.addView(ui.chips(listOf(Gearbox.MANUAL to t("Manuel"), Gearbox.AUTO to t("Otomatik")), v.gearbox) { v = v.copy(gearbox = it); show(step) })
         if (v.manual) {
-            label("İleri vites sayısı")
+            label(t("İleri vites sayısı"))
             body.addView(ui.chips(listOf(4 to "4", 5 to "5", 6 to "6"), v.gears) { v = v.copy(gears = it) })
         }
-        label("Kırmızı bölge (devir)")
+        label(t("Kırmızı bölge (devir)"))
         body.addView(ui.chips((if (v.fuel == Fuel.DIESEL) listOf(4000, 4500, 5000) else listOf(6000, 6500, 7000, 7500)).map { it to "$it" },
             v.redline) { v = v.copy(redline = it) })
-        body.addView(ui.text("Bilmiyorsan varsayılan kalsın: devir göstergesindeki kırmızı çizginin başladığı yer.", 13f, Pal.DIM)
+        body.addView(ui.text(t("Bilmiyorsan varsayılan kalsın: devir göstergesindeki kırmızı çizginin başladığı yer."), 13f, Pal.DIM)
             .apply { setPadding(0, ui.dp(6), 0, 0) })
         nav { VehicleStore.save(this, v); dash.edit().remove("gears2").apply(); show(step + 1) }
     }
@@ -140,9 +141,9 @@ class SetupActivity : Activity() {
     private fun permissions() {
         // Ana ekran konumu bir kez kendisi soruyor: sihirbaz bu adımı gösterdiyse ikinci kez sorulmasın
         dash.edit().putBoolean("asked_location", true).apply()
-        title("İsteğe bağlı izin", "Zorunlu değil; vermezsen navigasyon ve GPS hızı çalışmaz, gerisi çalışır.")
+        title(t("İsteğe bağlı izin"), t("Zorunlu değil; vermezsen navigasyon ve GPS hızı çalışmaz, gerisi çalışır."))
         val loc = checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
-        permRow("Konum", "Navigasyon, adaptör bağlı değilken GPS hızı, hız göstergesi sapmasını ölçmek ve dış hava sıcaklığı için.", loc) {
+        permRow(t("Konum"), t("Navigasyon, adaptör bağlı değilken GPS hızı, hız göstergesi sapmasını ölçmek ve dış hava sıcaklığı için."), loc) {
             requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION), 2)
         }
         nav()
@@ -154,20 +155,20 @@ class SetupActivity : Activity() {
         col.addView(ui.text(t, 17f))
         col.addView(ui.text(why, 14f, Pal.DIM).apply { setPadding(0, ui.dp(4), ui.dp(12), 0) })
         card.addView(col, LinearLayout.LayoutParams(0, -2, 1f))
-        card.addView(if (granted) ui.text("Verildi ✓", 15f, Pal.ICE) else ui.button("İzin ver", onClick = ask))
+        card.addView(if (granted) ui.text(t("Verildi ✓"), 15f, Pal.ICE) else ui.button(t("İzin ver"), onClick = ask))
         body.addView(card, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = ui.dp(10) })
     }
 
     private fun done() {
         val demo = dash.getBoolean("demo", false)
-        title("Hazır", if (demo) "Demo modunda başlıyor: sahte sürüş verisi. Adaptörü sonra Ayarlar > Bağlantı'dan seçebilirsin."
-            else "Kontağı aç ve Bağlan'a bas. Uygulama motoru bulunca göstergeler canlanır (ilk bağlantı 10–20 sn sürebilir).")
-        label("İpuçları")
-        body.addView(ui.text("• Uygulama her açılışta adaptöre kendiliğinden bağlanır. Bağlantı durumu için üst çubuktaki sinyal çubuklarına dokun.\n" +
+        title(t("Hazır"), if (demo) t("Demo modunda başlıyor: sahte sürüş verisi. Adaptörü sonra Ayarlar > Bağlantı'dan seçebilirsin.")
+            else t("Kontağı aç ve Bağlan'a bas. Uygulama motoru bulunca göstergeler canlanır (ilk bağlantı 10–20 sn sürebilir)."))
+        label(t("İpuçları"))
+        body.addView(ui.text(t("• Uygulama her açılışta adaptöre kendiliğinden bağlanır. Bağlantı durumu için üst çubuktaki sinyal çubuklarına dokun.\n" +
             "• Alttaki değer şeridine uzun basınca gösterilen değerleri değiştirebilirsin.\n" +
             "• Vites, ilk birkaç dakikalık sürüşte öğrenilir; o zamana kadar \"–\" görünebilir.\n" +
-            "• Yakıt tüketimi tahminidir; Ayarlar > Yakıt'tan depo dolumu girerek düzeltilir.", 15f, Pal.DIM))
-        nav(if (demo) "Başla" else "Bağlan ve başla") {
+            "• Yakıt tüketimi tahminidir; Ayarlar > Yakıt'tan depo dolumu girerek düzeltilir."), 15f, Pal.DIM))
+        nav(if (demo) t("Başla") else t("Bağlan ve başla")) {
             dash.edit().putBoolean("setup_done", true).apply()
             if (!demo) Conn.start(this)
             startActivity(Intent(this, DashboardActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP))

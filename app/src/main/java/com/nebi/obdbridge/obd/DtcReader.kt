@@ -1,5 +1,6 @@
 package com.nebi.obdbridge.obd
 
+import com.nebi.obdbridge.t
 /**
  * Arıza kodu ekranı için tek seferlik okuma (ve isteğe bağlı silme). Canlı sorgunun arasında,
  * motorun kurduğu ELM ayarlarıyla (ATH0, motor ECU başlığı) çalışır; ayar değiştirmez.
@@ -32,10 +33,10 @@ class DtcReader(
         if (clear) {
             val r = request("04", 5000)
             cleared = ElmParser.frames(r).any { it.isNotEmpty() && (it[0].toInt() and 0xFF) == 0x44 }
-            if (r == ObdEngine.TIMEOUT) return DtcReport(emptyList(), emptyList(), null, null, null, null, false, "Adaptör cevap vermedi", clock())
+            if (r == ObdEngine.TIMEOUT) return DtcReport(emptyList(), emptyList(), null, null, null, null, false, t("Adaptör cevap vermedi"), clock())
             Thread.sleep(500)  // bazı ECU'lar silmeden hemen sonra meşgul cevap veriyor
         }
-        val stored = read(0x03) ?: return DtcReport(emptyList(), emptyList(), null, null, null, null, cleared, "Motor beyni cevap vermedi", clock())
+        val stored = read(0x03) ?: return DtcReport(emptyList(), emptyList(), null, null, null, null, cleared, t("Motor beyni cevap vermedi"), clock())
         val pending = read(0x07) ?: emptyList()
         val permanent = read(0x0A)
         val m = ElmParser.mode01(ElmParser.frames(request("0101", 1000)), setOf(0x01))[0x01]

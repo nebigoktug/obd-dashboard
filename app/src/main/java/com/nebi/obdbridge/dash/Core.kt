@@ -1,5 +1,6 @@
 package com.nebi.obdbridge.dash
 
+import com.nebi.obdbridge.t
 import com.nebi.obdbridge.obd.Sample
 import kotlin.math.abs
 import kotlin.math.exp
@@ -56,27 +57,27 @@ object SignalCatalog {
     }
 
     private fun build(v: Vehicle) = listOf(
-        SignalDef("speed", "Hız", "km/h", 0.0, v.speedMax.toDouble(), tickStep = 20.0, maxTauMs = 300),
-        SignalDef("rpm", "Devir", "rpm", 0.0, v.rpmMax.toDouble(), warnAbove = v.redline - 500.0, critAbove = v.redline.toDouble(),
+        SignalDef("speed", t("Hız"), "km/h", 0.0, v.speedMax.toDouble(), tickStep = 20.0, maxTauMs = 300),
+        SignalDef("rpm", t("Devir"), "rpm", 0.0, v.rpmMax.toDouble(), warnAbove = v.redline - 500.0, critAbove = v.redline.toDouble(),
             tickStep = 1000.0, tickLabelDiv = 1000.0, maxTauMs = 220),
-        SignalDef("gear", "Vites", "", 0.0, 6.0, staleMs = 1500, minTauMs = 0, maxTauMs = 0),
-        SignalDef("coolant", "Motor", "°C", 40.0, 130.0, warnAbove = 105.0, critAbove = 112.0, coldBelow = 60.0,
+        SignalDef("gear", t("Vites"), "", 0.0, 6.0, staleMs = 1500, minTauMs = 0, maxTauMs = 0),
+        SignalDef("coolant", t("Motor"), "°C", 40.0, 130.0, warnAbove = 105.0, critAbove = 112.0, coldBelow = 60.0,
             staleMs = 6000, minTauMs = 300, maxTauMs = 800, tickStep = 30.0),
-        SignalDef("iat", "Emme havası", "°C", -20.0, 80.0, warnAbove = 55.0, critAbove = 70.0,
+        SignalDef("iat", t("Emme havası"), "°C", -20.0, 80.0, warnAbove = 55.0, critAbove = 70.0,
             staleMs = 6000, minTauMs = 300, maxTauMs = 800),
-        SignalDef("load", "Motor yükü", "%", 0.0, 100.0, staleMs = 2500, tickStep = 25.0),
-        SignalDef("boost", "Turbo", "bar", -0.2, 1.5, decimals = 2, staleMs = 2500, tickStep = 0.5),
-        SignalDef("map", "Emme basıncı", "kPa", 0.0, 250.0, staleMs = 2500, tickStep = 50.0),
-        SignalDef("rail", "Yakıt basıncı", "bar", 0.0, 1600.0, scale = 0.01, staleMs = 2500, tickStep = 400.0),
-        SignalDef("battery", "Akü", "V", 10.0, 16.0, decimals = 1, warnAbove = 14.8, critAbove = 15.2,
+        SignalDef("load", t("Motor yükü"), "%", 0.0, 100.0, staleMs = 2500, tickStep = 25.0),
+        SignalDef("boost", t("Turbo"), "bar", -0.2, 1.5, decimals = 2, staleMs = 2500, tickStep = 0.5),
+        SignalDef("map", t("Emme basıncı"), "kPa", 0.0, 250.0, staleMs = 2500, tickStep = 50.0),
+        SignalDef("rail", t("Yakıt basıncı"), "bar", 0.0, 1600.0, scale = 0.01, staleMs = 2500, tickStep = 400.0),
+        SignalDef("battery", t("Akü"), "V", 10.0, 16.0, decimals = 1, warnAbove = 14.8, critAbove = 15.2,
             warnBelow = 12.4, critBelow = 11.8, staleMs = 6000, minTauMs = 300, maxTauMs = 800, tickStep = 2.0),
-        SignalDef("dtc_count", "Arıza kodu", "", 0.0, 10.0, warnAbove = 1.0, staleMs = 120_000),
+        SignalDef("dtc_count", t("Arıza kodu"), "", 0.0, 10.0, warnAbove = 1.0, staleMs = 120_000),
         // Türetilen (Insights): tahmini, depo dolumlarıyla kalibre edilir
-        SignalDef("fuel_lph", "Anlık tüketim", "L/sa", 0.0, 20.0, decimals = 1, staleMs = 2500, minTauMs = 300, maxTauMs = 800),
-        SignalDef("fuel_l100", "Tüketim", "L/100", 0.0, 30.0, decimals = 1, staleMs = 2500, minTauMs = 400, maxTauMs = 1000),
-        SignalDef("fuel_avg", "Ort. tüketim", "L/100", 0.0, 30.0, decimals = 1, staleMs = 5000, minTauMs = 0, maxTauMs = 0),
+        SignalDef("fuel_lph", t("Anlık tüketim"), t("L/sa"), 0.0, 20.0, decimals = 1, staleMs = 2500, minTauMs = 300, maxTauMs = 800),
+        SignalDef("fuel_l100", t("Tüketim"), "L/100", 0.0, 30.0, decimals = 1, staleMs = 2500, minTauMs = 400, maxTauMs = 1000),
+        SignalDef("fuel_avg", t("Ort. tüketim"), "L/100", 0.0, 30.0, decimals = 1, staleMs = 5000, minTauMs = 0, maxTauMs = 0),
         // Hava basıncı (Motion.baro): hava servisi ya da motor durmuşken MAP
-        SignalDef("baro", "Hava basıncı", "hPa", 900.0, 1060.0, staleMs = 600_000, minTauMs = 1000, maxTauMs = 3000),
+        SignalDef("baro", t("Hava basıncı"), "hPa", 900.0, 1060.0, staleMs = 600_000, minTauMs = 1000, maxTauMs = 3000),
     )
     operator fun get(key: String): SignalDef? = BY_KEY[key]
 }

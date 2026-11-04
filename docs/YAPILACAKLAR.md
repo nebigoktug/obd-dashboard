@@ -35,14 +35,9 @@ Ayarlar > Hakkında altında gizli ya da "Geliştirici" başlıklı bir ekran: k
 
 ## 4. Dil desteği
 
-Arayüz şu an yalnız Türkçe ve yazılar Kotlin koduna gömülü (`res/values` yok; Türkçe karakterli 700'ü aşkın dizgi). İlk hedef İngilizce.
+Yapıldı (2026-11-04): Türkçe + İngilizce, kullanıcı dil paketi, sesli yönlendirme ve arıza kodları dahil. Ayrıntı: [DIL.md](DIL.md).
 
-- **Dizgileri taşı:** `res/values/strings.xml` (Türkçe, varsayılan) + `res/values-en/strings.xml`. Sayı ve birim içerenlerde biçim parametreleri (`%1$s`), adet içerenlerde `plurals`.
-- **Uygulama içi dil seçimi:** Android 13+ uygulama başına dil (`locales_config.xml` + `AppCompatDelegate.setApplicationLocales`), eski sürümlerde Ayarlar > Ekran'da seçici. Varsayılan: telefonun dili, desteklenmiyorsa Türkçe.
-- **Sesli yönlendirme (`Guidance.kt`):** cümleler Türkçe eklerle kuruluyor; her dil için ayrı cümle kurucu gerekir, yalnız çeviri yetmez. TextToSpeech dili de seçilen dile göre.
-- **Arıza kodu açıklamaları:** `assets/dtc_tr.tsv` yanına `dtc_en.tsv` (kaynak zaten SAE J2012 İngilizce başlıkları).
-- **Yerel ayara bağlı yerler:** `Locale("tr")` ile büyük harf ve tarih biçimleri (DashImage, HeadUnit, DashboardActivity, Guidance) seçilen dile bağlanmalı; Türkçe i/İ dönüşümü yalnız Türkçede.
-- **Dış servisler:** Yandex adres arama ve rota dili, hava durumu açıklamaları.
-- **Görseller:** temalarda ya da rozetlerde yazı varsa dile göre ayrı ya da yazısız sürüm.
-- **Belgeler:** README'ye İngilizce bölüm, sürüm notlarında iki dil.
-- Birimler (km/mil, °C/°F, L/100 km–mpg) ayrı bir ayar olarak dilden bağımsız tutulmalı.
+Kalanlar:
+- Birimler (km/mil, °C/°F, L/100 km–mpg) dilden bağımsız ayrı bir ayar olarak.
+- Hava durumu sağlayıcısı dil almıyor; açıklamalar zaten uygulamada çevriliyor. Tema görsellerinde yazı yok, ayrı sürüm gerekmedi.
+- Android 13+ sistem ayarlarındaki "uygulama dili" listesine kayıt (`locales_config.xml`); şimdilik seçim yalnız uygulamanın içinde.

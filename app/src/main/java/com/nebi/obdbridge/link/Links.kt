@@ -1,5 +1,6 @@
 package com.nebi.obdbridge.link
 
+import com.nebi.obdbridge.t
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothGatt
@@ -75,7 +76,7 @@ class TcpLink(private val sock: Socket) : Link {
                 s.connect(InetSocketAddress(host, port), timeoutMs)
             } catch (e: IOException) {
                 try { s.close() } catch (_: IOException) {}
-                throw IOException(if (wifi == null) "Wi-Fi'a bağlı değil" else "$host:$port cevap vermedi", e)
+                throw IOException(if (wifi == null) t("Wi-Fi'a bağlı değil") else "$host:$port cevap vermedi", e)
             } finally { track(null) }
             return TcpLink(s)
         }
@@ -96,8 +97,8 @@ class BleLink private constructor(private val gatt: BluetoothGatt, private val c
             while (i < off + len) {
                 val n = minOf(chunk, off + len - i)
                 val part = b.copyOfRange(i, i + n)
-                if (!cb.writeDone.tryAcquire(3, TimeUnit.SECONDS)) throw IOException("BLE yazma zaman aşımı")
-                if (!cb.write(gatt, part)) { cb.writeDone.release(); throw IOException("BLE yazılamadı") }
+                if (!cb.writeDone.tryAcquire(3, TimeUnit.SECONDS)) throw IOException(t("BLE yazma zaman aşımı"))
+                if (!cb.write(gatt, part)) { cb.writeDone.release(); throw IOException(t("BLE yazılamadı")) }
                 i += n
             }
         }
@@ -142,7 +143,7 @@ class BleLink private constructor(private val gatt: BluetoothGatt, private val c
             if (newState == BluetoothProfile.STATE_CONNECTED && status == BluetoothGatt.GATT_SUCCESS) {
                 if (!g.requestMtu(185)) g.discoverServices()
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
-                if (ready.count > 0) error = "BLE bağlantısı kurulamadı (durum $status)"
+                if (ready.count > 0) error = t("BLE bağlantısı kurulamadı (durum %d)", status)
                 closed = true
                 rx.offer(ByteArray(0))
                 ready.countDown()
@@ -159,7 +160,7 @@ class BleLink private constructor(private val gatt: BluetoothGatt, private val c
                 BleChoice.Service(s.uuid, s.characteristics.map { BleChoice.Char(it.uuid, it.properties) })
             }
             val pick = BleChoice.pick(services)
-            if (pick == null) { error = "Adaptörde OBD veri kanalı bulunamadı"; ready.countDown(); return }
+            if (pick == null) { error = t("Adaptörde OBD veri kanalı bulunamadı"); ready.countDown(); return }
             val svc = g.getService(pick.service)
             val rxc = svc.getCharacteristic(pick.notify)
             txChar = svc.getCharacteristic(pick.write)
@@ -175,7 +176,7 @@ class BleLink private constructor(private val gatt: BluetoothGatt, private val c
         }
 
         override fun onDescriptorWrite(g: BluetoothGatt, d: BluetoothGattDescriptor, status: Int) {
-            if (status != BluetoothGatt.GATT_SUCCESS) error = "Bildirimler açılamadı ($status)"
+            if (status != BluetoothGatt.GATT_SUCCESS) error = t("Bildirimler açılamadı (%d)", status)
             ready.countDown()
         }
 
@@ -201,15 +202,15 @@ class BleLink private constructor(private val gatt: BluetoothGatt, private val c
         fun connect(ctx: Context, device: BluetoothDevice, timeoutMs: Long = 15_000, track: (Closeable?) -> Unit): BleLink {
             val cb = Cb()
             val gatt = device.connectGatt(ctx, false, cb, BluetoothDevice.TRANSPORT_LE)
-                ?: throw IOException("BLE başlatılamadı")
+                ?: throw IOException(t("BLE başlatılamadı"))
             val link = BleLink(gatt, cb)
             track(link)
             try {
-                if (!cb.ready.await(timeoutMs, TimeUnit.MILLISECONDS)) { link.close(); throw IOException("BLE adaptörü cevap vermedi") }
+                if (!cb.ready.await(timeoutMs, TimeUnit.MILLISECONDS)) { link.close(); throw IOException(t("BLE adaptörü cevap vermedi")) }
                 cb.error?.let { link.close(); throw IOException(it) }
-                if (cb.closed) throw IOException("BLE bağlantısı kapandı")
+                if (cb.closed) throw IOException(t("BLE bağlantısı kapandı"))
             } catch (e: InterruptedException) {
-                link.close(); throw IOException("iptal edildi")
+                link.close(); throw IOException(t("iptal edildi"))
             } finally { track(null) }
             Log.i("ObdBridge", "BLE hazır: mtu ${cb.mtu}")
             return link

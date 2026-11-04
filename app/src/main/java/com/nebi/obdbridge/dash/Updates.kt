@@ -1,5 +1,6 @@
 package com.nebi.obdbridge.dash
 
+import com.nebi.obdbridge.t
 import android.app.Activity
 import android.app.AlertDialog
 import android.content.Context
@@ -66,14 +67,14 @@ object Updates {
 
     fun offer(a: Activity, r: Release) {
         AlertDialog.Builder(a, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-            .setTitle("Yeni sürüm: ${r.version}")
+            .setTitle(t("Yeni sürüm: %s", r.version))
             .setMessage((if (r.notes.isNotBlank()) r.notes + "\n\n" else "") +
-                "Sürüm sayfası açılır; APK'yı indirip kur (çoğu telefon: arm64-v8a). Ayarların ve kayıtların korunur.")
-            .setPositiveButton("İndir") { _, _ -> open(a, r.url) }
-            .setNeutralButton("Bu sürümü atla") { _, _ ->
+                t("Sürüm sayfası açılır; APK'yı indirip kur (çoğu telefon: arm64-v8a). Ayarların ve kayıtların korunur."))
+            .setPositiveButton(t("İndir")) { _, _ -> open(a, r.url) }
+            .setNeutralButton(t("Bu sürümü atla")) { _, _ ->
                 a.getSharedPreferences("dash", Context.MODE_PRIVATE).edit().putString("upd_skip", r.version).apply()
             }
-            .setNegativeButton("Sonra", null)
+            .setNegativeButton(t("Sonra"), null)
             .show()
     }
 

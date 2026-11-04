@@ -1,5 +1,7 @@
 package com.nebi.obdbridge.dash
 
+import com.nebi.obdbridge.L
+import com.nebi.obdbridge.t
 import android.app.Activity
 import android.app.AlertDialog
 import android.content.res.Configuration
@@ -167,7 +169,7 @@ class DashboardActivity : Activity(), SensorEventListener {
             intent.removeExtra("turn_demo"); turnDemoT0 = System.currentTimeMillis()
             // Rota denemesi: dönüşten sonra 150° yönünde ~1,5 km ileride bir hedef
             Nav.start(this, 41.0175 + 555 * 0.5 / 111_195.0 - 1500 * 0.866 / 111_195.0,
-                28.9390 + (555 * 0.866 + 1500 * 0.5) / (111_195.0 * kotlin.math.cos(Math.toRadians(41.0175))), "Demo")
+                28.9390 + (555 * 0.866 + 1500 * 0.5) / (111_195.0 * kotlin.math.cos(Math.toRadians(41.0175))), t("Demo"))
         }
         hideSystemBars()
         // Geliştirme: "am start ... --es theme <id>" ile tema önizlemesi (yalnız debug derlemede)
@@ -330,10 +332,10 @@ class DashboardActivity : Activity(), SensorEventListener {
         val ask = tr.onFix(p.lat, p.lon)
         if (dest != null && tr.dest == null) {
             // Hedefe varıldı (ya da süre doldu)
-            if (Nav.guidance != null) speak("Hedefe ulaştınız")
+            if (Nav.guidance != null) speak(t("Hedefe ulaştınız"))
             Nav.stop(this)
         } else if (ask && dest != null) {
-            if (tr.route != null) speak("Rota yeniden hesaplanıyor")
+            if (tr.route != null) speak(t("Rota yeniden hesaplanıyor"))
             tr.onRequested()
             YandexNav.requestRoute(this, p, dest, bearing?.toDouble()?.takeIf { (kmh ?: 0.0) > 6 }) { r ->
                 if (Nav.tracker.dest != dest) return@requestRoute   // bu arada hedef değişti/bitti
@@ -361,11 +363,11 @@ class DashboardActivity : Activity(), SensorEventListener {
     private fun navMenu() {
         val st = Nav.state()
         AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-            .setTitle(Nav.destName.ifEmpty { "Navigasyon" })
-            .setMessage(st?.eta?.let { "Varış $it" } ?: "Rota hesaplanıyor…")
-            .setPositiveButton("Rotayı bitir") { _, _ -> Nav.stop(this); turnMaps.forEach { it.setRoute(null) }; shownRoute = null }
-            .setNeutralButton("Yeni hedef") { _, _ -> PlaceSearchActivity.open(this, PlaceSearchActivity.MODE_NAV) }
-            .setNegativeButton("Vazgeç", null)
+            .setTitle(Nav.destName.ifEmpty { t("Navigasyon") })
+            .setMessage(st?.eta?.let { t("Varış %s", it) } ?: t("Rota hesaplanıyor…"))
+            .setPositiveButton(t("Rotayı bitir")) { _, _ -> Nav.stop(this); turnMaps.forEach { it.setRoute(null) }; shownRoute = null }
+            .setNeutralButton(t("Yeni hedef")) { _, _ -> PlaceSearchActivity.open(this, PlaceSearchActivity.MODE_NAV) }
+            .setNegativeButton(t("Vazgeç"), null)
             .show()
     }
     private var shownRoute: List<RouteTracker.LatLon>? = null
@@ -400,7 +402,7 @@ class DashboardActivity : Activity(), SensorEventListener {
     private fun chooseStripSlot() {
         val names = tiles.take(4).mapIndexed { i, sp -> "${i + 1}. ${SignalCatalog[sp.signal]?.label ?: sp.signal}" }
         AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-            .setTitle("Hangi değer değişsin?")
+            .setTitle(t("Hangi değer değişsin?"))
             .setItems(names.toTypedArray()) { _, i -> chooseSignal(tiles[i]) { build(); saveLayout() } }
             .show()
     }
@@ -424,7 +426,7 @@ class DashboardActivity : Activity(), SensorEventListener {
     private fun detailView(): View {
         val list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         val cards = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        for ((t, rows) in listOf("YOLCULUK" to ::tripRows, "PERFORMANS" to ::perfRows, "SAĞLIK" to ::healthRows)) {
+        for ((t, rows) in listOf("YOLCULUK" to ::tripRows, "PERFORMANS" to ::perfRows, t("SAĞLIK") to ::healthRows)) {
             cards.addView(InfoCard(this, t, rows), LinearLayout.LayoutParams(0, dp(250), 1f).apply { setMargins(dp(6), dp(6), dp(6), dp(6)) })
         }
         list.addView(cards)
@@ -445,12 +447,12 @@ class DashboardActivity : Activity(), SensorEventListener {
         return ScrollView(this).apply { isVerticalScrollBarEnabled = false; isVerticalFadingEdgeEnabled = true; setFadingEdgeLength(dp(28)); addView(list) }
     }
 
-    private fun topBar() = TopBar(this, listOf("Sürüş", "Detay", "Geçmiş", "Ayarlar")) { onTab(it) }.also {
+    private fun topBar() = TopBar(this, listOf(t("Sürüş"), t("Detay"), t("Geçmiş"), t("Ayarlar"))) { onTab(it) }.also {
         it.selected = tab
         // Sinyal çubuklarına dokun: bağlan / bağlantıyı kes
         it.onStatusTap = {
             when {
-                prefs.getBoolean("demo", false) -> toast("Demo modu açık (Ayarlar > Ekran)")
+                prefs.getBoolean("demo", false) -> toast(t("Demo modu açık (Ayarlar > Ekran)"))
                 BridgeService.running -> connectionDialog()
                 else -> connectOrSettings()   // hapla aynı: seçilmediyse doğrudan seçici
             }
@@ -461,12 +463,12 @@ class DashboardActivity : Activity(), SensorEventListener {
     /** Bağlıyken çubuklara dokunmak hemen kesmesin (sürerken yanlış dokunuş): önce durumu göster */
     private fun connectionDialog() {
         val src = model.source
-        val msg = Conn.status(this) + if (src.online) " · saniyede %.1f değer".format(src.rpmHz).replace('.', ',') else ""
+        val msg = Conn.status(this) + if (src.online) t(" · saniyede %.1f değer").format(src.rpmHz).replace('.', ',') else ""
         AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-            .setTitle("Bağlantı")
+            .setTitle(t("Bağlantı"))
             .setMessage(msg)
-            .setPositiveButton("Kapat", null)
-            .setNegativeButton("Bağlantıyı kes") { _, _ -> Conn.stop(this); toast("Bağlantı kesildi") }
+            .setPositiveButton(t("Kapat"), null)
+            .setNegativeButton(t("Bağlantıyı kes")) { _, _ -> Conn.stop(this); toast(t("Bağlantı kesildi")) }
             .show()
     }
 
@@ -489,7 +491,7 @@ class DashboardActivity : Activity(), SensorEventListener {
             w.invalidate()
         }
         // Navigasyon: sıradaki manevra (rota beklenirken "hesaplanıyor")
-        val ns = Nav.state() ?: if (Nav.active) NaviState("…", "Rota hesaplanıyor", null) else null
+        val ns = Nav.state() ?: if (Nav.active) NaviState("…", t("Rota hesaplanıyor"), null) else null
         for (n in naviCards) n.state = ns
         updateTurnMap()
         curTrip.update(model.raw("speed"))
@@ -498,7 +500,7 @@ class DashboardActivity : Activity(), SensorEventListener {
         weather.refreshIfStale()
         val temp = weather.tempC
         for (t in topBars) {
-            t.tempText = if (temp != null) "Hava ${Math.round(temp)}°C" else "Hava —"
+            t.tempText = if (temp != null) L.t("Hava %d°C", Math.round(temp)) else t("Hava —")
             t.sourceName = model.source.name
             t.online = model.source.online
             t.hz = model.source.rpmHz
@@ -573,7 +575,7 @@ class DashboardActivity : Activity(), SensorEventListener {
         val all = (shown + listOfNotNull(milAlert(), connAlert())).sortedBy { it.priority }
         for (p in pills) p.alerts = all
         val note = if (!prefs.getBoolean("note_fuelcut", true)) null
-            else when { ins.fuelCut -> "yakıt kesik"; ins.coasting && Vehicle.current.manual -> "boşta"; else -> null }
+            else when { ins.fuelCut -> t("yakıt kesik"); ins.coasting && Vehicle.current.manual -> t("boşta"); else -> null }
         for (d in dialsList) d.note = note
     }
 
@@ -635,18 +637,18 @@ class DashboardActivity : Activity(), SensorEventListener {
         val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         var weeks: Pair<WeekTotals, WeekTotals>? = null
         var count = -1
-        row.addView(InfoCard(this, "BU HAFTA · GEÇEN HAFTA") {
-            val (a, b) = weeks ?: return@InfoCard listOf((if (count < 0) "Yükleniyor…" else "Kayıt yok") to "")
+        row.addView(InfoCard(this, t("BU HAFTA · GEÇEN HAFTA")) {
+            val (a, b) = weeks ?: return@InfoCard listOf((if (count < 0) t("Yükleniyor…") else t("Kayıt yok")) to "")
             fun two(x: String, y: String) = "$x · $y"
             fun l(v: Double?) = v?.let { "%.1f".format(it) } ?: "—"
             listOf(
-                "Yolculuk" to two("${a.trips}", "${b.trips}"),
-                "Mesafe" to two("%.0f km".format(a.km), "%.0f km".format(b.km)),
-                "Süre" to two(mins(a.ms), mins(b.ms)),
-                "Yakıt (tahmini)" to two("%.1f L".format(a.liters), "%.1f L".format(b.liters)),
-                "Ort. L/100" to two(l(a.l100), l(b.l100)),
-                "Puan" to two(a.score?.toString() ?: "—", b.score?.toString() ?: "—"),
-                "Toplam kayıt" to "$count yolculuk",
+                t("Yolculuk") to two("${a.trips}", "${b.trips}"),
+                t("Mesafe") to two("%.0f km".format(a.km), "%.0f km".format(b.km)),
+                t("Süre") to two(mins(a.ms), mins(b.ms)),
+                t("Yakıt (tahmini)") to two("%.1f L".format(a.liters), "%.1f L".format(b.liters)),
+                t("Ort. L/100") to two(l(a.l100), l(b.l100)),
+                t("Puan") to two(a.score?.toString() ?: "—", b.score?.toString() ?: "—"),
+                t("Toplam kayıt") to t("%d yolculuk", count),
             )
         }, LinearLayout.LayoutParams(0, -1, 0.85f).apply { setMargins(dp(6), dp(6), dp(6), dp(6)) })
         val list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
@@ -660,8 +662,8 @@ class DashboardActivity : Activity(), SensorEventListener {
             runOnUiThread {
                 weeks = HistoryIndex.weeks(trips, System.currentTimeMillis())
                 count = trips.size
-                if (trips.isEmpty()) list.addView(Ui(this).text("Henüz kayıtlı yolculuk yok. Adaptör bağlıyken yapılan her sürüş " +
-                    "burada görünecek.", 15f, Glass.DIM).apply { setPadding(dp(12), dp(12), dp(12), dp(12)) })
+                if (trips.isEmpty()) list.addView(Ui(this).text(t("Henüz kayıtlı yolculuk yok. Adaptör bağlıyken yapılan her sürüş " +
+                    "burada görünecek."), 15f, Glass.DIM).apply { setPadding(dp(12), dp(12), dp(12), dp(12)) })
                 for (t in trips) {
                     list.addView(TripRow(this, t).apply { setOnClickListener { showTrip(t) } },
                         LinearLayout.LayoutParams(-1, dp(64)).apply { setMargins(dp(6), dp(6), dp(6), 0) })
@@ -672,29 +674,29 @@ class DashboardActivity : Activity(), SensorEventListener {
     }
 
     private fun showTrip(t: TripSummary) {
-        val f = java.text.SimpleDateFormat("d MMMM EEEE HH:mm", java.util.Locale("tr"))
+        val f = java.text.SimpleDateFormat("d MMMM EEEE HH:mm", com.nebi.obdbridge.L.locale)
         fun p(ms: Long) = if (t.durationMs > 0) "%${ms * 100 / t.durationMs}" else "—"
         val lines = listOf(
-            "Süre: ${mins(t.durationMs)}",
-            "Mesafe: %.1f km".format(t.km),
-            "Ortalama / maksimum: %.0f / %.0f km/h".format(t.avgKmh, t.maxKmh),
-            "Tahmini yakıt: %.2f L".format(t.liters) + (t.l100?.let { " · %.1f L/100".format(it) } ?: ""),
-            "Sürüş puanı: ${t.score}  (sert kalkış ${t.harshAccel}, sert fren ${t.harshBrake})",
-            "Rölanti: ${p(t.idleMs)} · boşta süzülme: ${p(t.coastMs)}",
-            "Yakıt kesik: %.1f km".format(t.cutKm),
-            "Vites süresi: " + t.gearPct.withIndex().filter { it.value > 0 }.joinToString("  ") { "${it.index + 1}: %${it.value}" }
+            L.t("Süre: %s", mins(t.durationMs)),
+            t("Mesafe: %.1f km").format(t.km),
+            t("Ortalama / maksimum: %.0f / %.0f km/h").format(t.avgKmh, t.maxKmh),
+            t("Tahmini yakıt: %.2f L").format(t.liters) + (t.l100?.let { " · %.1f L/100".format(it) } ?: ""),
+            L.t("Sürüş puanı: %d  (sert kalkış %d, sert fren %d)", t.score, t.harshAccel, t.harshBrake),
+            L.t("Rölanti: %s · boşta süzülme: %s", p(t.idleMs), p(t.coastMs)),
+            t("Yakıt kesik: %.1f km").format(t.cutKm),
+            t("Vites süresi: ") + t.gearPct.withIndex().filter { it.value > 0 }.joinToString("  ") { "${it.index + 1}: %${it.value}" }
                 .ifEmpty { "—" },
         )
         AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
             .setTitle(f.format(java.util.Date(t.start)))
             .setMessage(lines.joinToString("\n"))
-            .setPositiveButton("Tamam", null)
+            .setPositiveButton(t("Tamam"), null)
             .show()
     }
 
     // ---------- Detay kartları ----------
 
-    private fun mins(ms: Long) = (ms / 60_000).let { if (it >= 60) "${it / 60} sa ${it % 60} dk" else "$it dk" }
+    private fun mins(ms: Long) = (ms / 60_000).let { if (it >= 60) t("%d sa %d dk", it / 60, it % 60) else t("%d dk", it) }
     private fun pct(part: Long, total: Long) = if (total <= 0) "—" else "%${part * 100 / total}"
 
     private fun tripRows(): List<Pair<String, String>> {
@@ -705,28 +707,28 @@ class DashboardActivity : Activity(), SensorEventListener {
         }
         val avg = if (curTrip.km >= 0.5) "%.1f L/100".format(st.liters / curTrip.km * 100) else "—"
         return listOf(
-            "Süre" to mins(curTrip.durationMs),
-            "Mesafe" to "%.1f km".format(curTrip.km),
-            "Ort. / maks." to (if (curTrip.avgKmh > 0) "%.0f / %.0f km/h".format(curTrip.avgKmh, curTrip.maxKmh) else "—"),
-            "Tahmini yakıt" to "%.2f L · %s".format(st.liters, avg),
-            "Sürüş puanı" to "${st.score(curTrip)}  (sert ${st.harshAccel}↑ ${st.harshBrake}↓)",
-            "Rölanti · boşta" to "${pct(st.idleMs, curTrip.durationMs)} · ${pct(st.coastMs, curTrip.durationMs)}",
-            "Yakıt kesik" to "%.1f km".format(st.cutKm),
-            "Vites (%)" to gears,
+            t("Süre") to mins(curTrip.durationMs),
+            t("Mesafe") to "%.1f km".format(curTrip.km),
+            t("Ort. / maks.") to (if (curTrip.avgKmh > 0) "%.0f / %.0f km/h".format(curTrip.avgKmh, curTrip.maxKmh) else "—"),
+            t("Tahmini yakıt") to "%.2f L · %s".format(st.liters, avg),
+            t("Sürüş puanı") to t("%d  (sert %d↑ %d↓)", st.score(curTrip), st.harshAccel, st.harshBrake),
+            t("Rölanti · boşta") to "${pct(st.idleMs, curTrip.durationMs)} · ${pct(st.coastMs, curTrip.durationMs)}",
+            t("Yakıt kesik") to "%.1f km".format(st.cutKm),
+            t("Vites (%)") to gears,
         )
     }
 
     private fun perfRows(): List<Pair<String, String>> {
         val p = ins.perf
-        fun t(v: Double?) = v?.let { "%.1f sn".format(it) } ?: "—"
+        fun sec(v: Double?) = v?.let { t("%.1f sn", it) } ?: "—"
         return listOf(
-            "Durum" to when (p.state) { "hazır" -> "Hazır (kalkışta başlar)"; "ölçülüyor" -> "Ölçülüyor…"; else -> "Durunca hazır" },
-            "0–100 son" to t(p.last0100),
-            "0–100 en iyi" to t(p.best0100),
-            "60–100 son" to t(p.last60100),
-            "60–100 en iyi" to t(p.best60100),
-            "Güç (anlık)" to (p.kw?.let { "%.0f kW · %.0f hp".format(it, it * 1.341) } ?: "—"),
-            "Güç (en yüksek)" to (if (p.peakKw > 0) "%.0f kW · %.0f hp".format(p.peakKw, p.peakKw * 1.341) else "—"),
+            t("Durum") to when (p.state) { "hazır" -> t("Hazır (kalkışta başlar)"); "ölçülüyor" -> t("Ölçülüyor…"); else -> t("Durunca hazır") },
+            t("0–100 son") to sec(p.last0100),
+            t("0–100 en iyi") to sec(p.best0100),
+            t("60–100 son") to sec(p.last60100),
+            t("60–100 en iyi") to sec(p.best60100),
+            t("Güç (anlık)") to (p.kw?.let { "%.0f kW · %.0f hp".format(it, it * 1.341) } ?: "—"),
+            t("Güç (en yüksek)") to (if (p.peakKw > 0) "%.0f kW · %.0f hp".format(p.peakKw, p.peakKw * 1.341) else "—"),
         )
     }
 
@@ -736,7 +738,7 @@ class DashboardActivity : Activity(), SensorEventListener {
         val mil = model.raw("mil")?.takeIf { System.currentTimeMillis() - it.ts < 120_000 }?.value ?: return null
         if (mil == 0.0) return null
         val n = model.raw("dtc_count")?.value?.toInt()?.takeIf { it > 0 }
-        return Alert(AlertKind.MIL, "Arıza lambası yanıyor" + (n?.let { " · $it kod" } ?: ""), Level.WARN, 0)
+        return Alert(AlertKind.MIL, t("Arıza lambası yanıyor") + (n?.let { t(" · %d kod", it) } ?: ""), Level.WARN, 0)
     }
 
     private var connText: String? = null
@@ -750,9 +752,9 @@ class DashboardActivity : Activity(), SensorEventListener {
             // GPS varken de göster (QC2): arabada GPS hep var, adaptör bağlanmadıysa görünmeliydi. Yalnız OBD canlıyken gizli
             connText = if (model.source.name == "Canlı" || prefs.getBoolean("demo", false)) null
             else when (val st = Conn.status(this)) {
-                "Canlı" -> null
-                "Bağlı değil" -> "Adaptör bağlı değil · bağlanmak için dokun"
-                "Adaptör seçilmedi" -> "Adaptör seçilmedi · seçmek için dokun"
+                t("Canlı") -> null
+                t("Bağlı değil") -> t("Adaptör bağlı değil · bağlanmak için dokun")
+                t("Adaptör seçilmedi") -> t("Adaptör seçilmedi · seçmek için dokun")
                 else -> st
             }
         }
@@ -768,9 +770,9 @@ class DashboardActivity : Activity(), SensorEventListener {
         }
         if (alerts.size == 1 && alerts[0].kind in setOf(AlertKind.MIL, AlertKind.CONN)) { act(alerts[0]); return }
         AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-            .setTitle("Uyarılar")
+            .setTitle(t("Uyarılar"))
             .setItems(alerts.map { it.text }.toTypedArray()) { _, i -> act(alerts[i]) }
-            .setNegativeButton("Kapat", null)
+            .setNegativeButton(t("Kapat"), null)
             .show()
     }
 
@@ -783,7 +785,7 @@ class DashboardActivity : Activity(), SensorEventListener {
 
     private fun connectOrSettings() {
         when {
-            !BridgeService.running && Conn.start(this) -> toast("Bağlanıyor…")
+            !BridgeService.running && Conn.start(this) -> toast(t("Bağlanıyor…"))
             !Conn.configured(this) -> pickAdapter()   // seçilmediyse doğrudan seçici (Ayarlar'a gitmeden)
             else -> startActivity(android.content.Intent(this, SettingsActivity::class.java))
         }
@@ -791,7 +793,7 @@ class DashboardActivity : Activity(), SensorEventListener {
 
     /** Adaptör seçici; seçilince hemen bağlanır. İzin istenirse izin sonrası yeniden açılır */
     private fun pickAdapter() = AdapterPicker(this, { requestPermissions(it, REQ_PICKER) }) {
-        if (Conn.configured(this) && !BridgeService.running && Conn.start(this)) toast("Bağlanıyor…")
+        if (Conn.configured(this) && !BridgeService.running && Conn.start(this)) toast(t("Bağlanıyor…"))
     }.show()
 
     /** Detay'daki arıza şeridi: canlı 0101 (lamba, sayı) ve son okuma; dokununca DtcActivity. (metin, uyarı mı) */
@@ -800,11 +802,11 @@ class DashboardActivity : Activity(), SensorEventListener {
         val n = model.raw("dtc_count")?.value
         val last = DtcActivity.last
         val parts = listOfNotNull(
-            when (mil) { null -> null; 0.0 -> "lamba sönük"; else -> "LAMBA YANIYOR" },
-            n?.let { "%.0f kayıtlı kod".format(it) },
-            last?.let { "son okuma " + java.text.SimpleDateFormat("HH:mm", java.util.Locale("tr")).format(java.util.Date(it.ts)) },
+            when (mil) { null -> null; 0.0 -> t("lamba sönük"); else -> "LAMBA YANIYOR" },
+            n?.let { t("%.0f kayıtlı kod").format(it) },
+            last?.let { t("son okuma ") + java.text.SimpleDateFormat("HH:mm", com.nebi.obdbridge.L.locale).format(java.util.Date(it.ts)) },
         )
-        return (parts.ifEmpty { listOf("okumak için dokun") }.joinToString(" · ")) to (mil != null && mil != 0.0)
+        return (parts.ifEmpty { listOf(t("okumak için dokun")) }.joinToString(" · ")) to (mil != null && mil != 0.0)
     }
 
     private fun healthRows(): List<Pair<String, String>> {
@@ -813,15 +815,15 @@ class DashboardActivity : Activity(), SensorEventListener {
         val bat = model.raw("battery")?.value
         val turboLearned = h.boostN.count { it >= 100 }
         val rows = mutableListOf(
-            "Şarj" to (bat?.let { "%.1f V · %s".format(it, when (h.charge) {
-                Health.Charge.OK -> "normal"; Health.Charge.LOW -> "düşük"; Health.Charge.HIGH -> "yüksek"; Health.Charge.WEAK -> "akü zayıf" }) } ?: "—"),
-            "Rölanti tabanı" to (if (h.idleN >= 300) "%.0f rpm · yük %%%.0f".format(h.idleRpm, h.idleLoad) else "öğreniliyor (${h.idleN * 100 / 300}%)"),
+            t("Şarj") to (bat?.let { "%.1f V · %s".format(it, when (h.charge) {
+                Health.Charge.OK -> t("normal"); Health.Charge.LOW -> t("düşük"); Health.Charge.HIGH -> t("yüksek"); Health.Charge.WEAK -> t("akü zayıf") }) } ?: "—"),
+            t("Rölanti tabanı") to (if (h.idleN >= 300) t("%.0f rpm · yük %%%.0f").format(h.idleRpm, h.idleLoad) else t("öğreniliyor (%d%%)", h.idleN * 100 / 300)),
         )
-        if (v.fuel == Fuel.DIESEL) rows += "DPF temizlenme" to "${if (h.dpfActive) "ŞU AN · " else ""}${h.dpfCount} kez"
-        if (v.turbo) rows += "Turbo" to (if (h.turboLow) "normalden düşük" else if (turboLearned >= 3) "normal" else "öğreniliyor ($turboLearned/11)")
-        rows += "Hız göstergesi" to (h.speedoError?.let { if (h.speedoN >= 200) "%+.1f%% (GPS'e göre)".format(it * 100) else "ölçülüyor" } ?: "GPS + OBD gerekli")
-        rows += "Yakıt kaynağı" to ins.fuel.source(model.raw("maf") != null, model.raw("fuel_rate") != null, v.fuel)
-        rows += "Yakıt kalibrasyonu" to (if (ins.fuel.calibrations == 0) "yok (Ayarlar > Yakıt)" else "${ins.fuel.calibrations} dolum")
+        if (v.fuel == Fuel.DIESEL) rows += t("DPF temizlenme") to (if (h.dpfActive) t("ŞU AN · ") else "") + t("%d kez", h.dpfCount)
+        if (v.turbo) rows += t("Turbo") to (if (h.turboLow) t("normalden düşük") else if (turboLearned >= 3) t("normal") else t("öğreniliyor (%d/11)", turboLearned))
+        rows += t("Hız göstergesi") to (h.speedoError?.let { if (h.speedoN >= 200) t("%+.1f%% (GPS'e göre)").format(it * 100) else t("ölçülüyor") } ?: t("GPS + OBD gerekli"))
+        rows += t("Yakıt kaynağı") to ins.fuel.source(model.raw("maf") != null, model.raw("fuel_rate") != null, v.fuel)
+        rows += t("Yakıt kalibrasyonu") to (if (ins.fuel.calibrations == 0) t("yok (Ayarlar > Yakıt)") else t("%d dolum", ins.fuel.calibrations))
         return rows
     }
 
@@ -829,7 +831,7 @@ class DashboardActivity : Activity(), SensorEventListener {
     private fun chooseSignal(spec: WidgetSpec, done: () -> Unit) {
         val defs = SignalCatalog.ALL.filter { it.key != "gear" || spec.type == "tile" }
         AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-            .setTitle("Bu göstergede ne görünsün?")
+            .setTitle(t("Bu göstergede ne görünsün?"))
             .setItems(defs.map { it.label + if (it.unit.isNotEmpty()) " (${it.unit})" else "" }.toTypedArray()) { _, i ->
                 spec.signal = defs[i].key
                 done()
