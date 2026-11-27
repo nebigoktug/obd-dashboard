@@ -29,7 +29,10 @@ class Mode06ParseTest {
     @Test fun verdicts() {
         assertEquals(Mode06Test.Verdict.FAIL, Mode06Test(1, 1, 1, 11.0, 0.0, 10.0, "").verdict)
         assertEquals(Mode06Test.Verdict.PASS, Mode06Test(1, 1, 1, 5.0, 0.0, 10.0, "").verdict)
-        assertEquals(Mode06Test.Verdict.NEAR, Mode06Test(1, 1, 1, 0.5, 0.0, 10.0, "").verdict)
+        assertEquals(Mode06Test.Verdict.PASS, Mode06Test(1, 1, 1, 0.5, 0.0, 10.0, "").verdict)    // 0 alt sınır = yok
+        assertEquals(Mode06Test.Verdict.NEAR, Mode06Test(1, 1, 1, 9.5, 0.0, 10.0, "").verdict)
+        assertEquals(Mode06Test.Verdict.NEAR, Mode06Test(1, 1, 1, 0.18, 0.169, 19.898, "").verdict)
+        assertEquals(Mode06Test.Verdict.PASS, Mode06Test(1, 1, 1, 0.551, 0.169, 19.898, "").verdict)   // geniş tek yönlü aralık
         assertEquals(Mode06Test.Verdict.PASS, Mode06Test(1, 1, 1, 3.0, 3.0, 3.0, "").verdict)   // sınırsız
     }
 
@@ -55,6 +58,21 @@ class Mode06ParseTest {
     @Test fun maskWithoutMidEcho() {
         assertEquals(setOf(0x01, 0x02, 0x20), Mode06.mask(ElmParser.frames("46C0000001"), 0x00))       // emülatör biçimi
         assertEquals(setOf(0x01, 0x02, 0x20), Mode06.mask(ElmParser.frames("4600C0000001"), 0x00))     // standart
+    }
+
+    /**
+     * ELM327-emulator "car" senaryosundaki gerçek araç kaydı (0601, O2 B1S1, 19 bayt), gerçek ELM327'nin çok çerçeveli biçimiyle
+     * ("013", "0: ...", "1: ..."). Emülatör aynı veriyi numarasız satırlarla veriyor; uygulama standart biçimi okur.
+     */
+    @Test fun realCarO2Monitor() {
+        val f = ElmParser.frames("013\r0: 46 01 8E 0B 02 27\r1: 00 A9 4D BA 01 91 8D\r2: 01 9D 00 B4 02 2F 00\r")
+        val t = Mode06.parse(f, 0x01)
+        assertEquals(2, t.size)
+        assertEquals(0x8E, t[0].tid); assertEquals("V", t[0].unit)
+        assertEquals(0.551, t[0].value, 1e-9); assertEquals(0.169, t[0].min, 1e-9); assertEquals(19.898, t[0].max, 1e-9)
+        assertEquals(Mode06Test.Verdict.PASS, t[0].verdict)
+        assertEquals("mA", t[1].unit)                                           // UASID 8D: işaretli 0,0039 mA
+        assertEquals(413 * 0.00390625, t[1].value, 1e-9)
     }
 
     @Test fun readerNoSupport() {
