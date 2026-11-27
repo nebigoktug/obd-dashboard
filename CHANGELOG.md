@@ -1,8 +1,9 @@
 # Sürüm notları
 
-## 1.2 (hazırlanıyor)
+## 1.2
 
 - Birim ayarı, dilden bağımsız (Ayarlar > Ekran > Birimler): km/h–km ya da mph–mil, °C ya da °F, L/100 km, mpg (ABD), mpg (İngiliz) ya da km/L, kPa/bar ya da psi. Gösterge ölçeği, alt şerit, yolculuk özeti, geçmiş, navigasyon mesafeleri ve sesli yönlendirme seçilen birimde. Varsayılan telefonun bölgesinden (ABD, İngiltere, Liberya, Myanmar'da mil). Kayıtlar metrik saklanmaya devam eder.
+- Mil seçiliyken Performans kartında 0–60 mph ve 40–60 mph süreleri (km/h rekorlarından ayrı).
 - *Units setting, independent of language (Settings > Display > Units): mph/miles, °F, mpg (US or imperial) or km/L, psi. Defaults from the phone's region.*
 
 ## 1.1
