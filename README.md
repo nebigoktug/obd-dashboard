@@ -31,6 +31,18 @@ Herhangi bir OBD-II araçta çalışır (Avrupa'da benzinli 2001+, dizel 2004+).
 
 **Adaptör:** Klasik Bluetooth (SPP) ELM327 en iyi denenmiş olanı. Bluetooth LE ve Wi-Fi adaptör desteği **deneyseldir**.
 
+### Android Auto (deneysel)
+
+Araç ekranında telefondaki göstergenin aynısı görünür (tema, kadranlar, alt şerit, navigasyon ve medya kartı, uyarılar).
+Navigasyon telefon kilitliyken de sürer, Android Auto'ya sıradaki dönüş bildirilir. Ayarlar telefondan yapılır.
+
+Uygulama Play Store'dan gelmediği için Android Auto onu ancak bir kez şu ayarı açınca listeler:
+1. Telefonda Android Auto ayarlarını açın (Ayarlar > Bağlı cihazlar > Android Auto), en alttaki **Sürüm**'e 10 kez dokunun.
+2. Sağ üstteki ⋮ menüsünden **Geliştirici ayarları** > **Bilinmeyen kaynaklar**'ı açın.
+3. Telefonu araca bağlayın; OBD Dashboard araç ekranındaki uygulama listesinde görünür.
+
+Gerçek bir araçta henüz denenmedi (geliştiricinin aracında Android Auto yok); [open-headunit](https://github.com/andreknieriem/open-headunit) ile denendi. Sorun görürseniz bildirin.
+
 ## Güvenlik ve gizlilik
 
 - Sürüş sırasında uygulamayla uğraşmayın. Gösterilen değerler tahmindir; aracın kendi göstergeleri esastır.
@@ -94,6 +106,18 @@ Works with any OBD-II car (in Europe: petrol 2001+, diesel 2004+). Developed on 
 3. Open the app; the setup wizard asks for the adapter and vehicle details.
 
 **Adapter:** classic Bluetooth (SPP) ELM327 is the best tested. Bluetooth LE and Wi-Fi adapters are **experimental**.
+
+#### Android Auto (experimental)
+
+The car screen shows the same dashboard as the phone (theme, dials, bottom strip, navigation and media cards, warnings).
+Navigation keeps running with the phone locked and the next turn is passed to Android Auto. Settings stay on the phone.
+
+The app isn't from the Play Store, so Android Auto only lists it after a one-time setting:
+1. On the phone open Android Auto settings (Settings > Connected devices > Android Auto) and tap **Version** at the bottom 10 times.
+2. In the ⋮ menu at the top right open **Developer settings** and turn on **Unknown sources**.
+3. Connect the phone to the car; OBD Dashboard appears in the car's app list.
+
+Not yet tested in a real car (the developer's car has no Android Auto); tested with [open-headunit](https://github.com/andreknieriem/open-headunit). Please report problems.
 
 ### Safety and privacy
 
