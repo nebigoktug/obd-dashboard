@@ -249,9 +249,10 @@ class SettingsActivity : Activity() {
             })
         }
         header(t("Gösterge"))
-        add(ui.item(t("Hız göstergesi üst sınırı"), null, { "${v.speedMax} km/h" }) {
-            val opts = listOf(200, 220, 240, 260)
-            choose(t("Hız göstergesi (km/h)"), opts.map { "$it km/h" }, opts.indexOf(v.speedMax)) { vehicle = v.copy(speedMax = opts[it]) }
+        add(ui.item(t("Hız göstergesi üst sınırı"), null, { "${Units.speedDialMax(v.speedMax)} ${Units.speedUnit}" }) {
+            val opts = Units.speedDialOptions()
+            choose(L.t("Hız göstergesi (%s)", Units.speedUnit), opts.map { "${Units.speedDialMax(it)} ${Units.speedUnit}" },
+                opts.indexOf(v.speedMax)) { vehicle = v.copy(speedMax = opts[it]) }
         })
         add(ui.item(t("Ekran yazısı"), t("Görsel temalarda üst ortada (ör. araç modeli). Boş bırakılırsa yazı olmaz"), { v.badge.ifBlank { "yok" } }) {
             val input = EditText(this).noFullscreen().apply {
@@ -274,6 +275,7 @@ class SettingsActivity : Activity() {
             { if (L.choice == L.SYSTEM) t("Telefonun dili (%s)", L.name) else L.name }) { chooseLanguage() })
         add(ui.item(t("Kendi dil paketin"), t("Şablonu kaydet, çevir, sonra buradan ekle. Ayrıntı şablonun içinde yazar"),
             { L.userPackName(this) ?: t("Yok") }) { languagePackMenu() })
+        units()
         header(t("Görünüm"))
         val themes = ImageTheme.all()
         val cur = ImageTheme.byId(dash.getString("theme", DashboardActivity.DEFAULT_THEME))
@@ -295,6 +297,31 @@ class SettingsActivity : Activity() {
         header(t("Deneme"))
         add(ui.toggle(t("Demo modu"), t("Araç olmadan sahte sürüş verisiyle uygulamayı dene"),
             { dash.getBoolean("demo", false) }) { dash.edit().putBoolean("demo", it).apply() })
+    }
+
+    /** Birimler dilden bağımsız; içeride her şey metrik kalır, yalnız gösterim değişir (Units) */
+    private fun units() {
+        header(t("Birimler"))
+        fun save() = Units.save(this)
+        add(ui.item(t("Hız ve mesafe"), null, { if (Units.miles) "mph · mi" else "km/h · km" }) {
+            choose(t("Hız ve mesafe"), listOf("km/h · km", "mph · mi"), if (Units.miles) 1 else 0) { Units.miles = it == 1; save() }
+        })
+        add(ui.item(t("Sıcaklık"), null, { Units.tempUnit }) {
+            choose(t("Sıcaklık"), listOf("°C", "°F"), if (Units.fahrenheit) 1 else 0) { Units.fahrenheit = it == 1; save() }
+        })
+        val fuels = Units.Consumption.values().toList()
+        fun fuelName(c: Units.Consumption) = when (c) {
+            Units.Consumption.L100 -> "L/100 km"
+            Units.Consumption.MPG_US -> t("mpg (ABD galonu)")
+            Units.Consumption.MPG_UK -> t("mpg (İngiliz galonu)")
+            Units.Consumption.KML -> "km/L"
+        }
+        add(ui.item(t("Yakıt tüketimi"), null, { fuelName(Units.consumption) }) {
+            choose(t("Yakıt tüketimi"), fuels.map(::fuelName), fuels.indexOf(Units.consumption)) { Units.consumption = fuels[it]; save() }
+        })
+        add(ui.item(t("Basınç"), t("Turbo, emme ve yakıt basıncı"), { if (Units.psi) "psi" else "kPa · bar" }) {
+            choose(t("Basınç"), listOf("kPa · bar", "psi"), if (Units.psi) 1 else 0) { Units.psi = it == 1; save() }
+        })
     }
 
     private fun naviMedia() {
@@ -592,7 +619,7 @@ class SettingsActivity : Activity() {
         add(ui.item(t("Depo doldurdum"), t("Depoyu tam doldurunca pompadaki litreyi gir"), {
             if (ins.fuel.calibrations == 0) t("Kalibre edilmedi") else t("%d dolum", ins.fuel.calibrations)
         }) { askFill() })
-        add(ui.item(t("Son dolumdan beri"), null, { "%.0f km · ~%.1f L".format(ins.fuel.km, ins.fuel.estLiters) }, onClick = null))
+        add(ui.item(t("Son dolumdan beri"), null, { Units.distText(ins.fuel.km, 0) + " · ~%.1f L".format(ins.fuel.estLiters) }, onClick = null))
         add(ui.item(t("Yakıt tahminini sıfırla"), t("Kalibrasyonu fabrika değerine döndürür"), null) {
             confirm(t("Yakıt tahmini sıfırlansın mı?"), t("Depo dolumlarıyla yapılan düzeltme silinir."), t("Sıfırla")) {
                 ins.fuel.k = FuelModel.DEFAULT_K; ins.fuel.calibrations = 0; ins.fuel.estLiters = 0.0; ins.fuel.km = 0.0; saveIns()
@@ -651,8 +678,11 @@ class SettingsActivity : Activity() {
             }
         })
         header(t("Öğrenilenler"))
-        add(ui.item(t("Performans rekorlarını sıfırla"), t("0–100, 60–100 ve en yüksek güç"), null) {
-            confirm(t("Rekorlar sıfırlansın mı?"), "", t("Sıfırla")) { ins.perf.best0100 = null; ins.perf.best60100 = null; ins.perf.peakKw = 0.0; saveIns() }
+        add(ui.item(t("Performans rekorlarını sıfırla"), t("Hızlanma süreleri ve en yüksek güç"), null) {
+            confirm(t("Rekorlar sıfırlansın mı?"), "", t("Sıfırla")) {
+                ins.perf.best0100 = null; ins.perf.best60100 = null; ins.perf.best060mph = null; ins.perf.best4060mph = null
+                ins.perf.peakKw = 0.0; saveIns()
+            }
         })
         add(ui.item(t("Motor öğrenmelerini sıfırla"), t("Rölanti, turbo ve hız göstergesi tabanları (motor tamiri / parça değişiminden sonra)"), null) {
             confirm(t("Motor öğrenmeleri sıfırlansın mı?"), t("Uyarılar birkaç sürüş boyunca yeniden öğrenir."), t("Sıfırla")) {
@@ -660,6 +690,7 @@ class SettingsActivity : Activity() {
                 val fresh = Insights()
                 fresh.fuel.k = keep.first; fresh.fuel.calibrations = keep.second
                 fresh.perf.best0100 = ins.perf.best0100; fresh.perf.best60100 = ins.perf.best60100; fresh.perf.peakKw = ins.perf.peakKw
+                fresh.perf.best060mph = ins.perf.best060mph; fresh.perf.best4060mph = ins.perf.best4060mph
                 ins.load(fresh.save())
                 // load() yalnız dolu alanları yazar: tabanları elle sıfırla
                 ins.health.idleN = 0; ins.health.idleRpm = 0.0; ins.health.idleLoad = 0.0

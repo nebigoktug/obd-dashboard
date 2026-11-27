@@ -63,11 +63,7 @@ class TurnWatch(private val clock: () -> Long = System::currentTimeMillis) {
         fun showM(speedKmh: Double?) = max(MIN_SHOW_M, (speedKmh ?: 0.0) / 3.6 * LEAD_S)
 
         /** "300 m", "1,2 km", "1.2 km", "800 м" → metre; tanınmazsa null */
-        fun parseDistance(s: String): Double? {
-            val m = Regex("""(\d+(?:[.,]\d+)?)\s*(km|m|км|м)\b""", RegexOption.IGNORE_CASE).find(s.replace(' ', ' ')) ?: return null
-            val v = m.groupValues[1].replace(',', '.').toDoubleOrNull() ?: return null
-            return if (m.groupValues[2].lowercase().startsWith("k")) v * 1000 else v
-        }
+        fun parseDistance(s: String): Double? = Units.parseDistance(s)
 
         /**
          * Harita yakınlığı: araç dairenin altına yakın, dönüş noktası ([distM] ileride) dairede görünsün.

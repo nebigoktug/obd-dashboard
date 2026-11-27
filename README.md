@@ -18,6 +18,7 @@ Hız, devir, vites, turbo, motor sıcaklığı, tahmini yakıt tüketimi, naviga
 Herhangi bir OBD-II araçta çalışır (Avrupa'da benzinli 2001+, dizel 2004+). Geliştirildiği araç: 2010 Volvo S40 1.6D.
 
 - **Dil:** Türkçe ve İngilizce. Telefon Türkçeyse Türkçe, değilse İngilizce açılır; Ayarlar > Ekran > Dil'den değiştirilebilir. Kendi dil paketini de ekleyebilirsin ([docs/DIL.md](docs/DIL.md)).
+- **Birimler:** km/h ya da mph, °C ya da °F, L/100 km, mpg ya da km/L, kPa/bar ya da psi (Ayarlar > Ekran > Birimler).
 
 ## Kurulum
 
@@ -68,6 +69,9 @@ Speed, RPM, gear, boost, coolant temperature, estimated fuel use, turn-by-turn n
 
 **Language:** the app opens in English unless the phone is set to Turkish; change it in Settings > Display > Language.
 You can add your own language pack: save the translation template in the app, translate it and load it back ([docs/DIL.md](docs/DIL.md#translating-for-users)).
+
+**Units** are a separate setting (Settings > Display > Units): km/h or mph, °C or °F, L/100 km, mpg (US or imperial) or km/L, kPa/bar or psi.
+The default follows the phone's region (miles in the US, UK, Liberia and Myanmar).
 
 ### Features
 

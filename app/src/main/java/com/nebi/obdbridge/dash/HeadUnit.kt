@@ -805,9 +805,9 @@ class TripRow(ctx: Context, private val t: TripSummary) : View(ctx) {
     private val dayText = day.format(java.util.Date(t.start))
     private val hourText = "${hour.format(java.util.Date(t.start))}–${hour.format(java.util.Date(t.start + t.durationMs))}"
     private val cols = listOf(
-        "%.1f km".format(t.km) to L.t("mesafe"),
+        Units.distText(t.km) to L.t("mesafe"),
         (t.durationMs / 60_000).let { if (it >= 60) L.t("%d sa %d dk", it / 60, it % 60) else L.t("%d dk", it) } to L.t("süre"),
-        (t.l100?.let { "%.1f".format(it) } ?: "—") to L.t("L/100 (tahmini)"),
+        (t.l100?.let { "%.1f".format(Units.fuel(it)) } ?: "—") to L.t("%s (tahmini)", Units.fuelUnit),
         "${t.score}" to L.t("puan"),
     )
 
@@ -895,7 +895,7 @@ class WeatherView(ctx: Context, private val weather: Weather) : View(ctx) {
         }
         val ink = Glass.ink(DashImageGeom.WEATHER)
         val tp = Glass.text(pc, "t", h * 0.62f, ink.text); Glass.halo(tp, ink)
-        c.drawText(t?.let { "${Math.round(it)}°" } ?: "—°", x, h * 0.62f, tp)
+        c.drawText(t?.let { "${Math.round(Units.temp(it))}°" } ?: "—°", x, h * 0.62f, tp)
         // Alt satırın rengi kendi altındaki zemine göre (mermerde köşe koyu, yazının altı beyaz)
         val sub = Glass.ink(DashImageGeom.WEATHER_SUB)
         val dp = Glass.text(pc, "d", h * 0.22f, sub.text); dp.letterSpacing = 0.06f; Glass.halo(dp, sub)

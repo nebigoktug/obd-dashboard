@@ -199,9 +199,9 @@ class DashImageDials(ctx: Context, spec: WidgetSpec, private val th: ImageTheme 
         // Otomatik vites: vites tahmini yok, ortada devir yazar
         dial(c, DashImageGeom.RPM_C, frame["rpm"], centerKey = if (v.manual) "gear" else null)
         // Rakamlar ışıklı dilimin üstüne: hız 20'şer (240 ve üstünde 40'ar), devir binlik
-        val sMax = v.speedMax
+        val sMax = Units.speedDialMax(v.speedMax)   // gösterilen birimde (km/h ya da mph)
         val sStep = if (sMax > 220) 40 else 20
-        ticks(c, DashImageGeom.SPEED_C, sMax / 10, 2, frame["speed"])                  // 10 km/h'de bir, 20'de büyük
+        ticks(c, DashImageGeom.SPEED_C, sMax / 10, 2, frame["speed"])                  // 10'da bir, 20'de büyük
         ticks(c, DashImageGeom.RPM_C, v.rpmMax / 500, 2, frame["rpm"])                // 500 rpm'de bir, binde büyük
         labels(c, DashImageGeom.SPEED_C, (0..sMax step sStep).map { n -> n.toString() }, frame["speed"], th.speedLitLabel ?: th.litLabel)
         labels(c, DashImageGeom.RPM_C, (0..v.rpmMax / 1000).map { n -> n.toString() }, frame["rpm"], th.litLabel)
