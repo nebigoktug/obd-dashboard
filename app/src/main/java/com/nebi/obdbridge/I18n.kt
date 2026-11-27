@@ -143,6 +143,17 @@ fun t(s: String) = L.t(s)
 fun t(s: String, vararg args: Any?) = L.t(s, *args)
 
 class App : Application() {
+    /**
+     * Android 13+: sistem ayarlarından uygulama dili değişince süreç yeniden başlamaz, yalnız ekranlar yeniden kurulur.
+     * Ekranlar kurulmadan önce dil ve dile bağlı sabitler (gösterge etiketleri) yenilenir.
+     */
+    override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
+        super.onConfigurationChanged(newConfig)
+        val before = L.choice
+        L.init(this)
+        if (L.choice != before) com.nebi.obdbridge.dash.SignalCatalog.configure(com.nebi.obdbridge.dash.Vehicle.current)
+    }
+
     override fun onCreate() {
         super.onCreate()
         L.init(this)
