@@ -149,13 +149,31 @@ class App : Application() {
      */
     override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
         super.onConfigurationChanged(newConfig)
+        reloadLanguage()
+    }
+
+    /** Dil sistemden değiştiyse yeniden oku; değiştiyse true. Bazı telefonlar (HyperOS) çalışan uygulamaya bildirmiyor:
+     * ekrana her dönüşte de bakılır ve ekran yeni dille yeniden kurulur. */
+    fun reloadLanguage(): Boolean {
+        if (android.os.Build.VERSION.SDK_INT < 33) return false
         val before = L.choice
         L.init(this)
-        if (L.choice != before) com.nebi.obdbridge.dash.SignalCatalog.configure(com.nebi.obdbridge.dash.Vehicle.current)
+        if (L.choice == before) return false
+        com.nebi.obdbridge.dash.SignalCatalog.configure(com.nebi.obdbridge.dash.Vehicle.current)
+        return true
     }
 
     override fun onCreate() {
         super.onCreate()
+        registerActivityLifecycleCallbacks(object : ActivityLifecycleCallbacks {
+            override fun onActivityResumed(a: android.app.Activity) { if (reloadLanguage()) a.recreate() }
+            override fun onActivityCreated(a: android.app.Activity, b: android.os.Bundle?) {}
+            override fun onActivityStarted(a: android.app.Activity) {}
+            override fun onActivityPaused(a: android.app.Activity) {}
+            override fun onActivityStopped(a: android.app.Activity) {}
+            override fun onActivitySaveInstanceState(a: android.app.Activity, b: android.os.Bundle) {}
+            override fun onActivityDestroyed(a: android.app.Activity) {}
+        })
         L.init(this)
         com.nebi.obdbridge.dash.Units.load(this)
     }
