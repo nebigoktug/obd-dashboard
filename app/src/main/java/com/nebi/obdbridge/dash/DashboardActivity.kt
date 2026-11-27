@@ -556,7 +556,6 @@ class DashboardActivity : Activity(), SensorEventListener {
         ins.update(Inputs(System.currentTimeMillis(), v("rpm"), v("speed"), v("load"), v("map"), v("coolant"),
             v("battery"), v("rail"), model.raw("gear")?.value?.toInt(),
             gpsSpeed?.takeIf { System.currentTimeMillis() - it.ts < 3000 }?.value, obd, v("maf"), v("fuel_rate")))
-        val shown = ins.alerts.filter { prefs.getBoolean("alert_${it.kind.name}", true) }
         // Sürüş kaydı için ekranın gösterdikleri (servis 2 Hz'de kaydeder)
         val now = System.currentTimeMillis()
         val d = BridgeService.derived
@@ -572,7 +571,7 @@ class DashboardActivity : Activity(), SensorEventListener {
         weather.pressureHpa?.let { motion.baro.onWeather(it) }
         paceGps()
         put("baro", model.raw("baro")?.value)
-        val all = (shown + listOfNotNull(milAlert(), connAlert())).sortedBy { it.priority }
+        val all = alertSources.all(model, ins)
         for (p in pills) p.alerts = all
         val note = if (!prefs.getBoolean("note_fuelcut", true)) null
             else when { ins.fuelCut -> t("yakıt kesik"); ins.coasting && Vehicle.current.manual -> t("boşta"); else -> null }
@@ -740,33 +739,7 @@ class DashboardActivity : Activity(), SensorEventListener {
     }
 
     /** Arıza lambası yanıyorsa (son 2 dk içinde okunmuş 0101) */
-    private fun milAlert(): Alert? {
-        if (!prefs.getBoolean("alert_MIL", true)) return null
-        val mil = model.raw("mil")?.takeIf { System.currentTimeMillis() - it.ts < 120_000 }?.value ?: return null
-        if (mil == 0.0) return null
-        val n = model.raw("dtc_count")?.value?.toInt()?.takeIf { it > 0 }
-        return Alert(AlertKind.MIL, t("Arıza lambası yanıyor") + (n?.let { t(" · %d kod", it) } ?: ""), Level.WARN, 0)
-    }
-
-    private var connText: String? = null
-    private var connAt = 0L
-
-    /** Araçtan veri gelmiyorsa nedenini hapta yaz (en düşük öncelik); saniyede bir hesaplanır */
-    private fun connAlert(): Alert? {
-        val now = System.currentTimeMillis()
-        if (now - connAt > 1000) {
-            connAt = now
-            // GPS varken de göster (QC2): arabada GPS hep var, adaptör bağlanmadıysa görünmeliydi. Yalnız OBD canlıyken gizli
-            connText = if (model.source.name == "Canlı" || prefs.getBoolean("demo", false)) null
-            else when (val st = Conn.status(this)) {
-                t("Canlı") -> null
-                t("Bağlı değil") -> t("Adaptör bağlı değil · bağlanmak için dokun")
-                t("Adaptör seçilmedi") -> t("Adaptör seçilmedi · seçmek için dokun")
-                else -> st
-            }
-        }
-        return connText?.let { Alert(AlertKind.CONN, it, Level.NORMAL, 9) }
-    }
+    private val alertSources by lazy { AlertSources(this, prefs) }
 
     /** Hapa dokununca: tek uyarıysa doğrudan işi yap, çoksa hepsini listele */
     private fun onPillTap(alerts: List<Alert>) {

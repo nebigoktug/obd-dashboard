@@ -52,6 +52,10 @@ class CarDashPresentation(outer: Context, display: Display) : Presentation(outer
     private val widgets = ArrayList<DashWidget>()
     private val naviCards = ArrayList<NaviCard>()
     private val mediaCards = ArrayList<MediaCard>()
+    private val pills = ArrayList<com.nebi.obdbridge.dash.StatusPill>()
+    private val dialsList = ArrayList<DashImageDials>()
+    private val ins = Insights()
+    private val alertSources by lazy { com.nebi.obdbridge.dash.AlertSources(context.applicationContext, prefs) }
     private val weather by lazy { Weather(context.applicationContext) }
     private val media by lazy { MediaHub(context.applicationContext).apply { onChange = { mediaCards.forEach { it.postInvalidate() } } } }
     private var keys: List<String> = emptyList()
@@ -72,7 +76,9 @@ class CarDashPresentation(outer: Context, display: Display) : Presentation(outer
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         UserThemes.load(context)
-        model.insights = Insights().apply { load(prefs.getString("insights", null)) }
+        // Kendi kopyası: yalnız okunur (telefondaki kayda yazmaz), uyarılar ve yakıt tahmini için her karede güncellenir
+        ins.load(prefs.getString("insights", null))
+        model.insights = ins
         model.trip = Trip()
         holder = FrameLayout(context)
         setContentView(holder)
@@ -80,7 +86,7 @@ class CarDashPresentation(outer: Context, display: Display) : Presentation(outer
     }
 
     private fun build() {
-        holder.removeAllViews(); widgets.clear(); naviCards.clear(); mediaCards.clear()
+        holder.removeAllViews(); widgets.clear(); naviCards.clear(); mediaCards.clear(); pills.clear(); dialsList.clear()
         val chosen = ImageTheme.byId(prefs.getString("theme", DashboardActivity.DEFAULT_THEME))
         val colors = ThemeColors.load(prefs, chosen.id)
         val th = colors.accent?.let { chosen.copy(accent = it) } ?: chosen
@@ -88,7 +94,7 @@ class CarDashPresentation(outer: Context, display: Display) : Presentation(outer
         holder.setBackgroundColor(if (th.light) 0xFFE6E8EB.toInt() else 0xFF0E1013.toInt())
         val (right, tiles) = layoutSpecs()
         val dials = DashImageDials(context, right, th)
-        widgets += dials
+        widgets += dials; dialsList += dials
         val lay = DashImageLayout(context, dials)
         lay.place(WeatherView(context, weather), DashImageGeom.WEATHER)
         lay.place(NaviCard(context, prefs) { }.also { naviCards += it }, DashImageGeom.NAV_CARD)
@@ -96,6 +102,8 @@ class CarDashPresentation(outer: Context, display: Display) : Presentation(outer
         val strip = ValueStrip(context, tiles.take(4))
         widgets += strip
         lay.place(strip, DashImageGeom.STRIP)
+        // Uyarı hapı (motor sıcak, akü/şarj, arıza lambası, bağlantı): telefondakiyle aynı yer ve görünüm
+        lay.place(com.nebi.obdbridge.dash.StatusPill(context).also { it.visibility = View.INVISIBLE; pills += it }, DashImageGeom.PILL)
         holder.addView(lay, FrameLayout.LayoutParams(-1, -1))
         applyInsets()
         val dash = th.dash()
@@ -137,7 +145,22 @@ class CarDashPresentation(outer: Context, display: Display) : Presentation(outer
         val ns = Nav.state() ?: if (Nav.active) NaviState("…", t("Rota hesaplanıyor"), null) else null
         for (n in naviCards) if (n.state != ns) { n.state = ns; n.invalidate() }
         model.trip?.update(model.raw("speed"))
+        updateAlerts()
         weather.refreshIfStale()
+    }
+
+    private fun updateAlerts() {
+        val src = model.source
+        val now = System.currentTimeMillis()
+        fun v(k: String) = model.raw(k)?.takeIf { now - it.ts < 5000 }?.value
+        ins.update(com.nebi.obdbridge.dash.Inputs(now, v("rpm"), v("speed"), v("load"), v("map"), v("coolant"),
+            v("battery"), v("rail"), model.raw("gear")?.value?.toInt(), null,
+            src.name == "Canlı" || src is DemoSource, v("maf"), v("fuel_rate")))
+        val all = alertSources.all(model, ins)
+        for (p in pills) p.alerts = all
+        val note = if (!prefs.getBoolean("note_fuelcut", true)) null
+            else when { ins.fuelCut -> t("yakıt kesik"); ins.coasting && com.nebi.obdbridge.dash.Vehicle.current.manual -> t("boşta"); else -> null }
+        for (d in dialsList) d.note = note
     }
 
     override fun onStart() {

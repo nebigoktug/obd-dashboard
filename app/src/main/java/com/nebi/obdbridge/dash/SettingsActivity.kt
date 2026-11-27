@@ -658,6 +658,7 @@ class SettingsActivity : Activity() {
         alertRow(AlertKind.CHARGE_LOW, t("Şarj düşük"), t("Motor çalışırken akü voltajı 13,2 V altında kalırsa (şarj dinamosu)"))
         alertRow(AlertKind.CHARGE_HIGH, t("Şarj voltajı yüksek"), t("14,9 V üstü (voltaj regülatörü)"))
         alertRow(AlertKind.BATTERY_WEAK, t("Akü zayıf"), t("Kontak açık, motor kapalıyken 12,2 V altı"))
+        alertRow(AlertKind.HOT, t("Motor sıcak"), t("Motor suyu %1\$s üstünde sarı, %2\$s üstünde kırmızı uyarı", Units.tempText(Insights.HOT_C), Units.tempText(Insights.HOT_CRIT_C)))
         alertRow(AlertKind.COLD, t("Motor soğuk"), t("Motor ısınmadan yüksek devire çıkınca uyarır"))
         alertRow(AlertKind.MIL, t("Arıza lambası"), t("Motor arıza lambası yanınca ana ekranda gösterir; dokununca arıza kodları açılır"))
         add(ui.toggle(t("Yakıt kesik / boşta notu"), t("Devir göstergesinde küçük not (dizelde motor freni = sıfır yakıt)"),
