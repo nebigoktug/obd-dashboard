@@ -36,6 +36,7 @@ object L {
     fun init(ctx: Context) {
         val app = ctx.applicationContext
         choice = app.getSharedPreferences("dash", Context.MODE_PRIVATE).getString("lang", SYSTEM) ?: SYSTEM
+        choice = fromSystem(app, choice)
         val want = when (choice) {
             // Telefon Türkçeyse Türkçe, değilse İngilizce
             SYSTEM -> if (Locale.getDefault().language == "tr") "tr" else "en"
@@ -87,10 +88,47 @@ object L {
     /** Kullanıcı paketinin adı (yüklü değilse null) */
     fun userPackName(ctx: Context): String? = userFile(ctx).takeIf { it.exists() }?.let { parse(it.readText())?.name }
 
-    /** Seçimi kaydeder; uygulama yeniden başlatılınca geçerli olur */
+    /** Seçimi kaydeder; uygulama yeniden başlatılınca geçerli olur. Android 13+ sistem "Uygulama dili" de aynı olur. */
     fun save(ctx: Context, choice: String) {
         ctx.getSharedPreferences("dash", Context.MODE_PRIVATE).edit().putString("lang", choice).commit()
+        toSystem(ctx, choice)
     }
+
+    // ---------- Android 13+ sistem "Uygulama dili" (res/xml/locales_config.xml) ----------
+    // Uygulama dili kendi ayarıyla çalışır (JSON paketleri); sistem listesindeki seçim bu ayara çevrilir ve tersi.
+
+    /** Uygulama içi seçimi sisteme yaz: tr/en o dil; telefonun dili ve kullanıcı paketi "sistem varsayılanı" */
+    private fun toSystem(ctx: Context, choice: String) {
+        if (android.os.Build.VERSION.SDK_INT < 33) return
+        val lm = ctx.getSystemService(android.app.LocaleManager::class.java) ?: return
+        val want = if (choice in BUILT_IN) android.os.LocaleList.forLanguageTags(choice) else android.os.LocaleList.getEmptyLocaleList()
+        if (lm.applicationLocales != want) runCatching { lm.applicationLocales = want }
+        ctx.getSharedPreferences("dash", Context.MODE_PRIVATE).edit().putBoolean(SYNCED, true).apply()
+    }
+
+    /**
+     * Sistem ayarından değiştirildiyse onu al. İlk açılışta (eski sürümden gelen seçim) önce uygulama içi seçim sisteme
+     * yazılır; sonra sistemde "varsayılan" seçilmesi telefonun diline dönmek demektir (kullanıcı paketi hariç).
+     */
+    private fun fromSystem(ctx: Context, saved: String): String {
+        if (android.os.Build.VERSION.SDK_INT < 33) return saved
+        val p = ctx.getSharedPreferences("dash", Context.MODE_PRIVATE)
+        if (!p.getBoolean(SYNCED, false)) { toSystem(ctx, saved); return saved }
+        val sys = ctx.getSystemService(android.app.LocaleManager::class.java)?.applicationLocales
+            ?.takeIf { !it.isEmpty }?.get(0)?.language
+        val now = systemChoice(saved, sys)
+        if (now != saved) p.edit().putString("lang", now).apply()
+        return now
+    }
+
+    /** Sistemdeki dil ([sys], boş = varsayılan) ile kayıtlı seçimden geçerli seçim (JVM testli) */
+    fun systemChoice(saved: String, sys: String?): String = when {
+        sys != null && sys in BUILT_IN -> sys
+        sys == null && saved in BUILT_IN -> SYSTEM
+        else -> saved
+    }
+
+    private const val SYNCED = "lang_sys_synced"
 
     fun t(s: String): String = map[s] ?: s
     fun t(s: String, vararg args: Any?): String = String.format(locale, t(s), *args)
@@ -105,8 +143,37 @@ fun t(s: String) = L.t(s)
 fun t(s: String, vararg args: Any?) = L.t(s, *args)
 
 class App : Application() {
+    /**
+     * Android 13+: sistem ayarlarından uygulama dili değişince süreç yeniden başlamaz, yalnız ekranlar yeniden kurulur.
+     * Ekranlar kurulmadan önce dil ve dile bağlı sabitler (gösterge etiketleri) yenilenir.
+     */
+    override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
+        super.onConfigurationChanged(newConfig)
+        reloadLanguage()
+    }
+
+    /** Dil sistemden değiştiyse yeniden oku; değiştiyse true. Bazı telefonlar (HyperOS) çalışan uygulamaya bildirmiyor:
+     * ekrana her dönüşte de bakılır ve ekran yeni dille yeniden kurulur. */
+    fun reloadLanguage(): Boolean {
+        if (android.os.Build.VERSION.SDK_INT < 33) return false
+        val before = L.choice
+        L.init(this)
+        if (L.choice == before) return false
+        com.nebi.obdbridge.dash.SignalCatalog.configure(com.nebi.obdbridge.dash.Vehicle.current)
+        return true
+    }
+
     override fun onCreate() {
         super.onCreate()
+        registerActivityLifecycleCallbacks(object : ActivityLifecycleCallbacks {
+            override fun onActivityResumed(a: android.app.Activity) { if (reloadLanguage()) a.recreate() }
+            override fun onActivityCreated(a: android.app.Activity, b: android.os.Bundle?) {}
+            override fun onActivityStarted(a: android.app.Activity) {}
+            override fun onActivityPaused(a: android.app.Activity) {}
+            override fun onActivityStopped(a: android.app.Activity) {}
+            override fun onActivitySaveInstanceState(a: android.app.Activity, b: android.os.Bundle) {}
+            override fun onActivityDestroyed(a: android.app.Activity) {}
+        })
         L.init(this)
         com.nebi.obdbridge.dash.Units.load(this)
     }

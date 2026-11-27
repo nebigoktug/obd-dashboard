@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 13+ sistem ayarlarındaki "Uygulama dili" listesi. Seçim uygulama içi dil ayarıyla eşitlenir (I18n.kt L.syncSystem) -->
+<locale-config xmlns:android="http://schemas.android.com/apk/res/android">
+    <locale android:name="tr" />
+    <locale android:name="en" />
+</locale-config>

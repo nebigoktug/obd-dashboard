@@ -53,6 +53,7 @@
         android:label="OBD Dashboard"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
+        android:localeConfig="@xml/locales_config"
         android:theme="@android:style/Theme.DeviceDefault.Light.DarkActionBar">
 
         <!-- Bağlantı ve OBD araçları: dashboard ayarlarından açılır -->
