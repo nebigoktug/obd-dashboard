@@ -47,6 +47,14 @@ class DashCarScreen(ctx: CarContext) : Screen(ctx), SurfaceCallback {
     private val tick = object : Runnable {
         override fun run() { if (presentation == null) { draw(); handler.postDelayed(this, 200) } }
     }
+    private var carNav: CarNav? = null
+    /** Navigasyonu AA'ya bildir (saniyede bir) */
+    private val navTick = object : Runnable {
+        override fun run() {
+            try { carNav?.tick() } catch (e: Exception) { Log.w(TAG, "navigasyon bildirimi", e) }
+            handler.postDelayed(this, 1000)
+        }
+    }
     private var virtual: android.hardware.display.VirtualDisplay? = null
     private var presentation: CarDashPresentation? = null
 
@@ -56,10 +64,19 @@ class DashCarScreen(ctx: CarContext) : Screen(ctx), SurfaceCallback {
         lifecycle.addObserver(object : DefaultLifecycleObserver {
             override fun onCreate(owner: LifecycleOwner) {
                 ctx.getCarService(AppManager::class.java).setSurfaceCallback(this@DashCarScreen)
+                // Kayıtlı hedef varsa devam et (konumu NavService verir; telefon ekranı açılmamış olabilir)
+                com.nebi.obdbridge.dash.Nav.restore(ctx)
+                com.nebi.obdbridge.dash.NavService.start(ctx)
+                carNav = CarNav(ctx)
+                handler.post(navTick)
             }
             override fun onStart(owner: LifecycleOwner) { handler.post(tick) }
             override fun onStop(owner: LifecycleOwner) { handler.removeCallbacks(tick) }
-            override fun onDestroy(owner: LifecycleOwner) { closeVirtual() }
+            override fun onDestroy(owner: LifecycleOwner) {
+                handler.removeCallbacks(navTick)
+                runCatching { carNav?.close() }; carNav = null
+                closeVirtual()
+            }
         })
     }
 
@@ -73,8 +90,18 @@ class DashCarScreen(ctx: CarContext) : Screen(ctx), SurfaceCallback {
         if (!openVirtual(c)) draw()
     }
     override fun onSurfaceDestroyed(c: SurfaceContainer) { closeVirtual(); surface = null }
-    // Gösterge tam yüzeye çizilir: AA'nın düğmesi birkaç saniyede gizlenir, boşluk bırakmak kadranları küçültüyordu
-    override fun onVisibleAreaChanged(r: Rect) { visible = Rect(r); if (presentation == null) draw() }
+    override fun onVisibleAreaChanged(r: Rect) { Log.i(TAG, "görünür alan $r"); visible = Rect(r); presentation?.visible = area(); if (presentation == null) draw() }
+    private var stable: Rect? = null
+
+    /**
+     * Göstergenin sığacağı alan: yanlar görünür alandan (AA sağda medya/harita kartı açınca daralır), üst ve alt sabit
+     * alandan (sağ üstteki düğme birkaç saniyede gizlenir; onun için kadranları küçültmeye değmez).
+     */
+    private fun area(): Rect {
+        val c = surface ?: return Rect(visible)
+        val st = stable ?: Rect(0, 0, c.width, c.height)
+        return Rect(visible.left, minOf(st.top, visible.top), visible.right, maxOf(st.bottom, visible.bottom))
+    }
     override fun onClick(x: Float, y: Float) { presentation?.tap(x, y) }
 
     /** Yüzeyi sanal ekran yapıp telefondaki göstergeyi üstünde aç; olmazsa false (Canvas yedeği) */
@@ -87,7 +114,7 @@ class DashCarScreen(ctx: CarContext) : Screen(ctx), SurfaceCallback {
             val vd = dm.createVirtualDisplay("OBD Dashboard", c.width, c.height, c.dpi, s,
                 android.hardware.display.DisplayManager.VIRTUAL_DISPLAY_FLAG_OWN_CONTENT_ONLY)
             virtual = vd
-            presentation = CarDashPresentation(carContext, vd.display).also { it.show() }
+            presentation = CarDashPresentation(carContext, vd.display).also { it.visible = area(); it.show() }
             Log.i(TAG, "sanal ekran ${c.width}x${c.height} ${c.dpi} dpi")
             true
         } catch (e: Exception) {
@@ -101,7 +128,7 @@ class DashCarScreen(ctx: CarContext) : Screen(ctx), SurfaceCallback {
         presentation = null
         virtual?.release(); virtual = null
     }
-    override fun onStableAreaChanged(r: Rect) {}
+    override fun onStableAreaChanged(r: Rect) { Log.i(TAG, "sabit alan $r"); stable = Rect(r); presentation?.visible = area() }
 
     private fun draw() {
         val s = surface?.surface ?: return
