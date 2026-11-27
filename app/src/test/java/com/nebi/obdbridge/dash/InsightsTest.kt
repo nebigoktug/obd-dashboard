@@ -60,6 +60,9 @@ class InsightsTest {
         assertEquals(10.0, ins.perf.last0100!!, 0.5)
         assertEquals(4.0, ins.perf.last60100!!, 0.5)
         assertNotNull(ins.perf.best0100)
+        // Aynı kalkış: 0–60 mph (96,6 km/h) ≈ 9,7 sn, 40–60 mph (64,4 → 96,6) ≈ 3,2 sn
+        assertEquals(9.7, ins.perf.last060mph!!, 0.5)
+        assertEquals(3.2, ins.perf.last4060mph!!, 0.5)
     }
 
     @Test fun speedoErrorLearned() {

@@ -723,10 +723,17 @@ class DashboardActivity : Activity(), SensorEventListener {
         fun sec(v: Double?) = v?.let { t("%.1f sn", it) } ?: "—"
         return listOf(
             t("Durum") to when (p.state) { "hazır" -> t("Hazır (kalkışta başlar)"); "ölçülüyor" -> t("Ölçülüyor…"); else -> t("Durunca hazır") },
+        ) + (if (Units.miles) listOf(
+            t("0–60 mph son") to sec(p.last060mph),
+            t("0–60 mph en iyi") to sec(p.best060mph),
+            t("40–60 mph son") to sec(p.last4060mph),
+            t("40–60 mph en iyi") to sec(p.best4060mph),
+        ) else listOf(
             t("0–100 son") to sec(p.last0100),
             t("0–100 en iyi") to sec(p.best0100),
             t("60–100 son") to sec(p.last60100),
             t("60–100 en iyi") to sec(p.best60100),
+        )) + listOf(
             t("Güç (anlık)") to (p.kw?.let { "%.0f kW · %.0f hp".format(it, it * 1.341) } ?: "—"),
             t("Güç (en yüksek)") to (if (p.peakKw > 0) "%.0f kW · %.0f hp".format(p.peakKw, p.peakKw * 1.341) else "—"),
         )

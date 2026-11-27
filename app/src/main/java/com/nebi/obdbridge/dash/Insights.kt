@@ -155,12 +155,19 @@ class DriveStats {
 
 // ---------- Performans ----------
 
-/** 0–100 ve 60–100 ölçümü + anlık tahmini tekerlek gücü. */
+/**
+ * 0–100 ve 60–100 km/h ölçümü + anlık tahmini tekerlek gücü. Aynı kalkıştan 0–60 ve 40–60 mph de ölçülür
+ * (mil seçiliyse onlar gösterilir; rekorlar ayrı saklanır).
+ */
 class Perf {
     var best0100: Double? = null
     var best60100: Double? = null
     var last0100: Double? = null; private set
     var last60100: Double? = null; private set
+    var best060mph: Double? = null
+    var best4060mph: Double? = null
+    var last060mph: Double? = null; private set
+    var last4060mph: Double? = null; private set
     var peakKw = 0.0
     var kw: Double? = null; private set
     /** Ekranda: "hazır" (duruyor), "ölçülüyor", null */
@@ -168,18 +175,27 @@ class Perf {
 
     private var t0 = 0L
     private var t60 = 0L
+    private var t40mph = 0L
+    private var mphDone = false
     private var lastV = -1.0
     private var lastVTs = 0L
     private var aEma = 0.0
 
     fun update(ts: Long, speed: Double?, load: Double?) {
-        val v = speed ?: run { t0 = 0; t60 = 0; state = null; return }
+        val v = speed ?: run { t0 = 0; t60 = 0; t40mph = 0; state = null; return }
         when {
-            v < 1 -> { t0 = 0; t60 = 0; state = "hazır" }
-            t0 == 0L && lastV in 0.0..0.9 && v >= 1 -> { t0 = ts; state = "ölçülüyor" }
+            v < 1 -> { t0 = 0; t60 = 0; t40mph = 0; mphDone = false; state = "hazır" }
+            t0 == 0L && lastV in 0.0..0.9 && v >= 1 -> { t0 = ts; mphDone = false; state = "ölçülüyor" }
         }
-        if (v < lastV - 1) { t0 = 0; t60 = 0; if (state == "ölçülüyor") state = null }   // yavaşladı: ölçüm iptal
+        if (v < lastV - 1) { t0 = 0; t60 = 0; t40mph = 0; if (state == "ölçülüyor") state = null }   // yavaşladı: ölçüm iptal
         if (lastV in 0.0..59.99 && v >= 60) t60 = ts
+        if (lastV >= 0 && lastV < MPH40 && v >= MPH40) t40mph = ts
+        if (lastV >= 0 && lastV < MPH60 && v >= MPH60 && !mphDone) {
+            mphDone = true
+            if (t0 != 0L) { val s = (ts - t0) / 1000.0; last060mph = s; best060mph = minOf(best060mph ?: s, s) }
+            if (t40mph != 0L) { val s = (ts - t40mph) / 1000.0; last4060mph = s; best4060mph = minOf(best4060mph ?: s, s) }
+            t40mph = 0
+        }
         if (lastV in 0.0..99.99 && v >= 100) {
             if (t0 != 0L) { val s = (ts - t0) / 1000.0; last0100 = s; best0100 = minOf(best0100 ?: s, s) }
             if (t60 != 0L) { val s = (ts - t60) / 1000.0; last60100 = s; best60100 = minOf(best60100 ?: s, s) }
@@ -198,6 +214,8 @@ class Perf {
     }
 
     companion object {
+        const val MPH40 = 40 * Units.KM_PER_MI
+        const val MPH60 = 60 * Units.KM_PER_MI
         const val MASS = 1400.0
         const val CDA = 0.68
     }
@@ -372,6 +390,7 @@ fun Insights.save(): String = org.json.JSONObject().apply {
     health.speedoError?.let { put("speedo", it) }; put("speedoN", health.speedoN)
     put("boostBase2", org.json.JSONArray(health.boostBase.toList())); put("boostN2", org.json.JSONArray(health.boostN.toList()))
     perf.best0100?.let { put("b0100", it) }; perf.best60100?.let { put("b60100", it) }; put("peakKw", perf.peakKw)
+    perf.best060mph?.let { put("b060mph", it) }; perf.best4060mph?.let { put("b4060mph", it) }
 }.toString()
 
 fun Insights.load(s: String?) {
@@ -388,5 +407,7 @@ fun Insights.load(s: String?) {
         if (o.has("b0100")) perf.best0100 = o.getDouble("b0100")
         if (o.has("b60100")) perf.best60100 = o.getDouble("b60100")
         perf.peakKw = o.optDouble("peakKw", 0.0)
+        if (o.has("b060mph")) perf.best060mph = o.getDouble("b060mph")
+        if (o.has("b4060mph")) perf.best4060mph = o.getDouble("b4060mph")
     } catch (_: Exception) {}
 }

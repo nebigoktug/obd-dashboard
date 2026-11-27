@@ -678,8 +678,11 @@ class SettingsActivity : Activity() {
             }
         })
         header(t("Öğrenilenler"))
-        add(ui.item(t("Performans rekorlarını sıfırla"), t("0–100, 60–100 ve en yüksek güç"), null) {
-            confirm(t("Rekorlar sıfırlansın mı?"), "", t("Sıfırla")) { ins.perf.best0100 = null; ins.perf.best60100 = null; ins.perf.peakKw = 0.0; saveIns() }
+        add(ui.item(t("Performans rekorlarını sıfırla"), t("Hızlanma süreleri ve en yüksek güç"), null) {
+            confirm(t("Rekorlar sıfırlansın mı?"), "", t("Sıfırla")) {
+                ins.perf.best0100 = null; ins.perf.best60100 = null; ins.perf.best060mph = null; ins.perf.best4060mph = null
+                ins.perf.peakKw = 0.0; saveIns()
+            }
         })
         add(ui.item(t("Motor öğrenmelerini sıfırla"), t("Rölanti, turbo ve hız göstergesi tabanları (motor tamiri / parça değişiminden sonra)"), null) {
             confirm(t("Motor öğrenmeleri sıfırlansın mı?"), t("Uyarılar birkaç sürüş boyunca yeniden öğrenir."), t("Sıfırla")) {
@@ -687,6 +690,7 @@ class SettingsActivity : Activity() {
                 val fresh = Insights()
                 fresh.fuel.k = keep.first; fresh.fuel.calibrations = keep.second
                 fresh.perf.best0100 = ins.perf.best0100; fresh.perf.best60100 = ins.perf.best60100; fresh.perf.peakKw = ins.perf.peakKw
+                fresh.perf.best060mph = ins.perf.best060mph; fresh.perf.best4060mph = ins.perf.best4060mph
                 ins.load(fresh.save())
                 // load() yalnız dolu alanları yazar: tabanları elle sıfırla
                 ins.health.idleN = 0; ins.health.idleRpm = 0.0; ins.health.idleLoad = 0.0
