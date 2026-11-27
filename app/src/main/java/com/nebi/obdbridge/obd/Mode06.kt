@@ -100,11 +100,15 @@ object Mode06 {
         return out
     }
 
-    /** 0600/0620… cevabından maske: "46 00 AA BB CC DD" */
+    /**
+     * 0600/0620… cevabından maske: "46 00 AA BB CC DD". Bazı adaptör/emülatörler izleyici baytını atlıyor ("46 AA BB CC DD",
+     * ELM327-emulator 2026-11-27): tam 5 baytlık cevap o biçimde okunur.
+     */
     fun mask(frames: List<ByteArray>, base: Int): Set<Int>? {
         for (b in frames) {
-            if (b.size >= 6 && (b[0].toInt() and 0xFF) == 0x46 && (b[1].toInt() and 0xFF) == base)
-                return ElmParser.supportedFromMask(base, b.copyOfRange(2, 6))
+            if (b.isEmpty() || (b[0].toInt() and 0xFF) != 0x46) continue
+            if (b.size >= 6 && (b[1].toInt() and 0xFF) == base) return ElmParser.supportedFromMask(base, b.copyOfRange(2, 6))
+            if (b.size == 5) return ElmParser.supportedFromMask(base, b.copyOfRange(1, 5))
         }
         return null
     }
