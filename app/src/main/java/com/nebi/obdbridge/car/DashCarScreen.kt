@@ -27,7 +27,8 @@ import com.nebi.obdbridge.dash.VehicleStore
 import com.nebi.obdbridge.t
 
 /**
- * Keşif: sade gösterge (hız, devir, motor sıcaklığı, akü) yüzeye Canvas ile çizilir, 5 Hz.
+ * Araç ekranı. Yüzey sanal ekran olarak açılır, üstünde telefondaki Sürüş ekranının aynısı gösterilir
+ * ([CarDashPresentation]). Sanal ekran açılamazsa yedek: sade gösterge (hız, devir, motor sıcaklığı, akü) Canvas ile, 5 Hz.
  * Birimler telefondaki ayardan (Units); değerler gösterilen birimde gelir (DashModel).
  */
 class DashCarScreen(ctx: CarContext) : Screen(ctx), SurfaceCallback {
@@ -44,8 +45,10 @@ class DashCarScreen(ctx: CarContext) : Screen(ctx), SurfaceCallback {
     private val ring = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND }
 
     private val tick = object : Runnable {
-        override fun run() { draw(); handler.postDelayed(this, 200) }
+        override fun run() { if (presentation == null) { draw(); handler.postDelayed(this, 200) } }
     }
+    private var virtual: android.hardware.display.VirtualDisplay? = null
+    private var presentation: CarDashPresentation? = null
 
     init {
         VehicleStore.load(ctx)
@@ -56,6 +59,7 @@ class DashCarScreen(ctx: CarContext) : Screen(ctx), SurfaceCallback {
             }
             override fun onStart(owner: LifecycleOwner) { handler.post(tick) }
             override fun onStop(owner: LifecycleOwner) { handler.removeCallbacks(tick) }
+            override fun onDestroy(owner: LifecycleOwner) { closeVirtual() }
         })
     }
 
@@ -64,15 +68,44 @@ class DashCarScreen(ctx: CarContext) : Screen(ctx), SurfaceCallback {
             Action.Builder().setTitle(t("Gösterge")).setOnClickListener { }.build()).build())
         .build()
 
-    override fun onSurfaceAvailable(c: SurfaceContainer) { surface = c; visible = Rect(0, 0, c.width, c.height); draw() }
-    override fun onSurfaceDestroyed(c: SurfaceContainer) { surface = null }
-    override fun onVisibleAreaChanged(r: Rect) { visible = Rect(r); draw() }
+    override fun onSurfaceAvailable(c: SurfaceContainer) {
+        surface = c; visible = Rect(0, 0, c.width, c.height)
+        if (!openVirtual(c)) draw()
+    }
+    override fun onSurfaceDestroyed(c: SurfaceContainer) { closeVirtual(); surface = null }
+    override fun onVisibleAreaChanged(r: Rect) { visible = Rect(r); presentation?.visible = Rect(r); if (presentation == null) draw() }
+    override fun onClick(x: Float, y: Float) { presentation?.tap(x, y) }
+
+    /** Yüzeyi sanal ekran yapıp telefondaki göstergeyi üstünde aç; olmazsa false (Canvas yedeği) */
+    private fun openVirtual(c: SurfaceContainer): Boolean {
+        val s = c.surface ?: return false
+        if (c.width <= 0 || c.height <= 0) return false
+        return try {
+            closeVirtual()
+            val dm = carContext.getSystemService(android.hardware.display.DisplayManager::class.java)
+            val vd = dm.createVirtualDisplay("OBD Dashboard", c.width, c.height, c.dpi, s,
+                android.hardware.display.DisplayManager.VIRTUAL_DISPLAY_FLAG_OWN_CONTENT_ONLY)
+            virtual = vd
+            presentation = CarDashPresentation(carContext, vd.display).also { it.visible = Rect(visible); it.show() }
+            Log.i(TAG, "sanal ekran ${c.width}x${c.height} ${c.dpi} dpi")
+            true
+        } catch (e: Exception) {
+            Log.w(TAG, "sanal ekran açılamadı, sade göstergeye dönülüyor", e)
+            closeVirtual(); false
+        }
+    }
+
+    private fun closeVirtual() {
+        try { presentation?.dismiss() } catch (_: Exception) { }
+        presentation = null
+        virtual?.release(); virtual = null
+    }
     override fun onStableAreaChanged(r: Rect) {}
 
     private fun draw() {
         val s = surface?.surface ?: return
         if (!s.isValid) return
-        val c: Canvas = try { s.lockCanvas(null) } catch (e: Exception) { Log.w(TAG, "lockCanvas: ${e.message}"); return }
+        val c: Canvas = try { s.lockCanvas(null) } catch (e: Exception) { Log.w(TAG, "lockCanvas: $e"); return }
         try { paint(c, model.frame(keys)) } finally { s.unlockCanvasAndPost(c) }
         if (++frames % 50 == 1L) Log.i(TAG, "kare $frames, yüzey ${c.width}x${c.height}, görünür $visible, kaynak ${model.source.name}")
     }
