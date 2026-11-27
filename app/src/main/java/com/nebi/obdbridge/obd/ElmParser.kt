@@ -81,11 +81,27 @@ object ElmParser {
                 val c = b[i + 1].toInt() and 0xFF
                 i += 2
                 if (a == 0 && c == 0) continue
-                val letter = "PCBU"[a shr 6]
-                out += "%c%d%X%02X".format(letter, (a shr 4) and 0x3, a and 0xF, c)
+                out += dtcCode(a, c)
             }
         }
         return out.toList()
+    }
+
+    /** İki bayttan arıza kodu: 03 41 → P0341 */
+    fun dtcCode(a: Int, c: Int): String = "%c%d%X%02X".format("PCBU"[(a shr 6) and 3], (a shr 4) and 0x3, a and 0xF, c and 0xFF)
+
+    /**
+     * Mode 02 (freeze frame): "42 PID KARE veri…" → veri. Mode 01 ile aynı PID ve çözümleme; PID'den sonra kare numarası
+     * baytı var. Uzunluk bilinmiyorsa kalan bayt döner.
+     */
+    fun mode02(frames: List<ByteArray>, pid: Int, frame: Int = 0): ByteArray? {
+        for (b in frames) {
+            if (b.size < 4 || (b[0].toInt() and 0xFF) != 0x42) continue
+            if ((b[1].toInt() and 0xFF) != pid || (b[2].toInt() and 0xFF) != frame) continue
+            val n = Pids.len(pid)
+            return if (b.size >= 3 + n) b.copyOfRange(3, 3 + n) else null
+        }
+        return null
     }
 
     /** Hızlı mod eki ("010C1"): yalnız cevap tek CAN çerçevesine sığıyorsa (≤ 7 bayt).

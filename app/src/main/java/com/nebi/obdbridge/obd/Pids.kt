@@ -46,7 +46,8 @@ object Pids {
     private val LEN = HashMap<Int, Int>().apply {
         for (p in ALL) put(p.pid, p.bytes)
         for (b in 0x00..0xE0 step 0x20) put(b, 4)  // desteklenen-PID bit maskeleri
-        put(0x01, 4); put(0x03, 2); put(0x1F, 2); put(0x21, 2); put(0x31, 2); put(0x42, 2)
+        put(0x01, 4); put(0x02, 2); put(0x03, 2); put(0x1F, 2); put(0x21, 2); put(0x31, 2); put(0x42, 2)
+        for (p in 0x06..0x09) put(p, 1)   // yakıt düzeltmeleri (freeze frame)
     }
 
     fun len(pid: Int): Int = LEN[pid] ?: 4

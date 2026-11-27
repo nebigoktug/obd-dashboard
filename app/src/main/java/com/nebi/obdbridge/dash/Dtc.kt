@@ -91,6 +91,32 @@ object DtcCatalog {
             if (codes.isEmpty()) append("  ").append(t("yok")).append('\n')
             for (c in codes) append("  ").append(c).append(" - ").append(describe(c, t).text).append('\n')
         }
+        r.freeze?.let { ff ->
+            append('\n')
+            if (ff.dtc == null) append(t("O anki değerler: kayıtlı kare yok")).append('\n')
+            else {
+                append(t("O anki değerler (%s):", ff.dtc)).append('\n')
+                for ((k, v) in freezeRows(ff)) append("  ").append(k).append(": ").append(v).append('\n')
+            }
+        }
+    }
+
+    /** Freeze frame satırları: ad → değer (seçilen birimde) */
+    fun freezeRows(ff: com.nebi.obdbridge.obd.FreezeFrame): List<Pair<String, String>> = ff.values.mapNotNull { (k, v) ->
+        when (k) {
+            "rpm" -> t("Devir") to "%.0f rpm".format(v)
+            "speed" -> t("Hız") to Units.speedText(v)
+            "coolant" -> t("Motor suyu") to Units.tempText(v)
+            "load" -> t("Motor yükü") to "%%%.0f".format(v)
+            "map" -> t("Emme basıncı") to if (Units.psi) "%.1f psi".format(Units.kpa(v)) else "%.0f kPa".format(v)
+            "iat" -> t("Emme havası") to Units.tempText(v)
+            "stft" -> t("Kısa yakıt düzeltmesi") to "%+.1f %%".format(v)
+            "ltft" -> t("Uzun yakıt düzeltmesi") to "%+.1f %%".format(v)
+            "throttle" -> t("Gaz kelebeği") to "%%%.0f".format(v)
+            "rail" -> t("Yakıt basıncı") to if (Units.psi) "%.0f psi".format(Units.kpa(v)) else "%.0f bar".format(v / 100)
+            "maf" -> t("Hava debisi") to "%.1f g/s".format(v)
+            else -> null
+        }
     }
 
     fun sections(r: DtcReport): List<Pair<String, List<String>>> = buildList {
@@ -208,6 +234,23 @@ class DtcActivity : Activity() {
             list.addView(ui.text(HINTS[title] ?: "", 13f, Pal.DIM).apply { setPadding(ui.dp(6), 0, 0, ui.dp(6)) })
             for (c in codes) list.addView(codeRow(c, title), LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = ui.dp(8) })
         }
+        r.freeze?.let { ff ->
+            list.addView(ui.caps(if (ff.dtc != null) t("O anki değerler · %s", ff.dtc) else t("O anki değerler")).apply { setPadding(ui.dp(6), ui.dp(14), 0, ui.dp(6)) })
+            if (ff.dtc == null) {
+                list.addView(ui.text(t("Kayıtlı kare yok."), 14f, Pal.DIM).apply { setPadding(ui.dp(6), 0, 0, ui.dp(6)) })
+            } else {
+                list.addView(ui.text(t("Bu kodu kaydeden arıza oluştuğu anda motorun değerleri (freeze frame)."), 13f, Pal.DIM).apply { setPadding(ui.dp(6), 0, 0, ui.dp(6)) })
+                val card = ui.column(16).apply { background = ui.bg(Pal.CARD, 14) }
+                val rows = DtcCatalog.freezeRows(ff)
+                if (rows.isEmpty()) card.addView(ui.text(t("Motor beyni değer vermedi."), 14f, Pal.DIM))
+                for ((k, v) in rows) card.addView(ui.row().apply {
+                    addView(ui.text(k, 15f, Pal.DIM), LinearLayout.LayoutParams(0, -2, 1f))
+                    addView(ui.text(v, 15f))
+                    setPadding(0, ui.dp(3), 0, ui.dp(3))
+                })
+                list.addView(card)
+            }
+        }
         list.addView(ui.text(t("Açıklamalar genel SAE tanımlarıdır. Kesin teşhis için servise ya da markanın forumuna danış."), 12f, Pal.DIM)
             .apply { setPadding(ui.dp(6), ui.dp(16), ui.dp(6), ui.dp(16)) })
     }
@@ -238,6 +281,7 @@ class DtcActivity : Activity() {
             .setTitle(t("Arıza kodları silinsin mi?"))
             .setMessage(t("• Kayıtlı ve bekleyen kodlar ile arıza lambası sıfırlanır.\n" +
                 "• Emisyon hazırlık testleri de sıfırlanır; muayeneden hemen önce silme.\n" +
+                "• O anki değerler (freeze frame) de silinir.\n" +
                 "• Arıza giderilmediyse kod geri gelir.\n\n" +
                 "Önce Paylaş ile kodları kaydetmen önerilir. Kontak açık, motor kapalıyken sil."))
             .setPositiveButton(t("Sil")) { _, _ -> read(true) }
@@ -272,6 +316,8 @@ class DtcActivity : Activity() {
         )
 
         private val CLEARED get() = t("Kodlar silindi. Arıza giderilmediyse kod birkaç sürüş içinde geri gelir.")
-        private val DEMO = DtcReport(listOf("P0341", "U300B"), listOf("P2002"), emptyList(), false, 5, 7, ts = 0)
+        private val DEMO = DtcReport(listOf("P0341", "U300B"), listOf("P2002"), emptyList(), false, 5, 7, ts = 0,
+            freeze = com.nebi.obdbridge.obd.FreezeFrame("P0341", linkedMapOf("rpm" to 2450.0, "speed" to 62.0, "coolant" to 88.0,
+                "load" to 54.0, "map" to 142.0, "iat" to 21.0)))
     }
 }
