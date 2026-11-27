@@ -3,7 +3,7 @@
 1-3: OpenOBD (github.com/Foadsf/OpenOBD) ile karşılaştırmada eksik görülen teşhis özellikleri (2026-11-03).
 Hepsi standart OBD-II, düz ELM327 ile yapılabilir. Uygulamanın "araca yalnız okuma" ilkesi korunmalı.
 
-## 1. Freeze frame (Mode 02)
+## 1. Freeze frame (Mode 02) — YAPILDI (v1.3, araçta denenmedi)
 
 Arıza lambası yandığı andaki motor değerleri. Arıza kodları ekranına "O anki değerler" bölümü olarak.
 
@@ -14,7 +14,7 @@ Arıza lambası yandığı andaki motor değerleri. Arıza kodları ekranına "O
 - "Sorun bildir" paketine ve arıza kodu paylaşımına da eklenebilir.
 - Not: kodlar silinince (`04`) freeze frame de silinir; silme onayında bunu söyle.
 
-## 2. Mode 06 test sonuçları
+## 2. Mode 06 test sonuçları — YAPILDI (v1.3, araçta denenmedi; eğilim saklama yapılmadı)
 
 Motor beyninin kendi teşhis testlerinin ham değerleri ve sınırları. Arıza lambası yanmadan önce eğilimi gösterebilir.
 
@@ -24,7 +24,7 @@ Motor beyninin kendi teşhis testlerinin ham değerleri ve sınırları. Arıza 
 - Volvo S40 1.6D (dizel): benzinli katalizör ve ateşleme kaçırma testlerinin bir kısmı olmayabilir; önce aracın neleri desteklediğini görmek için ham listeyi kaydet.
 - Değerleri sürüş geçmişi gibi zamanla saklayıp eğilim göstermek ikinci adım.
 
-## 3. Ham terminal (geliştirici ekranı)
+## 3. Ham terminal (geliştirici ekranı) — YAPILDI (v1.3, Ayarlar > Gelişmiş)
 
 Ayarlar > Hakkında altında gizli ya da "Geliştirici" başlıklı bir ekran: komut yaz, ham cevabı gör.
 

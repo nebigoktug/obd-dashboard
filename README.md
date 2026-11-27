@@ -10,12 +10,14 @@ Hız, devir, vites, turbo, motor sıcaklığı, tahmini yakıt tüketimi, naviga
 - **Gösterge:** 30 görsel tema (Spor, OLED, Synthwave, Mermer, Türk Halısı, Nazar…). Güneşte otomatik gündüz teması. Her temada kart, yazı, vurgu ve uyarı hapı renkleri seçilebilir. **Kendi temanı ekle:** şablonu Gemini/ChatGPT gibi bir yapay zekâya kendi tarzında çizdirip çıkan resmi ekleyebilirsin (Ayarlar > Ekran).
 - **Vites tahmini:** Manuel şanzımanda devir/hız oranından; oranları sürdükçe kendisi öğrenir.
 - **Tahmini yakıt:** Yakıt debisi PID'i yoksa motor yükünden tahmin edilir; depo dolumuyla kalibre edilir.
-- **Uyarılar:** Arıza lambası, DPF temizlenmesi (dizel), düşük turbo, şarj sorunu, soğuk motorda yüksek devir.
-- **Arıza kodları:** Okuma, Türkçe açıklama, paylaşma, onaylı silme.
+- **Uyarılar:** Arıza lambası, motor sıcak, DPF temizlenmesi (dizel), düşük turbo, şarj sorunu, soğuk motorda yüksek devir.
+- **Arıza kodları:** Okuma, Türkçe açıklama, paylaşma, onaylı silme. Kodun oluştuğu andaki değerler (freeze frame) ve motor beyninin kendi test sonuçları (Mode 06). Geliştiriciler için ham terminal (Ayarlar > Gelişmiş; yalnız okuma komutları).
 - **Sürüş geçmişi:** Her sürüş otomatik kaydedilir (yalnız telefonda, 30 gün).
 - **Navigasyon ve medya:** uygulamanın kendi navigasyonu (Yandex adres arama ve rota, dönüş kartı, Türkçe ve İngilizce sesli yönlendirme; dönüşe yaklaşınca devir göstergesinin yerinde yuvarlak harita), çalan müziğin kontrolü (izinsiz; şarkı adı için isteğe bağlı bildirim erişimi). Ayrı bir navigasyon uygulaması gerekmez.
 
 Herhangi bir OBD-II araçta çalışır (Avrupa'da benzinli 2001+, dizel 2004+). Geliştirildiği araç: 2010 Volvo S40 1.6D.
+
+> **1.3'te henüz gerçek araçta denenmeyenler:** Android Auto (geliştiricinin aracında yok; [open-headunit](https://github.com/andreknieriem/open-headunit) ile denendi), freeze frame, Mode 06 test sonuçları ve ham terminal (ELM327 emülatörü ve örnek cevaplarla denendi), telefon kilitliyken süren navigasyon (masada denendi, sürüşte değil). Sorun görürseniz bildirin; Mode 06 ekranındaki "Ham kaydı paylaş" ile gönderilen kayıt çok işe yarar.
 
 - **Dil:** Türkçe ve İngilizce. Telefon Türkçeyse Türkçe, değilse İngilizce açılır; Ayarlar > Ekran > Dil'den değiştirilebilir. Kendi dil paketini de ekleyebilirsin ([docs/DIL.md](docs/DIL.md)).
 - **Birimler:** km/h ya da mph, °C ya da °F, L/100 km, mpg ya da km/L, kPa/bar ya da psi (Ayarlar > Ekran > Birimler).
@@ -90,12 +92,14 @@ The default follows the phone's region (miles in the US, UK, Liberia and Myanmar
 - **Dashboard:** 30 image themes, automatic day theme in sunlight, per-theme colors for cards, text, accent and warning pills. **Your own theme:** have an AI image tool (Gemini, ChatGPT…) redraw the template in your style and add the result (Settings > Display).
 - **Gear estimate** for manual gearboxes from the RPM/speed ratio; learns your ratios as you drive.
 - **Estimated fuel use** from engine load when there is no fuel-rate PID, calibrated with your fill-ups.
-- **Warnings:** check-engine lamp, DPF regeneration (diesel), low boost, charging problems, high RPM on a cold engine.
-- **Fault codes:** read, descriptions, share, clear with confirmation.
+- **Warnings:** check-engine lamp, engine hot, DPF regeneration (diesel), low boost, charging problems, high RPM on a cold engine.
+- **Fault codes:** read, descriptions, share, clear with confirmation. Values at the moment the code was set (freeze frame) and the engine computer's own test results (Mode 06). Raw terminal for developers (Settings > Advanced; read-only commands).
 - **Trip history:** every drive is saved automatically (on the phone only, 30 days).
 - **Navigation and media:** built-in navigation (Yandex address search and routing, turn card, voice guidance, a round map in place of the RPM dial near turns) and control of the music that is playing. No separate navigation app needed.
 
 Works with any OBD-II car (in Europe: petrol 2001+, diesel 2004+). Developed on a 2010 Volvo S40 1.6D.
+
+> **Not yet tested in a real car in 1.3:** Android Auto (the developer's car doesn't have it; tested with [open-headunit](https://github.com/andreknieriem/open-headunit)), freeze frame, Mode 06 test results and the raw terminal (tested with an ELM327 emulator and sample answers), navigation with the phone locked (tested on the desk, not while driving). Please report problems; the "Share raw log" button on the Mode 06 screen helps a lot.
 
 ### Install
 

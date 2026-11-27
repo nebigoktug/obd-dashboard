@@ -1,11 +1,16 @@
 # Sürüm notları
 
-## 1.3 (hazırlanıyor)
+## 1.3
 
-- Android Auto (deneysel): araç ekranında telefondaki gösterge (tema, kadranlar, şerit, navigasyon ve medya kartı, uyarı hapı). Play dışı kurulumda Android Auto'nun geliştirici ayarında "Bilinmeyen kaynaklar" gerekir (README). Gerçek araçta henüz denenmedi.
+- Android Auto (deneysel): araç ekranında telefondaki gösterge (tema, kadranlar, şerit, navigasyon ve medya kartı, uyarı hapı); sıradaki dönüş Android Auto'ya bildirilir. Play dışı kurulumda Android Auto'nun geliştirici ayarında "Bilinmeyen kaynaklar" gerekir (README).
 - Navigasyon telefon kilitliyken ve ekran kapalıyken de sürer (ayrı servis; bildirimde sıradaki dönüş ve Rotayı bitir). Uygulama yeniden başlarsa rotaya devam eder.
+- Arıza kodları: kodun oluştuğu andaki değerler (freeze frame, Mode 02); motor beyninin test sonuçları (Mode 06) ayrı ekranda, ham kayıt paylaşılabilir. Silme onayında freeze frame'in de silineceği yazar.
+- Ham terminal (Ayarlar > Gelişmiş): yalnız okuma komutları; silme, yazma ve sıfırlama engelli.
 - Yeni uyarı: Motor sıcak (105 °C üstü sarı, 112 °C kırmızı).
-- *Android Auto (experimental), navigation keeps running with the phone locked, new engine-hot warning.*
+- Android 13+: uygulama dili sistem ayarlarındaki "Uygulama dili" listesinden de seçilebilir.
+- Düzeltme: telefonda VPN (ör. Tailscale) açıkken Wi-Fi adaptörüne bağlanılamıyordu.
+- **Gerçek araçta henüz denenmedi:** Android Auto, freeze frame, Mode 06, ham terminal (emülatör ve örnek cevaplarla denendi), kilitli telefonda navigasyon (masada denendi).
+- *Android Auto (experimental), navigation with the phone locked, freeze frame, Mode 06 test results, raw terminal, engine-hot warning, Android 13 app language setting, Wi-Fi adapter fix with a VPN on. Not yet tested in a real car: Android Auto, freeze frame, Mode 06, terminal, navigation with the phone locked.*
 
 ## 1.2
 
