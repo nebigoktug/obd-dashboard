@@ -105,6 +105,13 @@ class BridgeService : Service() {
         /** Bağlı motorun özeti (sorun bildirimi için); bağlı değilse null */
         fun diagnostics(): String? = current?.diag()
 
+        /** Canlı sorgunun arasında tek seferlik iş (ObdEngine.requestJob). Bağlantı yoksa false, [job] çağrılmaz. */
+        fun requestJob(reinit: Boolean = false, job: (com.nebi.obdbridge.obd.ObdEngine.Session?) -> Unit): Boolean {
+            val e = current ?: return false
+            e.requestJob(reinit, job)
+            return true
+        }
+
         /** Arıza kodlarını okur (ve [clear] ise siler). Bağlantı yoksa false, [onDone] çağrılmaz. */
         fun requestDtc(clear: Boolean, onDone: (com.nebi.obdbridge.obd.DtcReport) -> Unit): Boolean {
             val e = current ?: return false

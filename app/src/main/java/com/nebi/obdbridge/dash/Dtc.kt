@@ -214,6 +214,8 @@ class DtcActivity : Activity() {
         val idle = busy == null
         side.addView(ui.button(t("Yeniden oku"), primary = true) { if (idle) read(false) }.apply { alpha = if (idle) 1f else 0.4f }, gap())
         if (!demo && !BridgeService.running) side.addView(ui.button(t("Bağlan")) { if (Conn.start(this)) { message = t("Bağlanıyor… Bağlanınca Yeniden oku'ya dokun."); render() } }, gap())
+        // Motor beyninin kendi test sonuçları (Mode 06): okurken canlı sorgu durur, o yüzden ayrı ekranda ve istenince
+        side.addView(ui.button(t("Motor testleri (Mode 06)")) { if (idle) startActivity(Intent(this, Mode06Activity::class.java)) }, gap())
         if (r != null) {
             side.addView(ui.button(t("Paylaş")) { share(r) }, gap())
             if (r.stored.isNotEmpty() || r.pending.isNotEmpty() || mil == true) side.addView(ui.button(t("Kodları sil")) { if (idle) confirmClear() }.apply { setTextColor(Pal.RED) }, gap())

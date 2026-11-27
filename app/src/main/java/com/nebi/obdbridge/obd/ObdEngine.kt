@@ -219,6 +219,18 @@ class ObdEngine(
     }
 
     @Volatile private var dtcWanted: ((DtcReport) -> Unit)? = null
+
+    /** Tek seferlik iş için oturum: [request] adaptöre komut gönderir (zaman aşımı ms), [isCan] protokol CAN mı */
+    class Session(val request: (String, Long) -> String, val isCan: Boolean)
+
+    /**
+     * Canlı sorgunun arasında tek seferlik iş (Mode 06, ham terminal): motorun iş parçacığında çalışır, iş bitene kadar canlı
+     * sorgu durur. Bağlı değilse [job] null oturumla çağrılır.
+     */
+    fun requestJob(reinit: Boolean = false, job: (Session?) -> Unit) { jobReinit = reinit; jobWanted = job }
+    @Volatile private var jobWanted: ((Session?) -> Unit)? = null
+    /** İş adaptör ayarlarını değiştirmiş olabilir (ham terminal): bitince ELM yeniden kurulur */
+    @Volatile private var jobReinit = false
     @Volatile private var dtcClear = false
 
     /**
@@ -298,6 +310,13 @@ class ObdEngine(
                 dtcDone(if (needInit) DtcReport(emptyList(), emptyList(), null, null, null, null, error = t("Araca bağlı değil"), ts = clock())
                     else DtcReader(::request, protocol in setOf("6", "7", "8", "9"), clock).run(dtcClear))
                 lastMil = 0L  // gösterge kutucuğundaki arıza sayısı hemen yenilensin
+                continue
+            }
+            val job = jobWanted
+            if (job != null) {
+                jobWanted = null
+                job(if (needInit) null else Session(::request, protocol in setOf("6", "7", "8", "9")))
+                if (jobReinit) needInit = true
                 continue
             }
             if (needInit) {

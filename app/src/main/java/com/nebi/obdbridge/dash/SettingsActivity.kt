@@ -805,6 +805,9 @@ class SettingsActivity : Activity() {
         add(ui.item(t("Teşhis ve geliştirici araçları"), t("Araç testi, gizli değer taraması, blok kaydı, ham TCP köprüsü, canlı ham değerler"), null) {
             startActivity(Intent(this, com.nebi.obdbridge.MainActivity::class.java))
         })
+        add(ui.item(t("Ham terminal"), t("Adaptöre komut yaz, ham cevabı gör (yalnız okuma komutları). Açıkken gösterge durur"), null) {
+            startActivity(Intent(this, TerminalActivity::class.java))
+        })
         val dir = java.io.File(getExternalFilesDir(null), "logs")
         add(ui.item(t("Bütün sürüş kayıtlarını paylaş"), t("Ham kayıtlar tek .zip olarak (Sorun bildir yalnız son 3 sürüşü gönderir)"),
             { t("%d kayıt", dir.listFiles { f -> f.name.endsWith(".csv") }?.size ?: 0) }) { shareLogs(dir) })

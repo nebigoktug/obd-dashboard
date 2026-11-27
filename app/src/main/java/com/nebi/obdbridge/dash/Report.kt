@@ -58,6 +58,7 @@ object ProblemReport {
         append("Hava basıncı: ").append(m.baro.source?.label ?: "-")
             .append(m.baro.mapOffset?.let { " (MAP−servis %+.0f hPa)".format(java.util.Locale.US, it) } ?: "").append('\n')
         DtcActivity.last?.let { append('\n').append(DtcCatalog.shareText(it)) }
+        Mode06Activity.last?.let { append('\n').append(Mode06Activity.summary(it)) }
     }
 
     /**
