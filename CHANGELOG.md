@@ -1,5 +1,12 @@
 # Sürüm notları
 
+## 1.3 (hazırlanıyor)
+
+- Android Auto (deneysel): araç ekranında telefondaki gösterge (tema, kadranlar, şerit, navigasyon ve medya kartı, uyarı hapı). Play dışı kurulumda Android Auto'nun geliştirici ayarında "Bilinmeyen kaynaklar" gerekir (README). Gerçek araçta henüz denenmedi.
+- Navigasyon telefon kilitliyken ve ekran kapalıyken de sürer (ayrı servis; bildirimde sıradaki dönüş ve Rotayı bitir). Uygulama yeniden başlarsa rotaya devam eder.
+- Yeni uyarı: Motor sıcak (105 °C üstü sarı, 112 °C kırmızı).
+- *Android Auto (experimental), navigation keeps running with the phone locked, new engine-hot warning.*
+
 ## 1.2
 
 - Birim ayarı, dilden bağımsız (Ayarlar > Ekran > Birimler): km/h–km ya da mph–mil, °C ya da °F, L/100 km, mpg (ABD), mpg (İngiliz) ya da km/L, kPa/bar ya da psi. Gösterge ölçeği, alt şerit, yolculuk özeti, geçmiş, navigasyon mesafeleri ve sesli yönlendirme seçilen birimde. Varsayılan telefonun bölgesinden (ABD, İngiltere, Liberya, Myanmar'da mil). Kayıtlar metrik saklanmaya devam eder.

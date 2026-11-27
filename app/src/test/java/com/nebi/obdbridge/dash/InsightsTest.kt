@@ -38,6 +38,18 @@ class InsightsTest {
         assertEquals(1, ins.health.dpfCount)
     }
 
+    @Test fun hotEngineAlert() {
+        val ins = Insights()
+        run(ins, 1) { inp(coolant = 95.0) }
+        assertTrue(ins.alerts.none { it.kind == AlertKind.HOT })
+        run(ins, 1) { inp(coolant = 106.0) }
+        assertEquals(Level.WARN, ins.alerts.first { it.kind == AlertKind.HOT }.level)
+        run(ins, 1) { inp(coolant = 113.0) }
+        val hot = ins.alerts.first()
+        assertEquals(AlertKind.HOT, hot.kind)                  // kırmızıda en önde
+        assertEquals(Level.CRIT, hot.level)
+    }
+
     @Test fun chargeAndColdAlerts() {
         val ins = Insights()
         run(ins, 60) { inp(battery = 12.6) }

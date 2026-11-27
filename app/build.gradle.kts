@@ -78,6 +78,8 @@ dependencies {
     // MapKit 2.11'i çekiyor (compileSdk 35 + AGP 8.6 ister). WorkManager yalnız çevrimdışı harita indirmede; 2.9.1 SDK 34'le derlenir
     implementation("androidx.work:work-runtime:2.9.1") { because("compileSdk 34") }
     constraints { implementation("androidx.work:work-runtime") { version { strictly("2.9.1") } } }
+    // Android Auto (car/). 1.4: compileSdk 34 ile derlenen son kararlı sürüm
+    implementation("androidx.car.app:app:1.4.0")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20231013")  // android.jar'daki org.json JVM testinde boş
 }

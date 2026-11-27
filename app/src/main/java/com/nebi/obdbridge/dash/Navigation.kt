@@ -38,10 +38,12 @@ object Nav {
     var lastFix: LatLon? = null
     val active get() = tracker.dest != null
 
-    fun start(ctx: Context, lat: Double, lon: Double, name: String) {
+    /** [service]: konumu NavService versin (yalnız masadaki dönüş denemesi kendi sahte konumunu besler) */
+    fun start(ctx: Context, lat: Double, lon: Double, name: String, service: Boolean = true) {
         tracker.setDest(lat, lon); destName = name; guidance = null; voice.reset()
         prefs(ctx).edit().putString("nav_dest", "$lat,$lon").putString("nav_dest_name", name)
             .putLong("nav_dest_ts", System.currentTimeMillis()).apply()
+        if (service) NavService.start(ctx)
     }
 
     fun stop(ctx: Context) {
@@ -57,6 +59,7 @@ object Nav {
         if (System.currentTimeMillis() - ts > MAX_RESUME_MS) return
         val (la, lo) = p.getString("nav_dest", null)?.split(',')?.mapNotNull { it.toDoubleOrNull() }?.takeIf { it.size == 2 } ?: return
         tracker.setDest(la, lo); destName = p.getString("nav_dest_name", "").orEmpty()
+        NavService.start(ctx)
     }
 
     /** Ekran durumu; navigasyon yoksa ya da rota henüz gelmediyse null */

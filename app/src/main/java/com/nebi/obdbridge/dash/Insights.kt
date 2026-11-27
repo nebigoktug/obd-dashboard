@@ -11,7 +11,7 @@ import kotlin.math.max
 // Ölçüm 2026-10-09: rölantide 802 rpm, yük %47, MAP 103 kPa, soğutucu 62 °C.
 
 /** Sıra sürüş kayıtlarındaki "alerts" bit maskesinde kullanılıyor: yeni türler sona eklenir. */
-enum class AlertKind { DPF, COLD, CHARGE_LOW, CHARGE_HIGH, BATTERY_WEAK, TURBO_LOW, MIL, CONN }
+enum class AlertKind { DPF, COLD, CHARGE_LOW, CHARGE_HIGH, BATTERY_WEAK, TURBO_LOW, MIL, CONN, HOT }
 
 data class Alert(val kind: AlertKind, val text: String, val level: Level, val priority: Int)
 
@@ -79,6 +79,9 @@ class Insights {
             Health.Charge.OK -> {}
         }
         val c = i.coolant
+        // Aşırı ısınma (kadran çubuğuyla aynı eşikler: Core.kt coolant warnAbove/critAbove)
+        if (c != null && c >= HOT_C) out += Alert(AlertKind.HOT, t("Motor sıcak · %s", Units.tempText(c)),
+            if (c >= HOT_CRIT_C) Level.CRIT else Level.WARN, if (c >= HOT_CRIT_C) -1 else 1)
         // Yalnız yapılacak bir şey varken: ısınma süresince sürekli duran hap gerçek uyarıları gölgeliyordu
         if (running && c != null && c < COLD_C && (i.rpm ?: 0.0) > COLD_RPM)
             out += Alert(AlertKind.COLD, t("Motor soğuk · devri düşür"), Level.WARN, 1)
@@ -89,6 +92,8 @@ class Insights {
         const val CUT_RPM = 1100.0
         const val CUT_LOAD = 3.0
         const val COLD_C = 60.0
+        const val HOT_C = 105.0
+        const val HOT_CRIT_C = 112.0
         const val COLD_RPM = 2500.0
     }
 }
