@@ -14,13 +14,17 @@ data class Mode06Test(
 ) {
     enum class Verdict { PASS, NEAR, FAIL }
 
-    /** Sınırların dışı kaldı; sınıra (aralığın %10'u içinde) yakınsa NEAR. Sınırı olmayan (min = max) test geçti sayılır. */
+    /**
+     * Sınırların dışı: FAIL. Bir sınırın kendi büyüklüğünün %10'u içindeyse NEAR. Gerçek ECU'larda sınırlar çoğu zaman tek yönlü
+     * (diğeri 0 ya da 0xFFFF): aralığın yüzdesiyle ölçmek geniş aralıkta her değeri "yakın" gösteriyordu (emülatördeki gerçek araç
+     * kaydı, O2 0,169–19,9 V). 0 sınır "sınır yok" sayılır.
+     */
     val verdict: Verdict get() {
         if (value < min || value > max) return Verdict.FAIL
-        val span = max - min
-        if (span <= 0) return Verdict.PASS
-        val margin = minOf(value - min, max - value)
-        return if (margin < span * NEAR) Verdict.NEAR else Verdict.PASS
+        if (max <= min) return Verdict.PASS   // tek değerli sınır (en az = en çok = değer)
+        val nearLow = min != 0.0 && value - min < kotlin.math.abs(min) * NEAR
+        val nearHigh = max != 0.0 && max - value < kotlin.math.abs(max) * NEAR
+        return if (nearLow || nearHigh) Verdict.NEAR else Verdict.PASS
     }
 
     companion object { const val NEAR = 0.1 }
