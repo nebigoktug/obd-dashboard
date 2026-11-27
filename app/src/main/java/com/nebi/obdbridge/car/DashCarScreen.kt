@@ -73,7 +73,8 @@ class DashCarScreen(ctx: CarContext) : Screen(ctx), SurfaceCallback {
         if (!openVirtual(c)) draw()
     }
     override fun onSurfaceDestroyed(c: SurfaceContainer) { closeVirtual(); surface = null }
-    override fun onVisibleAreaChanged(r: Rect) { visible = Rect(r); presentation?.visible = Rect(r); if (presentation == null) draw() }
+    // Gösterge tam yüzeye çizilir: AA'nın düğmesi birkaç saniyede gizlenir, boşluk bırakmak kadranları küçültüyordu
+    override fun onVisibleAreaChanged(r: Rect) { visible = Rect(r); if (presentation == null) draw() }
     override fun onClick(x: Float, y: Float) { presentation?.tap(x, y) }
 
     /** Yüzeyi sanal ekran yapıp telefondaki göstergeyi üstünde aç; olmazsa false (Canvas yedeği) */
@@ -86,7 +87,7 @@ class DashCarScreen(ctx: CarContext) : Screen(ctx), SurfaceCallback {
             val vd = dm.createVirtualDisplay("OBD Dashboard", c.width, c.height, c.dpi, s,
                 android.hardware.display.DisplayManager.VIRTUAL_DISPLAY_FLAG_OWN_CONTENT_ONLY)
             virtual = vd
-            presentation = CarDashPresentation(carContext, vd.display).also { it.visible = Rect(visible); it.show() }
+            presentation = CarDashPresentation(carContext, vd.display).also { it.show() }
             Log.i(TAG, "sanal ekran ${c.width}x${c.height} ${c.dpi} dpi")
             true
         } catch (e: Exception) {
