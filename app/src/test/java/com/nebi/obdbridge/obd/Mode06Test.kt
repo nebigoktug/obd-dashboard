@@ -52,6 +52,11 @@ class Mode06ParseTest {
         assertEquals(listOf("0600", "0620", "0640", "0601", "0602", "0621"), sent)
     }
 
+    @Test fun maskWithoutMidEcho() {
+        assertEquals(setOf(0x01, 0x02, 0x20), Mode06.mask(ElmParser.frames("46C0000001"), 0x00))       // emülatör biçimi
+        assertEquals(setOf(0x01, 0x02, 0x20), Mode06.mask(ElmParser.frames("4600C0000001"), 0x00))     // standart
+    }
+
     @Test fun readerNoSupport() {
         val r = Mode06Reader({ _, _ -> "NO DATA" }, true, { 0L }).run()
         assertNotNull(r.error)
