@@ -88,6 +88,8 @@ class TerminalActivity : Activity() {
     private fun submit() {
         val cmd = input.text.toString().trim().uppercase()
         if (cmd.isEmpty()) return
+        // Engelliyse bağlantı olmasa da nedenini göster
+        com.nebi.obdbridge.obd.TerminalGuard.check(cmd)?.let { why -> line("> $cmd"); line("✕ $why"); return }
         val s = session
         if (s == null || s.closed) { line(t("Oturum yok.")); return }
         s.send(cmd)?.let { why -> line("> $cmd"); line("✕ $why"); return }
