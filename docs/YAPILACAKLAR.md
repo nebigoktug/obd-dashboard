@@ -38,7 +38,7 @@ Ayarlar > Hakkında altında gizli ya da "Geliştirici" başlıklı bir ekran: k
 Türkçe + İngilizce, kullanıcı dil paketi, sesli yönlendirme kalıpları, `dtc_en.tsv`, İngilizce README. Ayrıntı: [DIL.md](DIL.md).
 
 Kalan:
-- Birimler (km/mil, °C/°F, L/100 km–mpg) dilden bağımsız ayrı bir ayar olarak yok; şu an hep metrik.
+- ~~Birimler~~ — yapıldı (v1.2): Ayarlar > Ekran > Birimler, `dash/Units.kt`.
 
 ---
 

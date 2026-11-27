@@ -1,5 +1,10 @@
 # Sürüm notları
 
+## 1.2 (hazırlanıyor)
+
+- Birim ayarı, dilden bağımsız (Ayarlar > Ekran > Birimler): km/h–km ya da mph–mil, °C ya da °F, L/100 km, mpg (ABD), mpg (İngiliz) ya da km/L, kPa/bar ya da psi. Gösterge ölçeği, alt şerit, yolculuk özeti, geçmiş, navigasyon mesafeleri ve sesli yönlendirme seçilen birimde. Varsayılan telefonun bölgesinden (ABD, İngiltere, Liberya, Myanmar'da mil). Kayıtlar metrik saklanmaya devam eder.
+- *Units setting, independent of language (Settings > Display > Units): mph/miles, °F, mpg (US or imperial) or km/L, psi. Defaults from the phone's region.*
+
 ## 1.1
 
 - Dil desteği: Türkçe ve İngilizce (Ayarlar > Ekran > Dil; telefon Türkçeyse Türkçe, değilse İngilizce açılır). Sesli yönlendirme, arıza kodu açıklamaları, tarih biçimleri, harita ve adres arama da seçilen dilde.

@@ -500,7 +500,7 @@ class DashboardActivity : Activity(), SensorEventListener {
         weather.refreshIfStale()
         val temp = weather.tempC
         for (t in topBars) {
-            t.tempText = if (temp != null) L.t("Hava %d°C", Math.round(temp)) else t("Hava —")
+            t.tempText = if (temp != null) L.t("Hava %s", Units.tempText(temp)) else t("Hava —")
             t.sourceName = model.source.name
             t.online = model.source.online
             t.hz = model.source.rpmHz
@@ -546,7 +546,7 @@ class DashboardActivity : Activity(), SensorEventListener {
             dist = 2000 - d
         }
         feedTurnMaps(lat, lon, bearing, 50.0)
-        return if (dist >= 1000) "%.1f km".format(dist / 1000).replace('.', ',') else "${(dist / 10).toInt() * 10} m"
+        return Units.navDist(dist)
     }
 
     private fun updateInsights() {
@@ -640,13 +640,13 @@ class DashboardActivity : Activity(), SensorEventListener {
         row.addView(InfoCard(this, t("BU HAFTA · GEÇEN HAFTA")) {
             val (a, b) = weeks ?: return@InfoCard listOf((if (count < 0) t("Yükleniyor…") else t("Kayıt yok")) to "")
             fun two(x: String, y: String) = "$x · $y"
-            fun l(v: Double?) = v?.let { "%.1f".format(it) } ?: "—"
+            fun l(v: Double?) = v?.let { "%.1f".format(Units.fuel(it)) } ?: "—"
             listOf(
                 t("Yolculuk") to two("${a.trips}", "${b.trips}"),
-                t("Mesafe") to two("%.0f km".format(a.km), "%.0f km".format(b.km)),
+                t("Mesafe") to two(Units.distText(a.km, 0), Units.distText(b.km, 0)),
                 t("Süre") to two(mins(a.ms), mins(b.ms)),
                 t("Yakıt (tahmini)") to two("%.1f L".format(a.liters), "%.1f L".format(b.liters)),
-                t("Ort. L/100") to two(l(a.l100), l(b.l100)),
+                L.t("Ort. %s", Units.fuelUnit) to two(l(a.l100), l(b.l100)),
                 t("Puan") to two(a.score?.toString() ?: "—", b.score?.toString() ?: "—"),
                 t("Toplam kayıt") to t("%d yolculuk", count),
             )
@@ -678,12 +678,12 @@ class DashboardActivity : Activity(), SensorEventListener {
         fun p(ms: Long) = if (t.durationMs > 0) "%${ms * 100 / t.durationMs}" else "—"
         val lines = listOf(
             L.t("Süre: %s", mins(t.durationMs)),
-            t("Mesafe: %.1f km").format(t.km),
-            t("Ortalama / maksimum: %.0f / %.0f km/h").format(t.avgKmh, t.maxKmh),
-            t("Tahmini yakıt: %.2f L").format(t.liters) + (t.l100?.let { " · %.1f L/100".format(it) } ?: ""),
+            L.t("Mesafe: %s", Units.distText(t.km)),
+            L.t("Ortalama / maksimum: %s", "%.0f / %.0f %s".format(Units.speed(t.avgKmh), Units.speed(t.maxKmh), Units.speedUnit)),
+            t("Tahmini yakıt: %.2f L").format(t.liters) + (t.l100?.let { " · " + Units.fuelText(it) } ?: ""),
             L.t("Sürüş puanı: %d  (sert kalkış %d, sert fren %d)", t.score, t.harshAccel, t.harshBrake),
             L.t("Rölanti: %s · boşta süzülme: %s", p(t.idleMs), p(t.coastMs)),
-            t("Yakıt kesik: %.1f km").format(t.cutKm),
+            L.t("Yakıt kesik: %s", Units.distText(t.cutKm)),
             t("Vites süresi: ") + t.gearPct.withIndex().filter { it.value > 0 }.joinToString("  ") { "${it.index + 1}: %${it.value}" }
                 .ifEmpty { "—" },
         )
@@ -705,15 +705,15 @@ class DashboardActivity : Activity(), SensorEventListener {
             val tot = g.sumOf { st.gearMs[it] }
             if (tot == 0L) "—" else g.joinToString(" ") { "$it:${st.gearMs[it] * 100 / tot}" }
         }
-        val avg = if (curTrip.km >= 0.5) "%.1f L/100".format(st.liters / curTrip.km * 100) else "—"
+        val avg = if (curTrip.km >= 0.5) Units.fuelText(st.liters / curTrip.km * 100) else "—"
         return listOf(
             t("Süre") to mins(curTrip.durationMs),
-            t("Mesafe") to "%.1f km".format(curTrip.km),
-            t("Ort. / maks.") to (if (curTrip.avgKmh > 0) "%.0f / %.0f km/h".format(curTrip.avgKmh, curTrip.maxKmh) else "—"),
+            t("Mesafe") to Units.distText(curTrip.km),
+            t("Ort. / maks.") to (if (curTrip.avgKmh > 0) "%.0f / %.0f %s".format(Units.speed(curTrip.avgKmh), Units.speed(curTrip.maxKmh), Units.speedUnit) else "—"),
             t("Tahmini yakıt") to "%.2f L · %s".format(st.liters, avg),
             t("Sürüş puanı") to t("%d  (sert %d↑ %d↓)", st.score(curTrip), st.harshAccel, st.harshBrake),
             t("Rölanti · boşta") to "${pct(st.idleMs, curTrip.durationMs)} · ${pct(st.coastMs, curTrip.durationMs)}",
-            t("Yakıt kesik") to "%.1f km".format(st.cutKm),
+            t("Yakıt kesik") to Units.distText(st.cutKm),
             t("Vites (%)") to gears,
         )
     }

@@ -81,12 +81,8 @@ class Guidance(val route: NavRoute) {
             for (i in 1 until pts.size) c[i] = c[i - 1] + dist(pts[i - 1], pts[i])
         }
 
-        /** Ekran: "80 m", "350 m", "1,2 km", "12 km" (TurnWatch.parseDistance okur) */
-        fun formatDist(m: Double): String = when {
-            m < 1000 -> "${((m / 10).roundToInt() * 10).coerceAtLeast(0)} m"
-            m < 10_000 -> "%.1f km".format(java.util.Locale.ROOT, m / 1000).let { if (L.turkish) it.replace('.', ',') else it }
-            else -> "${(m / 1000).roundToInt()} km"
-        }
+        /** Ekran: "80 m", "350 m", "1,2 km", "12 km"; mil seçiliyse "300 ft", "0.4 mi" (TurnWatch.parseDistance okur) */
+        fun formatDist(m: Double): String = Units.navDist(m)
     }
 }
 
@@ -210,9 +206,16 @@ class VoicePlanner {
             return if (s.isNotEmpty()) t("%1\$s, %2\$s", p, s) else p
         }
 
-        /** 50 m'ye yuvarlanmış "300 metre", "1,5 kilometre" */
-        fun spokenDist(m: Double): String = if (m < 950) t("%d metre", ((m / 50).roundToInt() * 50).coerceAtLeast(50))
-            else t("%s kilometre", "%.1f".format(java.util.Locale.ROOT, m / 1000).removeSuffix(".0").let { if (L.turkish) it.replace('.', ',') else it })
+        /** 50 m'ye yuvarlanmış "300 metre", "1,5 kilometre"; mil seçiliyse 100 ft'e yuvarlanmış "500 fit", "0,3 mil" */
+        fun spokenDist(m: Double): String {
+            fun dec(v: Double) = "%.1f".format(java.util.Locale.ROOT, v).removeSuffix(".0").let { if (L.turkish) it.replace('.', ',') else it }
+            if (Units.miles) {
+                val ft = m / Units.M_PER_FT
+                return if (ft < 950) t("%d fit", ((ft / 100).roundToInt() * 100).coerceAtLeast(100))
+                    else t("%s mil", dec(m / 1000 / Units.KM_PER_MI))
+            }
+            return if (m < 950) t("%d metre", ((m / 50).roundToInt() * 50).coerceAtLeast(50)) else t("%s kilometre", dec(m / 1000))
+        }
 
         private fun ordinal(n: Int) = listOf(t("birinci"), t("ikinci"), t("üçüncü"), t("dördüncü"), t("beşinci"), t("altıncı")).getOrNull(n - 1) ?: "$n."
 

@@ -108,5 +108,6 @@ class App : Application() {
     override fun onCreate() {
         super.onCreate()
         L.init(this)
+        com.nebi.obdbridge.dash.Units.load(this)
     }
 }
