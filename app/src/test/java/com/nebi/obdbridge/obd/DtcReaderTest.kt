@@ -71,4 +71,58 @@ class DtcReaderTest {
         assertTrue(t["P0300"]!!.contains("tekleme"))
         assertTrue(t["P2002"]!!.contains("DPF"))
     }
+
+    // ---------- Freeze frame (Mode 02) ----------
+
+    @Test fun freezeFrameRead() {
+        val sent = ArrayList<String>()
+        val r = reader(mapOf(
+            "03" to "43010341",
+            "0101" to "410182076500",
+            "020200" to "4202000341",          // kareyi P0341 tetiklemiş
+            "020000" to "420000183B8000",      // destek maskesi: 04 05 0B 0C 0D 0F 11 ...
+            "020C00" to "420C00264C",          // 0x264C / 4 = 2451 rpm
+            "020D00" to "420D003E",            // 62 km/h
+            "020500" to "42050080",            // 128 - 40 = 88 °C
+            "020400" to "42040089",            // %53,7
+            "020B00" to "420B008E",            // 142 kPa
+            "020F00" to "420F003D",            // 21 °C
+        ), sent).run(clear = false)
+        val ff = r.freeze!!
+        assertEquals("P0341", ff.dtc)
+        assertEquals(2451.0, ff.values["rpm"]!!, 0.01)
+        assertEquals(62.0, ff.values["speed"]!!, 0.01)
+        assertEquals(88.0, ff.values["coolant"]!!, 0.01)
+        assertEquals(142.0, ff.values["map"]!!, 0.01)
+        assertEquals(listOf("rpm", "speed", "coolant", "load", "map", "iat"), ff.values.keys.toList())
+        assertFalse("maskede olmayan PID sorulmaz", "020600" in sent)
+        assertTrue(DtcCatalog.shareText(r).contains("P0341"))
+    }
+
+    @Test fun freezeFrameEmpty() {
+        val r = reader(mapOf("03" to "4300", "020200" to "4202000000")).run(clear = false)
+        assertEquals(null, r.freeze!!.dtc)                        // 0202 = 00 00: kayıtlı kare yok
+        assertTrue(r.freeze!!.values.isEmpty())
+    }
+
+    @Test fun freezeFrameUnsupported() {
+        val r = reader(mapOf("03" to "4300", "020200" to "7F0212")).run(clear = false)
+        assertNull(r.freeze)
+    }
+
+    @Test fun freezeFrameWithoutMaskTriesEach() {
+        val sent = ArrayList<String>()
+        val r = reader(mapOf("03" to "43010341", "020200" to "4202000341", "020600" to "42060090"), sent).run(clear = false)
+        assertTrue("020C00" in sent && "020600" in sent)
+        assertEquals(12.5, r.freeze!!.values["stft"]!!, 0.01)    // (0x90 - 128) * 100 / 128
+    }
+
+    @Test fun mode02Parse() {
+        val f = ElmParser.frames("42 0C 00 1A F8\r")
+        assertEquals(2, ElmParser.mode02(f, 0x0C)!!.size)
+        assertNull(ElmParser.mode02(f, 0x0C, frame = 1))
+        assertNull(ElmParser.mode02(ElmParser.frames("410C1AF8"), 0x0C))
+        assertEquals("P0341", ElmParser.dtcCode(0x03, 0x41))
+        assertEquals("U300B", ElmParser.dtcCode(0xF0, 0x0B))
+    }
 }
