@@ -69,16 +69,23 @@ class TcpLink(private val sock: Socket) : Link {
             val cm = ctx.getSystemService(ConnectivityManager::class.java)
             @Suppress("DEPRECATION")  // allNetworks: callback'siz tek seferlik arama için yeterli
             val wifi = cm.allNetworks.firstOrNull { cm.getNetworkCapabilities(it)?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true }
-            val s = wifi?.socketFactory?.createSocket() ?: Socket()
-            track(s)
-            try {
-                s.tcpNoDelay = true
-                s.connect(InetSocketAddress(host, port), timeoutMs)
-            } catch (e: IOException) {
-                try { s.close() } catch (_: IOException) {}
-                throw IOException(if (wifi == null) t("Wi-Fi'a bağlı değil") else "$host:$port cevap vermedi", e)
-            } finally { track(null) }
-            return TcpLink(s)
+            // Önce Wi-Fi ağına bağlı soket (internetsiz adaptör ağında mobil veriye kaçmasın). Telefonda VPN (ör. Tailscale)
+            // açıkken bu soket EPERM ile reddedilebiliyor: o zaman düz soketle bir kez daha dene (2026-11-27, emülatör denemesi)
+            val tries = listOfNotNull(wifi?.socketFactory, javax.net.SocketFactory.getDefault()).distinct()
+            var last: IOException? = null
+            for (f in tries) {
+                val s = try { f.createSocket() } catch (e: IOException) { last = e; continue }
+                track(s)
+                try {
+                    s.tcpNoDelay = true
+                    s.connect(InetSocketAddress(host, port), timeoutMs)
+                    return TcpLink(s)
+                } catch (e: IOException) {
+                    try { s.close() } catch (_: IOException) {}
+                    last = e
+                } finally { track(null) }
+            }
+            throw IOException(if (wifi == null) t("Wi-Fi'a bağlı değil") else "$host:$port cevap vermedi", last)
         }
     }
 }
