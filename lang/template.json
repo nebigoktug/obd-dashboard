@@ -593,6 +593,8 @@
   "Geliştirici araçları: araç beyni keşfi ve ham veri. Sıradan kullanım için gerekmez.": "",
   "Teşhis ve geliştirici araçları": "",
   "Araç testi, gizli değer taraması, blok kaydı, ham TCP köprüsü, canlı ham değerler": "",
+  "Ham terminal": "",
+  "Adaptöre komut yaz, ham cevabı gör (yalnız okuma komutları). Açıkken gösterge durur": "",
   "Bütün sürüş kayıtlarını paylaş": "",
   "Ham kayıtlar tek .zip olarak (Sorun bildir yalnız son 3 sürüşü gönderir)": "",
   "%d kayıt": "",
@@ -629,6 +631,17 @@
   "• Uygulama her açılışta adaptöre kendiliğinden bağlanır. Bağlantı durumu için üst çubuktaki sinyal çubuklarına dokun.\n• Alttaki değer şeridine uzun basınca gösterilen değerleri değiştirebilirsin.\n• Vites, ilk birkaç dakikalık sürüşte öğrenilir; o zamana kadar \"–\" görünebilir.\n• Yakıt tüketimi tahminidir; Ayarlar > Yakıt'tan depo dolumu girerek düzeltilir.": "",
   "Başla": "",
   "Bağlan ve başla": "",
+  "‹  Ham terminal": "",
+  "Kopyala": "",
+  "Komut (ör. 010C, 22F190, ATDP)": "",
+  "Gönder": "",
+  "Uyarı: yalnız okuma komutları gönderilir; silme, yazma ve sıfırlama engelli. Terminal açıkken gösterge durur.": "",
+  "Bağlandı · %s": "",
+  "CAN değil": "",
+  "Oturum kapandı (10 dk komut gelmedi). Yeniden açmak için ekrandan çıkıp gir.": "",
+  "Araca bağlı değil. Önce adaptöre bağlan.": "",
+  "Oturum yok.": "",
+  "Kopyalandı": "",
   "Bluetooth izni yok": "",
   "Bluetooth kapalı": "",
   "Yeni sürüm: %s": "",
@@ -701,6 +714,10 @@
   "Ayarlar geri yükleniyor": "",
   "adaptör komutu tanımadı": "",
   "adaptör 3 kez cevap vermedi": "",
-  "adaptör kurulumda cevap vermiyor": ""
+  "adaptör kurulumda cevap vermiyor": "",
+  "Boş komut": "",
+  "Adaptörün kalıcı ayarını değiştiren komut engelli": "",
+  "Komut AT/ST ya da çift sayıda onaltılık haneden oluşmalı": "",
+  "$%02X servisi engelli: uygulama araca yalnız okuma yapar": ""
  }
 }

@@ -227,8 +227,10 @@ class ObdEngine(
      * Canlı sorgunun arasında tek seferlik iş (Mode 06, ham terminal): motorun iş parçacığında çalışır, iş bitene kadar canlı
      * sorgu durur. Bağlı değilse [job] null oturumla çağrılır.
      */
-    fun requestJob(job: (Session?) -> Unit) { jobWanted = job }
+    fun requestJob(reinit: Boolean = false, job: (Session?) -> Unit) { jobReinit = reinit; jobWanted = job }
     @Volatile private var jobWanted: ((Session?) -> Unit)? = null
+    /** İş adaptör ayarlarını değiştirmiş olabilir (ham terminal): bitince ELM yeniden kurulur */
+    @Volatile private var jobReinit = false
     @Volatile private var dtcClear = false
 
     /**
@@ -314,6 +316,7 @@ class ObdEngine(
             if (job != null) {
                 jobWanted = null
                 job(if (needInit) null else Session(::request, protocol in setOf("6", "7", "8", "9")))
+                if (jobReinit) needInit = true
                 continue
             }
             if (needInit) {

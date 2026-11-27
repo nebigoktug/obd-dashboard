@@ -106,9 +106,9 @@ class BridgeService : Service() {
         fun diagnostics(): String? = current?.diag()
 
         /** Canlı sorgunun arasında tek seferlik iş (ObdEngine.requestJob). Bağlantı yoksa false, [job] çağrılmaz. */
-        fun requestJob(job: (com.nebi.obdbridge.obd.ObdEngine.Session?) -> Unit): Boolean {
+        fun requestJob(reinit: Boolean = false, job: (com.nebi.obdbridge.obd.ObdEngine.Session?) -> Unit): Boolean {
             val e = current ?: return false
-            e.requestJob(job)
+            e.requestJob(reinit, job)
             return true
         }
 

@@ -94,6 +94,11 @@
             tools:ignore="DiscouragedApi,LockedOrientationActivity"
             android:theme="@android:style/Theme.DeviceDefault.NoActionBar.Fullscreen" />
         <activity
+            android:name=".dash.TerminalActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize"
+            android:theme="@android:style/Theme.DeviceDefault.NoActionBar" />
+        <activity
             android:name=".dash.DtcActivity"
             android:exported="false"
             android:screenOrientation="sensorLandscape"

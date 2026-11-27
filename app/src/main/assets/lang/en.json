@@ -592,6 +592,8 @@
   "Geliştirici araçları: araç beyni keşfi ve ham veri. Sıradan kullanım için gerekmez.": "Developer tools: engine computer discovery and raw data. Not needed for everyday use.",
   "Teşhis ve geliştirici araçları": "Diagnostics and developer tools",
   "Araç testi, gizli değer taraması, blok kaydı, ham TCP köprüsü, canlı ham değerler": "Vehicle test, hidden value scan, block log, raw TCP bridge, live raw values",
+  "Ham terminal": "Raw terminal",
+  "Adaptöre komut yaz, ham cevabı gör (yalnız okuma komutları). Açıkken gösterge durur": "Send commands to the adapter and see the raw answer (read-only commands). The dashboard pauses while it is open",
   "Bütün sürüş kayıtlarını paylaş": "Share all driving logs",
   "Ham kayıtlar tek .zip olarak (Sorun bildir yalnız son 3 sürüşü gönderir)": "Raw logs as one .zip (Report a problem only sends the last 3 drives)",
   "%d kayıt": "%d logs",
@@ -628,6 +630,17 @@
   "• Uygulama her açılışta adaptöre kendiliğinden bağlanır. Bağlantı durumu için üst çubuktaki sinyal çubuklarına dokun.\n• Alttaki değer şeridine uzun basınca gösterilen değerleri değiştirebilirsin.\n• Vites, ilk birkaç dakikalık sürüşte öğrenilir; o zamana kadar \"–\" görünebilir.\n• Yakıt tüketimi tahminidir; Ayarlar > Yakıt'tan depo dolumu girerek düzeltilir.": "• The app connects to the adapter by itself every time it opens. Tap the signal bars in the top bar for the connection status.\n• Long-press the value strip at the bottom to change which values are shown.\n• The gear is learned in the first few minutes of driving; until then it may show \"–\".\n• Fuel consumption is an estimate; correct it by entering fill-ups in Settings > Fuel.",
   "Başla": "Start",
   "Bağlan ve başla": "Connect and start",
+  "‹  Ham terminal": "‹  Raw terminal",
+  "Kopyala": "Copy",
+  "Komut (ör. 010C, 22F190, ATDP)": "Command (e.g. 010C, 22F190, ATDP)",
+  "Gönder": "Send",
+  "Uyarı: yalnız okuma komutları gönderilir; silme, yazma ve sıfırlama engelli. Terminal açıkken gösterge durur.": "Note: only read commands are sent; clearing, writing and resets are blocked. The dashboard pauses while the terminal is open.",
+  "Bağlandı · %s": "Connected · %s",
+  "CAN değil": "not CAN",
+  "Oturum kapandı (10 dk komut gelmedi). Yeniden açmak için ekrandan çıkıp gir.": "Session closed (no command for 10 min). Leave the screen and come back to reopen.",
+  "Araca bağlı değil. Önce adaptöre bağlan.": "Not connected to the car. Connect to the adapter first.",
+  "Oturum yok.": "No session.",
+  "Kopyalandı": "Copied",
   "Bluetooth izni yok": "No Bluetooth permission",
   "Bluetooth kapalı": "Bluetooth is off",
   "Yeni sürüm: %s": "New version: %s",
@@ -700,6 +713,10 @@
   "Ayarlar geri yükleniyor": "Restoring settings",
   "adaptör komutu tanımadı": "adapter didn't recognise the command",
   "adaptör 3 kez cevap vermedi": "adapter didn't respond 3 times",
-  "adaptör kurulumda cevap vermiyor": "adapter isn't responding during setup"
+  "adaptör kurulumda cevap vermiyor": "adapter isn't responding during setup",
+  "Boş komut": "Empty command",
+  "Adaptörün kalıcı ayarını değiştiren komut engelli": "Commands that change the adapter's stored settings are blocked",
+  "Komut AT/ST ya da çift sayıda onaltılık haneden oluşmalı": "A command is AT/ST or an even number of hex digits",
+  "$%02X servisi engelli: uygulama araca yalnız okuma yapar": "Service $%02X is blocked: the app only reads from the car"
  }
 }
