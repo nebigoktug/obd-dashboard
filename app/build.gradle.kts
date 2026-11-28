@@ -15,8 +15,8 @@ android {
         applicationId = "com.obddashboard.app"
         minSdk = 26
         targetSdk = 34
-        versionCode = 4
-        versionName = "1.3"
+        versionCode = 5
+        versionName = "1.3.1"
         // Harita kütüphaneleri yerel kod getiriyor: yalnız telefon işlemcileri (x86 öykünücü gerekmiyor)
         if (!releaseSplit) ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
         // Yandex MapKit anahtarı depo dışında (~/.config/obd-dashboard/yandex-mapkit.key); yoksa harita MapLibre'ye düşer
