@@ -1,5 +1,9 @@
 # Sürüm notları
 
+## 1.3.1
+
+- Android Auto: gösterge geniş ekranlarda (ör. 1920x720) her yandan küçülüyordu; artık ekran yüksekliğinin tamamını kullanır.
+
 ## 1.3
 
 - Android Auto (deneysel): araç ekranında telefondaki gösterge (tema, kadranlar, şerit, navigasyon ve medya kartı, uyarı hapı); sıradaki dönüş Android Auto'ya bildirilir. Play dışı kurulumda Android Auto'nun geliştirici ayarında "Bilinmeyen kaynaklar" gerekir (README).

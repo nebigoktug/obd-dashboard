@@ -94,13 +94,14 @@ class DashCarScreen(ctx: CarContext) : Screen(ctx), SurfaceCallback {
     private var stable: Rect? = null
 
     /**
-     * Göstergenin sığacağı alan: yanlar görünür alandan (AA sağda medya/harita kartı açınca daralır), üst ve alt sabit
-     * alandan (sağ üstteki düğme birkaç saniyede gizlenir; onun için kadranları küçültmeye değmez).
+     * Göstergenin sığacağı alan: yanlar görünür alandan (AA sağda medya/harita kartı açınca daralır), üst ve alt yüzeyin
+     * tamamı (sağ üstteki düğme birkaç saniyede gizlenir; onun için kadranları küçültmeye değmez).
      */
     private fun area(): Rect {
         val c = surface ?: return Rect(visible)
-        val st = stable ?: Rect(0, 0, c.width, c.height)
-        return Rect(visible.left, minOf(st.top, visible.top), visible.right, maxOf(st.bottom, visible.bottom))
+        // Üst ve alt: yüzeyin tamamı. AA hem görünür hem sabit alanda üstten ~%20 ayırıyor (düğme şeridi, birkaç sn'de
+        // gizleniyor); buna uyunca geniş ekranlarda (1920x720) gösterge her yandan küçülüyordu (issue #1, 2026-11-28).
+        return Rect(visible.left, 0, visible.right, c.height)
     }
     override fun onClick(x: Float, y: Float) { presentation?.tap(x, y) }
 
