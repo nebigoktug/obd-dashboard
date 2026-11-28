@@ -16,6 +16,7 @@ import android.graphics.Typeface
 import android.widget.FrameLayout
 import com.nebi.obdbridge.R
 import kotlin.math.cos
+import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sin
 
@@ -73,10 +74,24 @@ object DashImageGeom {
     /** Detay ve Geçmiş: üst çubuğun altındaki içerik paneli (kadranların üstünü örter) */
     val CONTENT = RectF(130f, 180f, 2270f, 1045f)
 
-    /** (ölçek, x ofseti, y ofseti): resmi oranını koruyarak ekrana ortala */
-    fun fit(w: Int, h: Int): Triple<Float, Float, Float> {
-        val sc = min(w / W, h / H)
-        return Triple(sc, (w - W * sc) / 2, (h - H * sc) / 2)
+    /**
+     * Vazgeçilmez kısım: uyarı hapı, kadranlar, orta kartlar ve alt şerit. Araç ekranında yalnız bu görünür alana sığdırılır;
+     * dış çerçeve ve hava satırı ekran kenarından ya da AA'nın ayırdığı şeritten taşabilir.
+     */
+    val ESSENTIAL = RectF(140f, 118f, 2290f, 995f)
+
+    /**
+     * (ölçek, x ofseti, y ofseti): resmi oranını koruyarak ekrana ortala. [safe] verilirse (araç ekranı, AA'nın görünür alanı)
+     * [ESSENTIAL] o alana sığacak kadar büyütülüp ortasına konur; ekranı kaplayacak ölçeği aşmaz.
+     */
+    fun fit(w: Int, h: Int, safe: android.graphics.Rect? = null): Triple<Float, Float, Float> {
+        if (safe == null || safe.isEmpty) {
+            val sc = min(w / W, h / H)
+            return Triple(sc, (w - W * sc) / 2, (h - H * sc) / 2)
+        }
+        val e = ESSENTIAL
+        val sc = min(min(safe.width() / e.width(), safe.height() / e.height()), max(w / W, h / H))
+        return Triple(sc, safe.exactCenterX() - e.centerX() * sc, safe.exactCenterY() - e.centerY() * sc)
     }
 }
 
@@ -110,8 +125,11 @@ class ThemeBackdrop(ctx: Context, th: ImageTheme) : android.view.View(ctx) {
 
 /** Resmi ekrana sığdırır (oranı korur, ortalar) ve çocuk görünümleri resimdeki yerlerine koyar. */
 @SuppressLint("ViewConstructor")  // yalnız koddan oluşturuluyor
-class DashImageLayout(ctx: Context, background: android.view.View) : FrameLayout(ctx) {
+class DashImageLayout(ctx: Context, private val background: android.view.View) : FrameLayout(ctx) {
     private val placed = ArrayList<Pair<android.view.View, RectF>>()
+    /** Araç ekranı: vazgeçilmez kısmın sığacağı alan (DashImageGeom.fit); null = tüm resim ekrana sığar */
+    var safe: android.graphics.Rect? = null
+        set(v) { field = v; (background as? DashImageDials)?.safe = v; requestLayout(); invalidate() }
 
     init {
         addView(background, LayoutParams(-1, -1))
@@ -125,7 +143,7 @@ class DashImageLayout(ctx: Context, background: android.view.View) : FrameLayout
 
     override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
         super.onLayout(changed, l, t, r, b)
-        val (s, ox, oy) = DashImageGeom.fit(width, height)
+        val (s, ox, oy) = DashImageGeom.fit(width, height, safe)
         for ((v, rc) in placed) {
             val w = (rc.width() * s).toInt(); val h = (rc.height() * s).toInt()
             if (v.measuredWidth != w || v.measuredHeight != h) {
@@ -146,6 +164,9 @@ class DashImageDials(ctx: Context, spec: WidgetSpec, private val th: ImageTheme 
     private val lit: Bitmap = th.decode(ctx.resources, ImageTheme.Part.LIT, BitmapFactory.Options().apply { inScaled = false })!!
     /** Resmin kenar rengi: ekran oranı farklıysa kalan şerit bununla boyanır */
     private val edgeColor = base.getPixel(4, base.height / 2)
+    /** DashImageLayout.safe ile aynı (araç ekranı) */
+    var safe: android.graphics.Rect? = null
+        set(v) { field = v; invalidate() }
     private val ink = if (th.light) 0xFF15181C.toInt() else Color.WHITE
     private val badgeP = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         typeface = android.graphics.Typeface.create(android.graphics.Typeface.SERIF, android.graphics.Typeface.BOLD)
@@ -177,10 +198,10 @@ class DashImageDials(ctx: Context, spec: WidgetSpec, private val th: ImageTheme 
 
     /** (ölçek, x ofseti, y ofseti): resmi oranını koruyarak ortala. */
     override fun onDraw(c: Canvas) {
-        val key = "$width/$height"
+        val key = "$width/$height/$safe"
         if (key != fitKey) {
             fitKey = key
-            val (sc, x, y) = DashImageGeom.fit(width, height)
+            val (sc, x, y) = DashImageGeom.fit(width, height, safe)
             s = sc; ox = x; oy = y
             dst.set(ox, oy, ox + DashImageGeom.W * s, oy + DashImageGeom.H * s)
             shaderM.setScale(s, s); shaderM.postTranslate(ox, oy)

@@ -2,7 +2,7 @@
 
 ## 1.3.1
 
-- Android Auto: gösterge geniş ekranlarda (ör. 1920x720) her yandan küçülüyordu; artık ekran yüksekliğinin tamamını kullanır.
+- Android Auto: gösterge geniş ekranlarda (ör. 1920x720) her yandan küçülüyordu. Artık kadranlar, kartlar ve şerit Android Auto'nun görünür alanını doldurur; dış çerçeve ekran kenarından taşabilir.
 
 ## 1.3
 
