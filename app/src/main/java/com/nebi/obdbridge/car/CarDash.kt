@@ -129,14 +129,9 @@ class CarDashPresentation(outer: Context, display: Display) : Presentation(outer
         return right to tiles
     }
 
+    /** Gösterge tüm yüzeye çizilir; kadranlar, kartlar ve şerit AA'nın görünür alanına sığar, çerçeve taşabilir (issue #1) */
     private fun applyInsets() {
-        val r = visible ?: return
-        val child = holder.getChildAt(0) ?: return
-        val w = holder.width; val h = holder.height
-        if (w == 0) { holder.post { applyInsets() }; return }
-        child.layoutParams = FrameLayout.LayoutParams(-1, -1).apply {
-            setMargins(r.left.coerceAtLeast(0), r.top.coerceAtLeast(0), (w - r.right).coerceAtLeast(0), (h - r.bottom).coerceAtLeast(0))
-        }
+        (holder.getChildAt(0) as? DashImageLayout)?.safe = visible?.let { android.graphics.Rect(it) }
     }
 
     private fun render() {
